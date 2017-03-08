@@ -27,14 +27,10 @@ def dist_matrix(list_points,list_means,k):
     A = np.transpose(np.asmatrix([square_points_distances for i in range(k)]))
     # A is a nb_points * k matrix. Aij is the squared norm of the ith point of list_points
     
-    if isinstance(list_means[0],np.float64):
-        real_means = list_means[0:-2:]
-        print(real_means)
-        square_means_distances = np.linalg.norm(real_means)
-    else:
-        real_means = list_means[:,0:2]
-        real_means = real_means[0:k:1]
-        square_means_distances = np.sum(real_means*real_means, axis=1)
+    real_means = list_means[:,0:2]
+    real_means = real_means[0:k:1]
+    real_means = np.asarray(real_means)
+    square_means_distances = np.sum(real_means*real_means, axis=1)
     B = np.asmatrix([square_means_distances for i in range(nb_points)])
     # B is a nb_points * k matrix. Bij is the squared norm of the jth point of list_means   
     
@@ -135,7 +131,6 @@ def create_graph(list_points,list_means,t):
     @param list_points: an array of points
     @param list_means: an array of k points which are the means of the clusters
     @param k: the figure number
-    
     """
     
     k=len(list_means)
@@ -169,7 +164,7 @@ def distortion(list_points,list_means):
     for i in range(k):
         list_set = [point for point in list_points if (point[-1]==i)]
         list_set = np.asarray(list_set)
-        M = dist_matrix(list_set,list_means[i],1) #TODO
+        M = dist_matrix(list_set,np.asmatrix(list_means[i]),1)
         distortion += np.sum(M)
     return distortion
     
@@ -215,5 +210,5 @@ if __name__ == '__main__':
     list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
     
     #k-means
-    k=1
+    k=3
     k_means(list_points,k,draw_graphs=False)
