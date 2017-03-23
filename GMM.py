@@ -55,7 +55,7 @@ def step_E(list_points,list_means,list_cov,list_prior_prob):
     prior_duplicated = np.asarray([list_prior_prob for i in range(nb_points)])
     return normal_matrix*prior_duplicated*prior_sum_reciproc
   
-def step_M(list_points,list_soft_assignement):
+def step_M(list_points,list_soft_assignement,full_covariance):
     """
     This method computes the new position of each mean and each covariance matrix
     
@@ -74,8 +74,10 @@ def step_M(list_points,list_soft_assignement):
     list_means = result_inter*sum_assignements_final
     
     #Phase 2:
-    list_cov = np.asarray([covariance_matrix(list_points,list_means[i],np.transpose(list_soft_assignement)[i]) for i in range(k)])
-#    list_cov = np.asarray([np.sum(covariance_matrix(list_points,list_means[i],np.transpose(list_soft_assignement)[i])) *1/(dim**2) * np.eye(dim,dim) for i in range(k)])
+    if full_covariance:
+        list_cov = np.asarray([covariance_matrix(list_points,list_means[i],np.transpose(list_soft_assignement)[i]) for i in range(k)])
+    else:
+        list_cov = np.asarray([np.sum(covariance_matrix(list_points,list_means[i],np.transpose(list_soft_assignement)[i])) *1/k * np.eye(dim,dim) for i in range(k)])
     
     #Phase 3:
     list_prior_prob = 1/nb_points * np.sum(list_soft_assignement, axis=0)
@@ -111,8 +113,8 @@ def create_graph(list_points,list_means,list_cov,list_soft_assignements,t):
         ell.set_facecolor('none')
         ell.set_edgecolor('k')
         ax.add_artist(ell)
-        x_points[i] = [list_points[j][0] for j in range(nb_points) if (list_soft_assignements[j][i]>0.9)]        
-        y_points[i] = [list_points[j][1] for j in range(nb_points) if (list_soft_assignements[j][i]>0.9)]
+        x_points[i] = [list_points[j][0] for j in range(nb_points) if (list_soft_assignements[j][i]>0.7)]        
+        y_points[i] = [list_points[j][1] for j in range(nb_points) if (list_soft_assignements[j][i]>0.7)]
 
         ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
         ax.plot(list_means[i][0],list_means[i][1],'x')
@@ -138,7 +140,7 @@ def log_likelihood(list_points,list_means,list_cov,list_prior_prob):
     return np.sum(np.log10(np.dot(normal_matrix,np.transpose(list_prior_prob))))
     
     
-def GMM(list_points,k,draw_graphs=False,initialization=CSVreader.initialization_plus_plus):
+def GMM(list_points,k,draw_graphs=False,initialization=CSVreader.initialization_plus_plus,epsilon=0.00001,full_covariance=True):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -154,37 +156,39 @@ def GMM(list_points,k,draw_graphs=False,initialization=CSVreader.initialization_
     list_means = initialization(list_points,k)
     list_points = list_points[:,0:-1]
     list_means = list_means[:,0:-1]
-    list_means_pre = list_means.copy()
     
     dim = len(list_points[0])
     list_cov = np.asarray([np.eye(dim,dim) for i in range(k)])
     
     list_prior_prob = np.ones(k) * 1/float(k)
+    
+    log_like = log_likelihood(list_points,list_means,list_cov,list_prior_prob)
                              
     resume_iter = True  
     t=0       
     
     #K-means beginning
     while resume_iter:
-                        
-        list_soft_assignements = step_E(list_points,list_means,list_cov,list_prior_prob)        
-        list_means_pre = list_means.copy()
-        list_means,list_cov,list_prior_prob = step_M(list_points,list_soft_assignements)
+                
+        log_like_pre = log_like
+        list_soft_assignements = step_E(list_points,list_means,list_cov,list_prior_prob)
+        list_means,list_cov,list_prior_prob = step_M(list_points,list_soft_assignements,full_covariance)
+        log_like = log_likelihood(list_points,list_means,list_cov,list_prior_prob)
         
         #Graphic part
         if draw_graphs:
             create_graph(list_points,list_means,list_cov,list_soft_assignements,t)
         
-        t+=1        
-        resume_iter = not np.array_equal(list_means,list_means_pre)
-
-    print(log_likelihood(list_points,list_means,list_cov,list_prior_prob))
+        t+=1
+        
+        resume_iter = abs((log_like - log_like_pre)/log_like) > epsilon
+        print(t, log_likelihood(list_points,list_means,list_cov,list_prior_prob))
 
 if __name__ == '__main__':
     
     #Lecture du fichier
-    list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.test")
+    list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
     
     #k-means
-    k=2
-    GMM(list_points,k,draw_graphs=True)
+    k=4
+    GMM(list_points,k,draw_graphs=True,full_covariance=False)
