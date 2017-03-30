@@ -15,24 +15,33 @@ import CSVreader
 if __name__ == '__main__':
 
     k=4
-    list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
-    list_means = CSVreader.initialization_random(list_points,k)
-    list_points = list_points[:,0:-1]
-    list_means = list_means[:,0:-1]
+    points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
+    means = CSVreader.initialization_random(points,k)
+    points = points[:,0:-1]
+    means = means[:,0:-1]
+    dim = len(points[0])
+    nb_points = len(points)
+    cov = np.ones(k)    
+    prior_prob = np.ones(k) * 1/float(k)
     
+    assignements = GMM.step_E(points,means,cov,prior_prob,full_covariance=False)
     
-    NUM = 250
-
-    ells = [Ellipse(xy=rnd.rand(2)*10, width=rnd.rand(), height=rnd.rand(), angle=rnd.rand()*360)
-            for i in range(NUM)]
+    #Duplication in order to create matrices k*nb_points*dim
+    assignements_duplicated = np.tile(assignements, (dim,1,1)).T
+    points_duplicated = np.tile(points, (k,1,1))
+    means_duplicated = np.transpose(np.tile(means,(nb_points,1,1)), (1,0,2))
     
-    fig = plt.figure(0)
-    ax = fig.add_subplot(111, aspect='equal')
-    for e in ells:
-        ax.add_artist(e)
-        e.set_clip_box(ax.bbox)
+    points_centered = points_duplicated - means_duplicated
+    points_centered_weighted = np.transpose(assignements_duplicated * points_centered, (0,2,1))
+    covariance = np.dot(points_centered,points_centered_weighted)
+    covariance = np.transpose(covariance, (0,2,3,1))
+    covariance = np.diagonal(covariance)
+    covariance = np.diagonal(covariance).T
+    covariance = np.sum(covariance, axis=0)
     
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
+    #Duplication in order to create matrices k*dim*dim
+    sum_assignement = np.sum(assignements,axis=0)
+    sum_assignement = np.reciprocal(sum_assignement)
     
-    plt.show()
+    result = covariance * sum_assignement / dim
+    

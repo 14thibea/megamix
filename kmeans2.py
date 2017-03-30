@@ -125,8 +125,8 @@ def k_means(list_points,k,draw_graphs=False,initialization=CSVreader.initializat
 if __name__ == '__main__':
     
     #Lecture du fichier
-    list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
+    list_points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.test")
     
     #k-means
-    k=3
-    k_means(list_points,k,draw_graphs=False)
+    k=4
+    k_means(list_points,k,draw_graphs=True)
