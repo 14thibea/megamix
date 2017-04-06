@@ -1,41 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Mar 11 11:31:51 2017
+Created on Mon Apr  3 15:51:23 2017
 
 @author: Calixi
 """
 
 import CSVreader
+import Initializations as Init
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 import numpy as np
-import math
+import scipy.stats
 
-#def density_norm(point,mean,cov):
-#    """
-#    This method computes the density of probability of a normal law centered on mean
-#    and with covariance point
-#    
-#    @param point: a nD array
-#    @param mean: a nD array
-#    @param cov: a nxn array, the covariance matrix
-#    @return: the density of probability
-#    """
-#    dim = float(len(point))
-#    point_centered = point - mean
-#    det = np.linalg.det(cov)
-#    scalar = (2*math.pi)**(dim/2) * math.sqrt(det)
-#    product = np.dot(np.dot(point_centered.T,np.linalg.inv(cov)),point_centered)
-#    return 1.0/scalar * math.exp(-0.5 * product)
-
-#def covariance_matrix(list_points,mean,soft_assignements):
-#    dim = len(list_points[0])
-#    nb_points = len(list_points)
-#    mean_matrix = np.tile(mean,(nb_points,1))
-#    points_centered = list_points - mean_matrix
-#    sum_soft_assignements = np.sum(soft_assignements)
-#    soft_assignements_rep = (np.tile(soft_assignements,(dim,1))).T
-#    return 1/sum_soft_assignements * np.dot(np.transpose(soft_assignements_rep*points_centered),points_centered)
 
 def normal_matrix_f(points,means,cov,full_covariance):
     """
@@ -45,85 +21,55 @@ def normal_matrix_f(points,means,cov,full_covariance):
     @param points: an array (nb_points,dim)
     @param means: an array containing the k means (k,dim)
     @param cov: an array containing the covariance matrices (k,dim,dim)
+    @param full_covariance: boolean (False = spherical covariance, True = full covariance)
     @return: an array containing the density of probability of a normal law centered
-    
     """
-    nb_points = len(points)
+    
+    nb_points,dim = points.shape
     k = len(means)
-    dim = len(points[0])
     
-    #Duplication in order to create matrices k*nb_points*dim
-    points_duplicated = np.tile(points, (k,1,1))
-    means_duplicated = np.transpose(np.tile(means,(nb_points,1,1)), (1,0,2))
+    normal_matrix = np.zeros((nb_points,k))
     
-    points_centered = points_duplicated - means_duplicated
-    if full_covariance:
-        cov_inv = np.linalg.inv(cov)
-    else:   
-        cov_inv = np.tile(np.reciprocal(cov), (dim,dim,1)).T
-        identities = np.tile(np.eye(dim,dim), (k,1,1))
-        cov_inv = identities * cov_inv / dim
-        
-    product = np.dot(points_centered,cov_inv)
-    product = np.diagonal(np.transpose(product, (0,2,3,1))).T
-                         
-    points_centered = np.transpose(points_centered, (0,2,1))
-    product = np.dot(product,points_centered)  
-    product = np.diagonal(np.transpose(product, (0,2,3,1)))
-    product = np.diagonal(product).T
-    
-                         
-    det_covariance = np.linalg.det(cov)
-    det_covariance = np.reciprocal(det_covariance)
-    det_covariance = np.tile(det_covariance, (nb_points,1))
-    
-    return (2*math.pi)**(-float(dim)/2) * det_covariance**0.5 * np.exp(-0.5 * product)
+    for i in range(k):
+        normal_probabilities = scipy.stats.multivariate_normal.pdf(points,means[i],cov[i])
+        normal_probabilities = np.reshape(normal_probabilities, (nb_points,1))
+        normal_matrix[:,i:i+1] = normal_probabilities
+                     
+    return normal_matrix
 
 def full_covariance_matrix_f(points,means,assignements):
-    dim = len(points[0])
-    nb_points = len(points)
+    nb_points,dim = points.shape
     k = len(means)
     
-    #Duplication in order to create matrices k*nb_points*dim
-    assignements_duplicated = np.tile(assignements, (dim,1,1)).T
-    points_duplicated = np.tile(points, (k,1,1))
-    means_duplicated = np.transpose(np.tile(means,(nb_points,1,1)), (1,0,2))
+    covariance = np.zeros((k,dim,dim))
     
-    points_centered = points_duplicated - means_duplicated
-    points_centered_weighted = np.transpose(assignements_duplicated * points_centered, (0,2,1))
-    covariance = np.dot(points_centered_weighted,points_centered)
-    covariance = np.transpose(covariance, (0,2,3,1))
-    covariance = np.diagonal(covariance).T                     
+    for i in range(k):
+        assignements_i = assignements[:,i:i+1]       
+        sum_assignement = np.sum(assignements_i)
+        assignements_duplicated = np.tile(assignements_i, (1,dim))
+        points_centered = points - means[i]
+        points_centered_weighted = points_centered * assignements_duplicated
+        covariance[i] = np.dot(points_centered_weighted.T,points_centered)/sum_assignement                  
     
-    #Duplication in order to create matrices k*dim*dim
-    sum_assignement = np.sum(assignements,axis=0)
-    sum_assignement = np.tile(sum_assignement, (dim,dim,1)).T
-    sum_assignement = np.reciprocal(sum_assignement)
-    
-    return covariance*sum_assignement
-    
+    return covariance
+
 def spherical_covariance_matrix_f(points,means,assignements):
-    nb_points = len(points)
+    nb_points,dim = points.shape
     k = len(means)
-    dim = len(points[0])
     
-    #Duplication in order to create matrices k*nb_points*dim
-    assignements_duplicated = np.tile(assignements, (dim,1,1)).T
-    points_duplicated = np.tile(points, (k,1,1))
-    means_duplicated = np.transpose(np.tile(means,(nb_points,1,1)), (1,0,2))
+    covariance = np.zeros(k)
+
+    for i in range(k):
+        assignements_i = assignements[:,i:i+1]
+        
+        sum_assignement = np.sum(assignements_i)
+        assignements_duplicated = np.tile(assignements_i, (1,dim))
+        points_centered = points - means[i]
+        points_centered_weighted = points_centered * assignements_duplicated
+        product = np.dot(points_centered_weighted,points_centered.T)
+        covariance[i] = np.trace(product)/sum_assignement
     
-    points_centered = points_duplicated - means_duplicated
-    points_centered_weighted = np.transpose(assignements_duplicated * points_centered, (0,2,1))
-    covariance = np.dot(points_centered,points_centered_weighted)
-    covariance = np.transpose(covariance, (0,2,3,1))
-    covariance = np.diagonal(covariance)
-    covariance = np.diagonal(covariance).T
-    covariance = np.sum(covariance, axis=0)
-    
-    sum_assignement = np.sum(assignements,axis=0)
-    sum_assignement = np.reciprocal(sum_assignement)
-    
-    return covariance * sum_assignement / dim
+    return covariance / dim
 
 def step_E(points,means,cov,prior_prob,full_covariance):
     """
@@ -160,7 +106,7 @@ def step_M(points,assignements,full_covariance):
     sum_assignements = np.sum(assignements,axis=0)
     sum_assignements_final = np.reciprocal(np.tile(sum_assignements, (dim,1)).T)
     
-    means = result_inter*sum_assignements_final
+    means = result_inter * sum_assignements_final
     
     #Phase 2:
     if full_covariance:
@@ -168,7 +114,6 @@ def step_M(points,assignements,full_covariance):
 #        list_cov = np.asarray([covariance_matrix(list_points,list_means[i],np.transpose(list_soft_assignement)[i]) for i in range(k)])
     else:
         cov = spherical_covariance_matrix_f(points,means,assignements)
-        print(cov)
                     
     #Phase 3:
     list_prior_prob = 1/nb_points * np.sum(assignements, axis=0)
@@ -231,10 +176,12 @@ def log_likelihood(points,means,cov,prior_prob,full_covariance):
     @return: log likelihood measurement (float)
     """
     normal_matrix = normal_matrix_f(points,means,cov,full_covariance)
-    return np.sum(np.log10(np.dot(normal_matrix,np.transpose(prior_prob))))
+    product = np.dot(normal_matrix,prior_prob.T)
+    product = np.log10(product)
+    return np.sum(product)
     
     
-def GMM(points,k,draw_graphs=False,initialization=CSVreader.initialization_plus_plus,epsilon=0.00001,full_covariance=True):
+def GMM(points,k,draw_graphs=False,initialization="plus",epsilon=0.00001,full_covariance=True):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -246,12 +193,24 @@ def GMM(points,k,draw_graphs=False,initialization=CSVreader.initialization_plus_
     @return: an array of k points which are means of clusters
     """
     
-    #K-means++ initialization
-    means = initialization(points,k)
+    #Means initialization
+    if (initialization == "rand"):
+        means = Init.initialization_random(points,k)
+    elif (initialization == "plus"):
+        means = Init.initialization_plus_plus(points,k)
+    elif (initialization == "kmeans"):
+        means = Init.initialization_k_means(points,k)
+    else:
+        raise ValueError("Invalid value for 'initialization': %s "
+                             "'initialization' should be in "
+                             "['rand', 'plus', 'kmeans']"
+                              % initialization)
+    
+    
     points = points[:,0:-1]
     means = means[:,0:-1]
     
-    dim = len(points[0])
+    _,dim = points.shape
     
     if full_covariance:
         cov = np.tile(np.eye(dim,dim), (k,1,1))
@@ -280,13 +239,18 @@ def GMM(points,k,draw_graphs=False,initialization=CSVreader.initialization_plus_
         t+=1
         
         resume_iter = abs((log_like - log_like_pre)/log_like) > epsilon
+    
+    create_graph(points,means,cov,assignements,full_covariance,0)
     print(t)
     
 if __name__ == '__main__':
     
+    N = 200
+    
     #Lecture du fichier
-    points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Problem/EMGaussienne.data")
+    points = CSVreader.read("D:/Mines/Cours/Stages/Stage_ENS/Code/Problem/EMGaussienne.data")
+    points = points[:N:]
     
     #k-means
-    k=5
-    GMM(points,k,draw_graphs=False,full_covariance=True)
+    k=4
+    GMM(points,k,draw_graphs=False,initialization="kmeans",full_covariance=True)
