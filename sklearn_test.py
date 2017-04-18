@@ -9,60 +9,87 @@ from sklearn import mixture
 import utils
 import matplotlib.pyplot as plt
 import os
-import GMM3
+import GMM2
 import numpy as np
+from scipy.misc import logsumexp
 
-def draw_graph(k,points,means,cov,resp,t):
+def create_graph(points,means,cov,log_assignements,method,t):
+    """
+    This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
+    If points have more than two coordinates, then it will be a projection including only the first coordinates.
     
-    n_points = len(points)
-    couleurs = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-        
-    log_like = GMM3.log_likelihood(points,means,cov,np.log(resp))
+    @param points: an array of points (n_points,dim)
+    @param means: an array of k points which are the means of the clusters (n_components,dim)
+    @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
+    @full_covariance: a string in ['full','spherical']
+    @param t: the figure number
+    """
     
-    fig = plt.figure()
-    plt.title("log likelihood = " + str(log_like))
-    ax = fig.add_subplot(111)
-        
-        
-    for j in range(k):
-        for i in range(n_points):        
-            ax.plot(points[i][0],points[i][1],couleurs[j]+'o',alpha = resp[i][j]/5)
-        ax.plot(means[j][0],means[j][1],'kx')
-        ell = utils.ellipses(cov[j],means[j])
-        ax.add_artist(ell)
-        print("cluster " + str(j) + " finished")
-    print()
-            
-    dir_path = 'VBGMM/sklearn/'
+    k=len(means)
+    n_points,dim = points.shape
+
+    dir_path = method + '/sklearn/'
     directory = os.path.dirname(dir_path)
-    
+
     try:
         os.stat(directory)
     except:
         os.mkdir(directory)  
+    
+    log_data = np.sum(GM.score_samples(points_data))
+    
+    x_points = [[] for i in range(k)]
+    y_points = [[] for i in range(k)]
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.title("log likelihood = " + str(log_data) + " , k = " + str(k))
+    
+    
+    log_prior_prob = logsumexp(log_assignements, axis=0) - np.log(n_points)
+    
+    for i in range(k):
         
-    titre = directory + '/figure_' + str(t)
-                
+        if log_prior_prob[i] > -4 :
+        
+            covariance = cov[i]
+            
+            ell = utils.ellipses(covariance,means[i])
+            ax.add_artist(ell)
+            x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_assignements[j])==i)]        
+            y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_assignements[j])==i)]
+    
+            ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
+            ax.plot(means[i][0],means[i][1],'kx')
+        
+    
+    titre = directory + '/figure_sklearn_' + str(t)
     plt.savefig(titre)
     plt.close("all")
-        
     
-
 if __name__ == '__main__':
     
-    points = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/Problem/data/EMGaussienne.data")
-    points2 = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/Problem/data/EMGaussienne.test")
+    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
     
-    k=4
+    k=5
     
-    GM = mixture.BayesianGaussianMixture(k)
-    for t in range(20):       
-        GM.fit(points)
-        assignements = GM.predict_proba(points)
+    method = "DPGMM"
+    for t in range(10):
+        GM = mixture.BayesianGaussianMixture(t+1,covariance_type="full",weight_concentration_prior_type='dirichlet_process')
+    
+        GM.fit(points_data)
+        assignements = GM.predict_proba(points_data)
+        log_assignements = np.log(assignements)
+        #        means,_,_ = GMM3.step_M(points,log_assignements,"full")
+        #        cov = GM._get_covars()
         _,_,means,_,cov,_= GM._get_parameters()
-#        _,means,cov,_= GM._get_parameters()
-    
-        draw_graph(k,points,means,cov,assignements,t)
-#        GMM3.create_graph(points,means,cov,np.log(assignements),"full",t)
-    
-    
+        #    _,means,cov,_= GM._get_parameters()
+        create_graph(points_data,means,cov,log_assignements,method,t)
+        log_data_GMM2 = GMM2.log_likelihood(points_data,means,cov,assignements)
+        log_data = GM.score_samples(points_data)
+        log_test = GM.score_samples(points_test)
+        print(log_data_GMM2)
+        print(np.sum(log_data))
+        print(np.sum(log_test))
+        

@@ -7,12 +7,16 @@ Created on Thu Mar  2 17:36:06 2017
 
 import utils
 import Initializations as Init
+import GMM2
 import GMM3
 import kmeans3
+import VBGMM
 
 from sklearn.metrics.pairwise import euclidean_distances
 import matplotlib.pyplot as plt
 import pickle
+import os
+import scipy.special
 
 
 from scipy.misc import logsumexp
@@ -20,64 +24,46 @@ import numpy as np
 
 if __name__ == '__main__':
     
-    k = 3
-    
-    full_covariance = True
-    
-    points = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/Problem/data/EMGaussienne.data")
-    means = Init.initialization_plus_plus(points,k)
-    n_points,dim = points.shape
-    
-    print(means)
-    
-    assignements = kmeans3.step_E(points,means)
-    
+    k = 6
+
+    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+
+    means,covariance = Init.initialization_GMM(points_data,points_data,k)
+    d=0
     for i in range(k):
-        sets = assignements[:,i:i+1]
-        n_sets = np.sum(sets)
-        sets = points * np.tile(sets, (1,dim))
-        means[i] = np.mean(sets, axis=0)*n_points/n_sets
-    print(means)
-    
-    means2 = np.zeros((k,dim))
-    
-    for j in range(k):
-        sets2 = [points[i] for i in range(n_points) if (assignements[i][j]==1)]
-        means2[j] = np.mean(sets2, axis=0)
-    
-    print(means2)
         
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/Problem/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
+        lambda_, v = np.linalg.eig(covariance[i])
+        lambda_sqrt = np.sqrt(lambda_)
         
-    
+        # We are looking for the extrema for each dimension
+        principal_idx = np.argmax(abs(v[d] * lambda_sqrt))
         
-#    points = data['BUC']
-#    points = points[0:500:]
-#    points = points[:,0:2]
-#
-#    minima = points.min(axis=0)
-#    maxima = points.max(axis=0)
-#    diff = maxima - minima
-#    print(diff)
-#    cov_interval = np.power(diff/(10*k),2)
-#    print(cov_interval)
-#    
-#    cov = np.diag(cov_interval)
-#    mean = (maxima + minima)/2
-#    
-#    fig = plt.figure()
-#    ax = fig.add_subplot(111)
-#    ax.plot(mean[0],mean[1],'kx')
-#    ell = utils.ellipses(cov,mean)
-#    ax.add_artist(ell)
-#    ax.set_xticks((minima[0],maxima[0]))
-#    ax.set_yticks((minima[1],maxima[1]))
-#    
-#    cov = np.tile(cov,(k,1,1))
-#    print(cov)
+        possible_eig_vectors = np.copy(v[d+1])
+        possible_eig_vectors[principal_idx] = 0
+        
+        principal_idx_2 = np.argmax(abs(possible_eig_vectors * lambda_sqrt))
+        
+        width = lambda_sqrt[principal_idx] * 2
+        height = lambda_sqrt[principal_idx_2] * 2
+        
+                         
+        print()
+        print(principal_idx)
+        print(principal_idx_2)
+        
+        print()               
+        print("width",width)
+        print("height", height)
+        if principal_idx > principal_idx_2:
+            principal_idx = principal_idx_2
+            width,height = height,width
+        angle = np.rad2deg(np.arccos(v[d,principal_idx]))
+        print(angle)
+        
+        print()               
+        print("width",lambda_sqrt[0]*2)
+        print("height", lambda_sqrt[1]*2)
+        print(np.rad2deg(np.arccos(v[0, 0])))
     
     
     

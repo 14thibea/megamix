@@ -181,9 +181,10 @@ def k_means(points,k,draw_graphs=False,initialization = "plus"):
 if __name__ == '__main__':
     
     #Lecture du fichier
-    points = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
     
-#    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+#    path = 'D:/Mines/Cours/Stages/Stage_ENS/data/data.pickle'
 #    with open(path, 'rb') as fh:
 #        data = pickle.load(fh)
 #    
@@ -197,5 +198,5 @@ if __name__ == '__main__':
     k=4
     
     for i in range(20):
-        means,assignements = k_means(points,k,draw_graphs=False,initialization="plus")
-        create_graph(points,means,assignements,i)
+        means,assignements = k_means(points_data,k,draw_graphs=False,initialization="plus")
+        create_graph(points_data,means,assignements,i)
