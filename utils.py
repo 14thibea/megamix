@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from matplotlib.patches import Ellipse
 import matplotlib.pyplot as plt
+from scipy.special import gammaln
 
 def read(file_name):
     fichier = pd.read_csv(file_name,sep = " ")
@@ -33,77 +34,43 @@ def ellipses(covariance,mean):
     ell.set_edgecolor('k')
     return ell
 
-def ellipses_multidimensional(covariance,mean,d):
+def ellipses_multidimensional(cov,mean,d1=0,d2=1):
     
+    covariance = np.asarray([[cov[d1,d1],cov[d1,d2]],[cov[d1,d2],cov[d2,d2]]])
     lambda_, v = np.linalg.eig(covariance)
     lambda_sqrt = np.sqrt(lambda_)
     
-    #We are looking for the extrema for each dimension
-    principal_idx = np.argmax(abs(v[d] * lambda_sqrt))
+    width = lambda_sqrt[0] * 2
+    height = lambda_sqrt[1] * 2
     
-    #This is done in order to not take the same previous vector
-    possible_eig_vectors = np.copy(v[d+1])
-    possible_eig_vectors[principal_idx] = 0
-    principal_idx_2 = np.argmax(abs(possible_eig_vectors * lambda_sqrt))
+    angle = np.rad2deg(np.arccos(v[0,0]))
     
-    width = lambda_sqrt[principal_idx] * 2
-    height = lambda_sqrt[principal_idx_2] * 2
-    
-#    Eigen values are ordered decreasingly
-    if principal_idx > principal_idx_2:
-        principal_idx = principal_idx_2
-        width,height = height,width
-    
-    angle = np.rad2deg(np.arccos(v[d,principal_idx]))
-    
-    ell = Ellipse(xy=(mean[d], mean[d+1]),
+    ell = Ellipse(xy=(mean[d1], mean[d2]),
               width=width, height=height,
               angle=angle)
     ell.set_facecolor('none')
     ell.set_edgecolor('k')
     return ell
 
+def log_B(W,nu):
+    dim,_ = W.shape
+    
+    det_W = np.linalg.det(W)
+    log_gamma_sum = np.sum(gammaln(np.linspace(nu,nu+dim,num=dim+1)*0.5))
+    result = - nu*0.5*np.log(det_W) - nu*dim*0.5*np.log(2)
+    result += -dim*(dim-1)*0.25*np.log(np.pi) - log_gamma_sum
+    return result
+
+def log_C(alpha):
+    return gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))
+
 if __name__ == '__main__':
     
     covariance = np.asarray([[10,0,0],[0,100,-20],[0,-20,10]])
     centre = np.asarray([0,0,0])
     
-    dim = len(centre)
+    result = log_B(covariance,5)
+    print(result)
     
-    for d in range(dim-1):
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        
-        ell = ellipses_multidimensional(covariance,centre,d)
-        
-        
-        ax.add_artist(ell)
-        ax.plot(centre[d],centre[d+1],'kx')
-        
-        
-        plt.xticks(np.arange(-10,11,5))
-        plt.yticks(np.arange(-10,11,5))
-        
-        titre = 'figure_proj_' + str(d)
-        plt.savefig(titre)
-        plt.close("all")
-        
-    covariance = np.asarray([[100,-20],[-20,10]])
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    
-    ell = ellipses(covariance,centre)
-    
-    
-    ax.add_artist(ell)
-    ax.plot(centre[d],centre[d+1],'kx')
-    
-    
-    plt.xticks(np.arange(-10,11,5))
-    plt.yticks(np.arange(-10,11,5))
-    
-    titre = 'figure_proj_2'
-    plt.savefig(titre)
-    plt.close("all")
+    test = log_C(np.asarray([120,150,48,150]))
+    print(test)

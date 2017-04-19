@@ -20,12 +20,9 @@ def initialization_full_covariances(points,k):
     @param k: the number of clusters                                (int)
     @return: an array containing the covariances of each cluster    (k,dim,dim)
     """
-    minima = points.min(axis=0)
-    maxima = points.max(axis=0)
-    diff = maxima - minima
-    cov_interval = np.power(diff/(10*k),2)
+    variance = points.var(axis=0)
     
-    cov = np.diag(cov_interval)
+    cov = np.diag(variance)
     return cov
 
 def initialization_spherical_covariances(points,k):
@@ -118,7 +115,7 @@ def initialization_k_means(points,k):
     
     return means
 
-def initialization_GMM(points_data,points_test,k):
+def initialization_GMM(k,points_data,points_test=None):
     """
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
@@ -130,7 +127,10 @@ def initialization_GMM(points_data,points_test,k):
     """
     
     GMM = GMM3.GaussianMixture(k)
-    GMM.predict_log_assignements(points_data,points_test)
+    if points_test is None:
+        GMM.predict_log_assignements(points_data,points_data)
+    else:
+        GMM.predict_log_assignements(points_data,points_test)
     
     
     return GMM.means,GMM.cov

@@ -215,7 +215,7 @@ class GaussianMixture():
 
         for i in range(self.n_components):
             
-            if self.log_prior_prob[i] > -3:
+            if self.log_prior_prob[i] > -4:
                 
                 col = couleurs[i%7]
                                      
@@ -330,9 +330,19 @@ if __name__ == '__main__':
     #Lecture du fichier
     points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
     points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
+    
+    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
+        
+    N=1500
+        
+    points = data['BUC']
+    points_data = points[:N:]
+    points_test = points_data
 
     #GMM
-    for i in range(10):
+    for i in range(5):
         print(i)
         GMM = GaussianMixture(i+1,covariance_type="full",patience=20,draw_graphs=False)
     

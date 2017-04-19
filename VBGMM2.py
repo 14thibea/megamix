@@ -5,7 +5,6 @@ Created on Fri Apr 14 13:37:08 2017
 @author: Calixi
 """
 
-
 import utils
 import Initializations as Init
 
@@ -35,13 +34,16 @@ class VariationalGaussianMixture():
         self._beta_0 = beta_0
         self._nu_0 = nu_0
 
-    def _check_parameters(self):
+    def _check_parameters(self,points):
+        
+        _,dim = points.shape
         
         if self.init not in ['random', 'plus', 'kmeans','GMM']:
             raise ValueError("Invalid value for 'init': %s "
                              "'init' should be in "
                              "['random', 'plus', 'kmeans','GMM']"
                              % self.init)
+        
         
     def _sampling_Normal_Wishart(self):
         """
@@ -66,28 +68,6 @@ class VariationalGaussianMixture():
         
             self.means_estimated[i] = np.random.multivariate_normal(self.means[i] , self.cov_estimated[i]/self._beta[i])
     
-    def log_normal_matrix(self,points):
-        """
-        This method computes the log of the density of probability of a normal law centered. Each line
-        corresponds to a point from points.
-        
-        @param points: an array of points (n_points,dim)
-        @param means: an array of k points which are the means of the clusters (n_components,dim)
-        @param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
-        @return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
-        """
-        
-        nb_points,dim = points.shape
-        
-        log_normal_matrix = np.zeros((nb_points,self.n_components))
-        
-        for i in range(self.n_components):
-            log_normal_probabilities = scipy.stats.multivariate_normal.logpdf(points,self.means[i],self.cov_estimated[i])
-            log_normal_probabilities = np.reshape(log_normal_probabilities, (nb_points,1))
-            log_normal_matrix[:,i:i+1] = log_normal_probabilities
-                         
-        return log_normal_matrix
-    
     def _initialize(self,points_data,points_test):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
@@ -102,7 +82,7 @@ class VariationalGaussianMixture():
         
         self.log_prior_prob = - np.log(self.n_components) * np.ones(self.n_components)
         self.means_init = np.mean(points_data,axis=0)
-        self.inv_prec_init = Init.initialization_full_covariances(points_data,self.n_components)
+        self.inv_prec_init = Init.initialization_full_covariances(points_data,self.n_components) #TODO utiliser la variance du problème
         
         if (self.init == "random"):
             self.means = Init.initialization_random(points_data,self.n_components)
@@ -117,7 +97,7 @@ class VariationalGaussianMixture():
             self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
             self.log_det_inv_prec = np.linalg.det(self.inv_prec)
         elif(self.init == "GMM"):
-            means,inv_prec = Init.initialization_GMM(points_data,points_test,self.n_components)
+            means,inv_prec = Init.initialization_GMM(self.n_components,points_data,points_test=points_test)
             self.means = means
             self.inv_prec = inv_prec
             self.log_det_inv_prec = np.linalg.det(inv_prec)
@@ -125,6 +105,10 @@ class VariationalGaussianMixture():
         if self._nu_0 == None:
             self._nu_0 = dim
         
+        if self._nu_0 < dim:
+            raise ValueError("nu_0 must be superior to the dimension of the"
+                             "problem or the gamma function won't be defined"
+                             % self._nu_0)
         
         self._alpha = self._alpha_0 * np.ones(self.n_components)
         self._beta = self._beta_0 * np.ones(self.n_components)
@@ -151,18 +135,16 @@ class VariationalGaussianMixture():
             digamma_sum = 0
             for j in range(dim):
                 digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
-            log_det_inv_prec_i = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
+            log_det_prec_i = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
             
             points_centered = points - self.means[i]
             prec = np.linalg.inv(self.inv_prec[i])
-#            cov_inv_i /= self._nu[i]
-#            # We divide by nu because of the previous normalization
             
             esp_cov_mean = dim/self._beta[i] + self._nu[i] * np.dot(points_centered,np.dot(prec,points_centered.T))
             esp_cov_mean = np.diagonal(esp_cov_mean)
              
             # Formula page 476 Bishop
-            log_pho_i = log_weights_i + 0.5*log_det_inv_prec_i - dim*0.5*np.log(2*np.pi) - 0.5*esp_cov_mean
+            log_pho_i = log_weights_i + 0.5*log_det_prec_i - dim*0.5*np.log(2*np.pi) - 0.5*esp_cov_mean
             
             log_pho_i = np.reshape(log_pho_i, (n_points,1))
             
@@ -215,21 +197,60 @@ class VariationalGaussianMixture():
             self.cov_estimated[i] = self.inv_prec[i] / self._nu[i]
         
         self.log_prior_prob = logsumexp(log_resp, axis=0) - np.log(n_points)
+    
+    def lower_bound(self,points,log_resp):
         
-    def log_likelihood(self,points):
-        """
-        This method returns the log likelihood at the end of the k_means.
+        resp = np.exp(log_resp)
+        n_points,dim = points.shape
         
-        @param points: an array of points (n_points,dim)
-        @return: log likelihood measurement (float)
-        """
-        n_points = len(points)
+        # Convenient statistics
+        N = np.sum(resp,axis=0)                                          #Array (n_components,)
+        X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)        #Array (n_components,dim)
+        S = np.zeros((self.n_components,dim,dim))
         
-        log_normal_matrix = self.log_normal_matrix(points)
-        log_prior_duplicated = np.tile(self.log_prior_prob, (n_points,1))
-        log_product = log_normal_matrix + log_prior_duplicated
-        log_product = logsumexp(log_product,axis=1)
-        return np.sum(log_product)
+        prec = np.linalg.inv(self.inv_prec)
+        prec_init = np.linalg.inv(self.inv_prec_init)
+        
+        log_weights = np.zeros(self.n_components)
+        log_det_prec = np.zeros(self.n_components)
+        lower_bound = np.zeros(self.n_components)
+        
+        for i in range(self.n_components):
+            
+            log_weights[i] = scipy.special.psi(self._alpha[i]) - scipy.special.psi(np.sum(self._alpha))
+            
+            digamma_sum = 0
+            for j in range(dim):
+                digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
+            log_det_prec[i] = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
+            
+            #First line
+            lower_bound[i] = log_det_prec[i] - dim/self._beta[i] - self._nu[i]*np.trace(np.dot(S[i],prec[i]))
+            diff = X_barre[i] - self.means[i]
+            lower_bound[i] += -self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T)) - dim*np.log(2*np.pi)
+            lower_bound[i] *= 0.5 * N[i]
+            
+            #Second line
+            lower_bound[i] += (self._alpha_0 - self._alpha[i]) * log_weights[i]
+            lower_bound[i] += utils.log_B(prec_init,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            
+            resp_i = resp[:,i:i+1]
+            log_resp_i = log_resp[:,i:i+1]
+            
+            lower_bound[i] += np.sum(resp_i) * log_weights[i] - np.sum(resp_i*log_resp_i)
+            lower_bound[i] += 0.5 * (self._nu_0 - self._nu[i]) * log_det_prec[i]
+            lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
+            lower_bound[i] += dim*0.5*(1 - self._beta_0/self._beta[i] + self._nu[i])
+            
+            #Third line without the last term which is not summed
+            diff = self.means[i] - self.means_init
+            lower_bound[i] += -0.5*self._beta_0*self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
+            lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self.inv_prec_init,prec[i]))
+                
+        result = np.sum(lower_bound)
+        result += utils.log_C(self._alpha_0 * np.ones(self.n_components))- utils.log_C(self._alpha)
+        
+        return result
         
     def create_graph(self,points,log_resp,t):
         """
@@ -254,7 +275,7 @@ class VariationalGaussianMixture():
             os.mkdir(directory)  
         
         
-        log_like = self.log_likelihood(points)
+        lb = self.lower_bound(points,log_resp)
         
         couleurs = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
         
@@ -263,7 +284,7 @@ class VariationalGaussianMixture():
         
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        plt.title("log likelihood = " + str(log_like) + " iter = " + str(self.iter) + " k = " + str(self.n_components))
+        plt.title("lower bound = " + str(lb) + " iter = " + str(self.iter) + " k = " + str(self.n_components))
         
 #        self._sampling_Normal_Wishart()
 
@@ -274,7 +295,7 @@ class VariationalGaussianMixture():
                 
                 col = couleurs[i%7]
                                      
-                ell = utils.ellipses(self.cov_estimated[i],self.means[i])
+                ell = utils.ellipses_multidimensional(self.cov_estimated[i],self.means[i])
                 x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
                 y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
         
@@ -287,8 +308,7 @@ class VariationalGaussianMixture():
         plt.savefig(titre)
         plt.close("all")
         
-        
-    def create_graph_log(self,t):
+    def create_graph_lower_bound(self,t):
         
         dir_path = 'VBGMM/' + self.init + '/'
         directory = os.path.dirname(dir_path)
@@ -298,31 +318,34 @@ class VariationalGaussianMixture():
         except:
             os.mkdir(directory)  
         
-        n_iter = len(self.log_like_data)
+        n_iter = len(self.lower_bound_data)
         
-        p1, = plt.plot(np.arange(n_iter),self.log_like_data,marker='x',label='data')
-        p2, = plt.plot(np.arange(n_iter),self.log_like_test,marker='o',label='test')
+        p1, = plt.plot(np.arange(n_iter),self.lower_bound_data,marker='x',label='data')
+        if self.test_exists:
+            p2, = plt.plot(np.arange(n_iter),self.lower_bound_test,marker='o',label='test')
         
-        plt.title("log likelihood evolution")
+        plt.title("lower bound evolution")
         plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
 
         
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_log_evolution"
+        titre = directory + '/figure_' + self.init + "_" + str(t) + "_lb_evolution"
         plt.savefig(titre)
         plt.close("all")
     
-    def predict(self,points_data,points_test,draw_graphs=False):
+    def predict(self,points_data,points_test=None,draw_graphs=False):
         """
         The EM algorithm
         
         @param points: an array (n_points,dim)
         @return resp: an array containing the responsibilities (n_points,n_components)
         """
-        self._check_parameters()
+        self._check_parameters(points_data)
         self._initialize(points_data,points_test)
         
-        self.log_like_data = []
-        self.log_like_test = []
+        self.test_exists = not(points_test is None)
+        self.lower_bound_data = []
+        if not (points_test is None):
+            self.lower_bound_test = []
         
         resume_iter = True
         first_iter = True
@@ -332,28 +355,43 @@ class VariationalGaussianMixture():
         # EM algorithm
         while resume_iter:
             
-            log_assignements_data = self.step_E(points_data)
-            log_assignements_test = self.step_E(points_test)
-            self.step_M(points_data,log_assignements_data)
-            self.log_like_data.append(self.log_likelihood(points_data))
-            self.log_like_test.append(self.log_likelihood(points_test))
+            log_resp_data = self.step_E(points_data)
+            if self.test_exists:
+                log_resp_test = self.step_E(points_test)
+            
+            self.step_M(points_data,log_resp_data)
+            
+            self.lower_bound_data.append(self.lower_bound(points_data,log_resp_data))
+            if self.test_exists:
+                self.lower_bound_test.append(self.lower_bound(points_test,log_resp_test))
             
             #Graphic part
             if draw_graphs:
-                self.create_graph(points_data,log_assignements_data,"data_iter" + str(self.iter))
-                self.create_graph(points_test,log_assignements_test,"test_iter" + str(self.iter))
+                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
+                self.create_graph(points_test,log_resp_test,"test_iter" + str(self.iter))
             
             if first_iter:
                 resume_iter = True
                 first_iter = False
-            elif abs(self.log_like_test[self.iter] - self.log_like_test[self.iter-1]) < self.tol:
-#            elif self.log_like_test[t] < self.log_like_test[t-1] :
-                resume_iter = patience < self.patience
-                patience += 1
-            
+                
+            elif self.test_exists:
+#                if abs(self.lower_bound_test[self.iter] - self.lower_bound_test[self.iter-1]) < self.tol:
+                if self.lower_bound_test[self.iter] <= self.lower_bound_test[self.iter-1]:
+                    resume_iter = patience < self.patience
+                    patience += 1
+                    
+            else:
+#                if abs(self.lower_bound_data[self.iter] - self.lower_bound_data[self.iter-1]) < self.tol:
+                if self.lower_bound_data[self.iter] <= self.lower_bound_data[self.iter-1]:
+                    resume_iter = patience < self.patience
+                    patience += 1
+                    
             self.iter+=1
         
-        return log_assignements_data,log_assignements_test
+        if self.test_exists:
+            return log_resp_data,log_resp_test
+        else:
+            return log_resp_data
     
 if __name__ == '__main__':
     
@@ -384,10 +422,12 @@ if __name__ == '__main__':
     for j in np.arange(1,11):
         print(j)
         print(">>predicting")
-        VBGMM = VariationalGaussianMixture(j,init,alpha_0=1.0/j,beta_0=1.0,nu_0=dim+1,patience=30)
-        log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
+        VBGMM = VariationalGaussianMixture(j,init,alpha_0=1.0/j,beta_0=1.0,patience=10)
+#        log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
+        log_resp_data = VBGMM.predict(points_data)
         print(">>creating graphs")
-        VBGMM.create_graph(points_data,log_resp_data,str(j) + "_MFCC")
-        VBGMM.create_graph_log(str(j) + "_MFCC")
+        VBGMM.create_graph(points_data,log_resp_data,str(j) + "_data")
+#        VBGMM.create_graph(points_test,log_resp_test,str(j) + "_test")
+        VBGMM.create_graph_lower_bound(j)
         print()
         
