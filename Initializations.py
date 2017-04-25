@@ -11,40 +11,39 @@ import kmeans3
 import numpy as np
 import random
 
-def initialization_full_covariances(points,k):
+def initialization_full_covariances(k,points):
     """
     This method returns the covariances array for methods like kmeans which
     don't deal with covariances
     
     @param points: an array of points                               (n_points,dim)
     @param k: the number of clusters                                (int)
-    @return: an array containing the covariances of each cluster    (k,dim,dim)
+    @return: an array containing the covariance of one cluster      (dim,dim)
     """
-    variance = points.var(axis=0)
+    n_points,dim = points.shape
+    variance = np.var(points,axis=0)
     
     cov = np.diag(variance)
     return cov
 
-def initialization_spherical_covariances(points,k):
+def initialization_spherical_covariances(k,points):
     """
     This method returns the covariances array for methods like kmeans which
     don't deal with covariances
     
     @param points: an array of points                               (n_points,dim)
     @param k: the number of clusters                                (int)
-    @return: an array containing the covariances of each cluster    (k,dim,dim)
+    @return: an array containing the coefficient of covariance
+             of one cluster                                         (float)
     """
+    
     _,dim= points.shape
     
-    minima = points.min(axis=0)
-    maxima = points.max(axis=0)
-    diff = maxima - minima
-    coeff = np.sum(diff)/dim
-    coeff = (coeff/(10*k))**2
+    variance = np.var(points)
     
-    return coeff
+    return variance
 
-def initialization_random(points,k):
+def initialization_random(k,points):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -59,7 +58,7 @@ def initialization_random(points,k):
     idx = np.random.randint(n_points,size = k)
     return points[idx,:]
 
-def initialization_plus_plus(points,k):
+def initialization_plus_plus(k,points):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -71,7 +70,7 @@ def initialization_plus_plus(points,k):
     """
     n_points,dim = points.shape
     probability_vector = np.arange(n_points)/n_points #All points have the same probability to be chosen the first time
-               
+         
     means = np.zeros((k,dim))
     
     for i in range(k): 
@@ -99,7 +98,7 @@ def initialization_plus_plus(points,k):
 
     return means
 
-def initialization_k_means(points,k):
+def initialization_k_means(k,points):
     """
     This method returns an array of k means which will be used in order to
     initialize an EM algorithm
@@ -115,7 +114,7 @@ def initialization_k_means(points,k):
     
     return means
 
-def initialization_GMM(k,points_data,points_test=None):
+def initialization_GMM(k,points_data,points_test=None,covariance_type="full"):
     """
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
@@ -126,7 +125,7 @@ def initialization_GMM(k,points_data,points_test=None):
              an array containing the covariances of each cluster    (k,dim,dim)
     """
     
-    GMM = GMM3.GaussianMixture(k)
+    GMM = GMM3.GaussianMixture(k,covariance_type=covariance_type)
     if points_test is None:
         GMM.predict_log_assignements(points_data,points_data)
     else:
@@ -134,3 +133,34 @@ def initialization_GMM(k,points_data,points_test=None):
     
     
     return GMM.means,GMM.cov
+
+def initialize_mcw(init,n_components,points_data,points_test=None,covariance_type="full"):
+    """
+    This method initializes the Variational Gaussian Mixture by setting the values
+    of the means, the covariances and the log of the weights.
+    
+    @param points: an array             (n_points,dim)
+    @return: the initial means          (n_components,dim)
+             the initial covariances    (n_components,dim,dim)
+    """
+    
+    n_points,dim = points_data.shape
+    
+    log_weights = - np.log(n_components) * np.ones(n_components)
+    if covariance_type == "full":
+        cov_init = initialization_full_covariances(n_components,points_data)
+        cov = np.tile(cov_init, (n_components,1,1))
+    elif covariance_type == "spherical":
+        cov_init = initialization_spherical_covariances(n_components,points_data)
+        cov = cov_init * np.ones(n_components)
+    
+    if (init == "random"):
+        means = initialization_random(n_components,points_data)
+    elif(init == "plus"):
+        means = initialization_plus_plus(n_components,points_data)
+    elif(init == "kmeans"):
+        means = initialization_k_means(n_components,points_data)
+    elif(init == "GMM"):
+        means,cov = initialization_GMM(n_components,points_data,points_test,covariance_type)
+    
+    return means,cov,log_weights

@@ -26,8 +26,11 @@ def dist_matrix(points,means,k):
     @return: a matrix which contains the distances between the ith point and the jth center
     (n_points,n_components)
     """
-
-    real_means = means[:k:]
+    
+    if k > 0:
+        real_means = np.asarray(means)[:k:]
+    else:
+        real_means = means
     dist_matrix = euclidean_distances(points,real_means)
     
     return dist_matrix
@@ -44,7 +47,7 @@ def step_E(points,means):
     n_points = len(points)
     assignements = np.zeros((n_points,k))
     
-    M = dist_matrix(points,means,k)
+    M = dist_matrix(points,means,-1)
     for i in range(n_points):
         index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
         if (isinstance(index_min,np.int64)):
@@ -129,7 +132,7 @@ def distortion(points,means,assignements):
     for i in range(k):
         sets = [points[j] for j in range(n_points) if (assignements[j][i]==1)]
         sets = np.asarray(sets)
-        M = dist_matrix(sets,np.asmatrix(means[i]),1)
+        M = dist_matrix(sets,means[i].reshape(1,-1),-1)
         distortion += np.sum(M)
     return distortion
     
@@ -148,9 +151,9 @@ def k_means(points,k,draw_graphs=False,initialization = "plus"):
     
     #K-means++ initialization
     if (initialization == "random"):
-        means = Init.initialization_random(points,k)
+        means = Init.initialization_random(k,points)
     elif (initialization == "plus"):
-        means = Init.initialization_plus_plus(points,k)
+        means = Init.initialization_plus_plus(k,points)
     else:
         raise ValueError("Invalid value for 'initialization': %s "
                              "'initialization' should be in "
@@ -184,19 +187,17 @@ if __name__ == '__main__':
     points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
     points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
     
-#    path = 'D:/Mines/Cours/Stages/Stage_ENS/data/data.pickle'
-#    with open(path, 'rb') as fh:
-#        data = pickle.load(fh)
-#    
-#    N=5000
-#        
-#    points = data['BUC']
-#    points = points[:N:]
-#    points = points[:,0:2]
+    path = '../data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
+    
+    N=1500
+        
+    points = data['BUC']
+    points = points[:N:]
 #    
     #k-means
-    k=4
+    k=40
     
-    for i in range(20):
-        means,assignements = k_means(points_data,k,draw_graphs=False,initialization="plus")
-        create_graph(points_data,means,assignements,i)
+    means,assignements = k_means(points,k,draw_graphs=False,initialization="plus")
+    create_graph(points,means,assignements,str(k) + "_MFCC")

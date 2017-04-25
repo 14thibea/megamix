@@ -9,9 +9,9 @@ from sklearn import mixture
 import utils
 import matplotlib.pyplot as plt
 import os
-import GMM2
 import numpy as np
 from scipy.misc import logsumexp
+import pickle
 
 def create_graph(points,means,cov,log_assignements,method,t):
     """
@@ -61,8 +61,7 @@ def create_graph(points,means,cov,log_assignements,method,t):
     
             ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
             ax.plot(means[i][0],means[i][1],'kx')
-        
-    
+            
     titre = directory + '/figure_sklearn_' + str(t)
     plt.savefig(titre)
     plt.close("all")
@@ -72,24 +71,36 @@ if __name__ == '__main__':
     points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
     points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
     
-    k=5
-    
-    method = "DPGMM"
-    for t in range(10):
-        GM = mixture.BayesianGaussianMixture(t+1,covariance_type="full",weight_concentration_prior_type='dirichlet_process')
-    
-        GM.fit(points_data)
-        assignements = GM.predict_proba(points_data)
-        log_assignements = np.log(assignements)
-        #        means,_,_ = GMM3.step_M(points,log_assignements,"full")
-        #        cov = GM._get_covars()
-        _,_,means,_,cov,_= GM._get_parameters()
-        #    _,means,cov,_= GM._get_parameters()
-        create_graph(points_data,means,cov,log_assignements,method,t)
-        log_data_GMM2 = GMM2.log_likelihood(points_data,means,cov,assignements)
-        log_data = GM.score_samples(points_data)
-        log_test = GM.score_samples(points_test)
-        print(log_data_GMM2)
-        print(np.sum(log_data))
-        print(np.sum(log_test))
+    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
         
+    N=1500
+        
+    points = data['BUC']
+    points_data = points[:N:]
+    points_test = points_data
+    
+    _,dim = points_data.shape
+    
+    k=100
+    
+    method = "VBGMM"
+    covariance_type = 'full'
+#    for t in range(10):
+    GM = mixture.BayesianGaussianMixture(k,covariance_type=covariance_type,max_iter=500,tol=1e-20,weight_concentration_prior_type='dirichlet_distribution')
+
+    GM.fit(points_data)
+    
+    assignements = GM.predict_proba(points_data)
+    weights = np.sum(assignements, axis=0)
+    weights /= np.sum(weights)
+    
+    plt.title("Weights of the clusters")
+        
+    plt.hist(weights)
+    
+    directory = method + '/sklearn/'
+    titre = directory + '/figure_' + str(k) + "_" + covariance_type + "_weights.png"
+    plt.savefig(titre)
+    plt.close("all")

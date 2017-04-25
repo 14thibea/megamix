@@ -7,43 +7,54 @@ Created on Fri Apr 14 13:37:08 2017
 
 import utils
 import Initializations as Init
+from base import BaseMixture
 
 import pickle
-import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerLine2D
 import os
 import numpy as np
 import scipy.special
 from scipy.misc import logsumexp
 #import sklearn_test
 
-class VariationalGaussianMixture():
+class VariationalGaussianMixture(BaseMixture):
+    
+    """
+    
+    
+    
+    
+    The hyperparameters alpha_0, beta_0, nu_0 may be initialized by
+    _check_hyper_parameters() in base.py if not initialized by the user
+    
+    """
 
-    def __init__(self, n_components=1,init="GMM",n_iter_max=100,alpha_0=1.0,\
-                 beta_0=1.0,nu_0=None,tol=1e-4,patience=0):
+    def __init__(self, n_components=1,init="GMM",n_iter_max=1000,alpha_0=None,\
+                 beta_0=None,nu_0=None,tol=1e-3,reg_covar=1e-6,patience=0):
         
         super(VariationalGaussianMixture, self).__init__()
 
         self.n_components = n_components
+        self.covariance_type = "full"
         self.init = init
         self.n_iter_max = n_iter_max
         self.tol = tol
         self.patience = patience
+        self.reg_covar = reg_covar
         
         self._alpha_0 = alpha_0
         self._beta_0 = beta_0
         self._nu_0 = nu_0
-
-    def _check_parameters(self,points):
         
-        _,dim = points.shape
+        self._check_common_parameters()
+        self._check_parameters()
+        
+    def _check_parameters(self):
         
         if self.init not in ['random', 'plus', 'kmeans','GMM']:
             raise ValueError("Invalid value for 'init': %s "
                              "'init' should be in "
                              "['random', 'plus', 'kmeans','GMM']"
                              % self.init)
-        
         
     def _sampling_Normal_Wishart(self):
         """
@@ -80,43 +91,26 @@ class VariationalGaussianMixture():
         
         n_points,dim = points_data.shape
         
-        self.log_prior_prob = - np.log(self.n_components) * np.ones(self.n_components)
-        self.means_init = np.mean(points_data,axis=0)
-        self.inv_prec_init = Init.initialization_full_covariances(points_data,self.n_components) #TODO utiliser la variance du problème
-        
-        if (self.init == "random"):
-            self.means = Init.initialization_random(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "plus"):
-            self.means = Init.initialization_plus_plus(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "kmeans"):
-            self.means = Init.initialization_k_means(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "GMM"):
-            means,inv_prec = Init.initialization_GMM(self.n_components,points_data,points_test=points_test)
-            self.means = means
-            self.inv_prec = inv_prec
-            self.log_det_inv_prec = np.linalg.det(inv_prec)
-            
-        if self._nu_0 == None:
-            self._nu_0 = dim
-        
-        if self._nu_0 < dim:
-            raise ValueError("nu_0 must be superior to the dimension of the"
-                             "problem or the gamma function won't be defined"
-                             % self._nu_0)
+        self._check_hyper_parameters(n_points,dim)
         
         self._alpha = self._alpha_0 * np.ones(self.n_components)
         self._beta = self._beta_0 * np.ones(self.n_components)
         self._nu = self._nu_0 * np.ones(self.n_components)
+
         
-        self.cov_estimated = self.inv_prec / np.tile(self._nu, (dim,dim,1)).T
-        self.means_estimated = self.means
+        self.means_init = np.mean(points_data,axis=0)
+        self.inv_prec_init = Init.initialization_full_covariances(self.n_components,points_data) * self._nu_0 
         
+        means,cov,log_weights = Init.initialize_mcw(self.init,self.n_components,points_data)
+        self.cov = cov
+        self.means = means
+        self.inv_prec = cov * np.tile(self._nu, (dim,dim,1)).T
+        self.log_det_inv_prec = np.log(np.linalg.det(self.inv_prec))
+        self.log_weights = log_weights
+        
+        
+        self.cov_estimated = cov
+        self.means_estimated = means
         
     def step_E(self, points):
         """
@@ -140,20 +134,20 @@ class VariationalGaussianMixture():
             points_centered = points - self.means[i]
             prec = np.linalg.inv(self.inv_prec[i])
             
-            esp_cov_mean = dim/self._beta[i] + self._nu[i] * np.dot(points_centered,np.dot(prec,points_centered.T))
+            esp_cov_mean = self._nu[i] * np.dot(points_centered,np.dot(prec,points_centered.T))
+            esp_cov_mean += dim/self._beta[i]
             esp_cov_mean = np.diagonal(esp_cov_mean)
              
             # Formula page 476 Bishop
             log_pho_i = log_weights_i + 0.5*log_det_prec_i - dim*0.5*np.log(2*np.pi) - 0.5*esp_cov_mean
             
             log_pho_i = np.reshape(log_pho_i, (n_points,1))
-            
             log_resp[:,i:i+1] = log_pho_i
         
-        log_sum_pho = logsumexp(log_resp, axis=1)
+        log_pho_norm = logsumexp(log_resp, axis=1)
 
         for i in range(n_points):
-            log_resp[i] = log_resp[i] - log_sum_pho[i]
+            log_resp[i] = log_resp[i] - log_pho_norm[i]
                     
         return log_resp
     
@@ -171,42 +165,48 @@ class VariationalGaussianMixture():
         resp = np.exp(log_resp)
         
         # Convenient statistics
-        N = np.sum(resp,axis=0)                                          #Array (n_components,)
-        X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)        #Array (n_components,dim)
-        S = np.zeros((self.n_components,dim,dim))                        #Array (n_components,dim,dim)
+        N = np.sum(resp,axis=0) + 10 * np.finfo(resp.dtype).eps                 #Array (n_components,)
+        X_barre = np.dot(resp.T,points) / N[:,np.newaxis]                       #Array (n_components,dim)
+        S = np.zeros((self.n_components,dim,dim))                               #Array (n_components,dim,dim)
         for i in range(self.n_components):
             diff = points - X_barre[i]
-            diff_weighted = diff * np.tile(resp[:,i:i+1], (1,dim))
-            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff)
+            S[i] = np.dot(resp[:,i] * diff.T,diff) / N[i]
+            
+            S[i] += self.reg_covar * np.eye(dim)
         
         #Parameters update
         self._alpha = self._alpha_0 + N
         self._beta = self._beta_0 + N
         self._nu = self._nu_0 + N
         
-        means = self._beta_0 * self.means_init + np.tile(N,(dim,1)).T * X_barre
-        self.means = means * np.tile(np.reciprocal(self._beta), (dim,1)).T
-        self.means_estimated = self.means
+        self.means = (self._beta_0 * self.means_init + N[:, np.newaxis] * X_barre) / self._beta[:, np.newaxis]
         
         for i in range(self.n_components):
             diff = X_barre[i] - self.means_init
-            product = self._beta_0 * N[i]/(self._beta[i]) * np.outer(diff,diff)
-            self.inv_prec[i] = (self.inv_prec_init + N[i] * S[i] + product)
+            product = self._beta_0 * N[i]/self._beta[i] * np.outer(diff,diff)
+            self.inv_prec[i] = self.inv_prec_init + N[i] * S[i] + product
+            
             det_inv_prec = np.linalg.det(self.inv_prec[i])
             self.log_det_inv_prec[i] = np.log(det_inv_prec)
-            self.cov_estimated[i] = self.inv_prec[i] / self._nu[i]
-        
-        self.log_prior_prob = logsumexp(log_resp, axis=0) - np.log(n_points)
+            self.cov[i] = self.inv_prec[i] / self._nu[i]
+            
+        self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
     
-    def lower_bound(self,points,log_resp):
+    def convergence_criterion(self,points,log_resp):
         
         resp = np.exp(log_resp)
         n_points,dim = points.shape
         
         # Convenient statistics
-        N = np.sum(resp,axis=0)                                          #Array (n_components,)
-        X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)        #Array (n_components,dim)
-        S = np.zeros((self.n_components,dim,dim))
+        N = np.exp(logsumexp(log_resp,axis=0)) + 10*np.finfo(resp.dtype).eps    #Array (n_components,)
+        X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)               #Array (n_components,dim)
+        S = np.zeros((self.n_components,dim,dim))                               #Array (n_components,dim,dim)
+        for i in range(self.n_components):
+            diff = points - X_barre[i]
+            diff_weighted = diff * np.tile(np.sqrt(resp[:,i:i+1]), (1,dim))
+            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff_weighted)
+            
+            S[i] += self.reg_covar * np.eye(dim)
         
         prec = np.linalg.inv(self.inv_prec)
         prec_init = np.linalg.inv(self.inv_prec_init)
@@ -252,20 +252,12 @@ class VariationalGaussianMixture():
         
         return result
         
-    def create_graph(self,points,log_resp,t):
+    def create_path(self):
         """
-        This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
-        If points have more than two coordinates, then it will be a projection including only the first coordinates.
+        Create a directory to store the graphs
         
-        @param points: an array of points (n_points,dim)
-        @param means: an array of k points which are the means of the clusters (n_components,dim)
-        @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
-        @full_covariance: a string in ['full','spherical']
-        @param t: the figure number
+        @return: the path of the directory (str)
         """
-    
-        n_points,dim = points.shape
-    
         dir_path = 'VBGMM/' + self.init + '/'
         directory = os.path.dirname(dir_path)
     
@@ -273,125 +265,7 @@ class VariationalGaussianMixture():
             os.stat(directory)
         except:
             os.mkdir(directory)  
-        
-        
-        lb = self.lower_bound(points,log_resp)
-        
-        couleurs = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-        
-        x_points = [[] for i in range(self.n_components)]
-        y_points = [[] for i in range(self.n_components)]
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        plt.title("lower bound = " + str(lb) + " iter = " + str(self.iter) + " k = " + str(self.n_components))
-        
-#        self._sampling_Normal_Wishart()
-
-
-        for i in range(self.n_components):
-            
-            if self.log_prior_prob[i] > -3:
-                
-                col = couleurs[i%7]
-                                     
-                ell = utils.ellipses_multidimensional(self.cov_estimated[i],self.means[i])
-                x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
-                y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
-        
-                ax.plot(x_points[i],y_points[i],col + 'o',alpha = 0.2)
-                ax.plot(self.means[i][0],self.means[i][1],'kx')
-                ax.add_artist(ell)
-            
-        
-        titre = directory + '/figure_' + self.init + "_" + str(t)
-        plt.savefig(titre)
-        plt.close("all")
-        
-    def create_graph_lower_bound(self,t):
-        
-        dir_path = 'VBGMM/' + self.init + '/'
-        directory = os.path.dirname(dir_path)
-    
-        try:
-            os.stat(directory)
-        except:
-            os.mkdir(directory)  
-        
-        n_iter = len(self.lower_bound_data)
-        
-        p1, = plt.plot(np.arange(n_iter),self.lower_bound_data,marker='x',label='data')
-        if self.test_exists:
-            p2, = plt.plot(np.arange(n_iter),self.lower_bound_test,marker='o',label='test')
-        
-        plt.title("lower bound evolution")
-        plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
-
-        
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_lb_evolution"
-        plt.savefig(titre)
-        plt.close("all")
-    
-    def predict(self,points_data,points_test=None,draw_graphs=False):
-        """
-        The EM algorithm
-        
-        @param points: an array (n_points,dim)
-        @return resp: an array containing the responsibilities (n_points,n_components)
-        """
-        self._check_parameters(points_data)
-        self._initialize(points_data,points_test)
-        
-        self.test_exists = not(points_test is None)
-        self.lower_bound_data = []
-        if not (points_test is None):
-            self.lower_bound_test = []
-        
-        resume_iter = True
-        first_iter = True
-        self.iter = 0
-        patience = 0
-        
-        # EM algorithm
-        while resume_iter:
-            
-            log_resp_data = self.step_E(points_data)
-            if self.test_exists:
-                log_resp_test = self.step_E(points_test)
-            
-            self.step_M(points_data,log_resp_data)
-            
-            self.lower_bound_data.append(self.lower_bound(points_data,log_resp_data))
-            if self.test_exists:
-                self.lower_bound_test.append(self.lower_bound(points_test,log_resp_test))
-            
-            #Graphic part
-            if draw_graphs:
-                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
-                self.create_graph(points_test,log_resp_test,"test_iter" + str(self.iter))
-            
-            if first_iter:
-                resume_iter = True
-                first_iter = False
-                
-            elif self.test_exists:
-#                if abs(self.lower_bound_test[self.iter] - self.lower_bound_test[self.iter-1]) < self.tol:
-                if self.lower_bound_test[self.iter] <= self.lower_bound_test[self.iter-1]:
-                    resume_iter = patience < self.patience
-                    patience += 1
-                    
-            else:
-#                if abs(self.lower_bound_data[self.iter] - self.lower_bound_data[self.iter-1]) < self.tol:
-                if self.lower_bound_data[self.iter] <= self.lower_bound_data[self.iter-1]:
-                    resume_iter = patience < self.patience
-                    patience += 1
-                    
-            self.iter+=1
-        
-        if self.test_exists:
-            return log_resp_data,log_resp_test
-        else:
-            return log_resp_data
+        return directory
     
 if __name__ == '__main__':
     
@@ -419,15 +293,17 @@ if __name__ == '__main__':
 #        print()
     init="GMM"
 
-    for j in np.arange(1,11):
-        print(j)
-        print(">>predicting")
-        VBGMM = VariationalGaussianMixture(j,init,alpha_0=1.0/j,beta_0=1.0,patience=10)
-#        log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
-        log_resp_data = VBGMM.predict(points_data)
-        print(">>creating graphs")
-        VBGMM.create_graph(points_data,log_resp_data,str(j) + "_data")
-#        VBGMM.create_graph(points_test,log_resp_test,str(j) + "_test")
-        VBGMM.create_graph_lower_bound(j)
-        print()
-        
+#    for j in np.arange(2,11):
+    j=100
+    print(j)
+    print(">>predicting")
+    VBGMM = VariationalGaussianMixture(j,init,tol=1e-2,patience=0)
+#   log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
+    log_resp_data = VBGMM.predict_log_assignements(points_data)
+    print(">>creating graphs")
+    VBGMM.create_graph_convergence_criterion(j)
+    VBGMM.create_graph_weights(j)
+#    VBGMM.create_graph_MDS(j)
+    VBGMM.create_graph_entropy(j)
+    print()
+    

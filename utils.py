@@ -13,28 +13,27 @@ Created on Sun Feb 26 22:02:09 2017
 import pandas as pd
 import numpy as np
 from matplotlib.patches import Ellipse
-import matplotlib.pyplot as plt
 from scipy.special import gammaln
 
+import matplotlib.pyplot as plt
+
 def read(file_name):
+    """
+    A method to read a file written in CSV style.
+    """
+    
     fichier = pd.read_csv(file_name,sep = " ")
     matrix = fichier.as_matrix()
     
     return np.asarray(matrix)
 
-def ellipses(covariance,mean):
-      
-    lambda_, v = np.linalg.eig(covariance)
-    lambda_ = np.sqrt(lambda_)
-    
-    ell = Ellipse(xy=(mean[0], mean[1]),
-              width=lambda_[0]*2, height=lambda_[1]*2,
-              angle=np.rad2deg(np.arccos(v[0, 0])))
-    ell.set_facecolor('none')
-    ell.set_edgecolor('k')
-    return ell
-
 def ellipses_multidimensional(cov,mean,d1=0,d2=1):
+    """
+    A method which creates an object of Ellipse class (from matplotlib.patches).
+    As it is only a 2D object dimensions may be precised to project it.
+    
+    @return: ell (Ellipse)
+    """
     
     covariance = np.asarray([[cov[d1,d1],cov[d1,d2]],[cov[d1,d2],cov[d2,d2]]])
     lambda_, v = np.linalg.eig(covariance)
@@ -53,6 +52,11 @@ def ellipses_multidimensional(cov,mean,d1=0,d2=1):
     return ell
 
 def log_B(W,nu):
+    """
+    The log of a coefficient involved in the Wishart distribution
+    see Bishop book p.693 (B.78)
+    """
+    
     dim,_ = W.shape
     
     det_W = np.linalg.det(W)
@@ -62,6 +66,11 @@ def log_B(W,nu):
     return result
 
 def log_C(alpha):
+    """
+    The log of a coefficient involved in the Dirichlet distribution
+    see Bishop book p.687 (B.23)
+    """
+    
     return gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))
 
 if __name__ == '__main__':

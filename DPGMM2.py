@@ -8,9 +8,8 @@ Created on Fri Apr 14 15:21:17 2017
 import utils
 import Initializations as Init
 
+from base import BaseMixture
 import pickle
-import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerLine2D
 import os
 import numpy as np
 import scipy.stats
@@ -18,20 +17,22 @@ from scipy.special import psi
 from scipy.misc import logsumexp
 #import sklearn_test
 
-class VariationalGaussianMixture():
+class VariationalGaussianMixture(BaseMixture):
 
-    def __init__(self, n_components=1,init="random",n_iter_max=100,alpha_0=1.0,\
-                 beta_0=1.0,nu_0=1.5,tol=5e-4,patience=0):
+    def __init__(self, n_components=1,init="GMM",n_iter_max=100,alpha_0=1.0,\
+                 beta_0=1.0,nu_0=1.5,tol=1e-3,reg_covar=1e-6,patience=0):
         
         super(VariationalGaussianMixture, self).__init__()
 
         self.n_components = n_components
+        self.covariance_type = "full"
         self.init = init
         self.n_iter_max = n_iter_max
         self.tol = tol
         self.patience = patience
+        self.reg_covar = reg_covar
         
-        self._alpha_0 = np.asarray([1,alpha_0])
+        self._alpha_0 = alpha_0
         self._beta_0 = beta_0
         self._nu_0 = nu_0
 
@@ -62,32 +63,10 @@ class VariationalGaussianMixture():
             X = np.dot(chol,A)
             prec_estimated = np.dot(X,X.T) / self._nu[i]
             
-            cov_estimated = np.linalg.inv(prec_estimated)
-            self.cov_estimated[i] = cov_estimated / self._nu[i]
+            cov = np.linalg.inv(prec_estimated)
+            self.cov[i] = cov / self._nu[i]
         
             self.means_estimated[i] = np.random.multivariate_normal(self.means[i] , self.cov[i]/self._beta[i])
-    
-    def log_normal_matrix(self,points):
-        """
-        This method computes the log of the density of probability of a normal law centered. Each line
-        corresponds to a point from points.
-        
-        @param points: an array of points (n_points,dim)
-        @param means: an array of k points which are the means of the clusters (n_components,dim)
-        @param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
-        @return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
-        """
-        
-        nb_points,dim = points.shape
-        
-        log_normal_matrix = np.zeros((nb_points,self.n_components))
-        
-        for i in range(self.n_components):
-            log_normal_probabilities = scipy.stats.multivariate_normal.logpdf(points,self.means[i],self.cov_estimated[i])
-            log_normal_probabilities = np.reshape(log_normal_probabilities, (nb_points,1))
-            log_normal_matrix[:,i:i+1] = log_normal_probabilities
-                         
-        return log_normal_matrix
     
     def _initialize(self,points_data,points_test):
         """
@@ -101,34 +80,28 @@ class VariationalGaussianMixture():
         
         n_points,dim = points_data.shape
         
-        self.log_prior_prob = - np.log(self.n_components) * np.ones(self.n_components)
-        self.means_init = np.mean(points_data,axis=0)
-        self.inv_prec_init = Init.initialization_full_covariances(points_data,self.n_components)
+        # Hyper parameters
+        self._check_hyper_parameters(n_points,dim)
         
-        if (self.init == "random"):
-            self.means = Init.initialization_random(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "plus"):
-            self.means = Init.initialization_plus_plus(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "kmeans"):
-            self.means = Init.initialization_k_means(points_data,self.n_components)
-            self.inv_prec = np.tile(self.inv_prec_init, (self.n_components,1,1))
-            self.log_det_inv_prec = np.linalg.det(self.inv_prec)
-        elif(self.init == "GMM"):
-            means,inv_prec = Init.initialization_GMM(points_data,points_test,self.n_components)
-            self.means = means
-            self.inv_prec = inv_prec
-            self.log_det_inv_prec = np.linalg.det(inv_prec)
-        
-        
-        self._alpha = np.tile(self._alpha_0, (self.n_components,1))
+        self._alpha_0 = np.asarray([1,self._alpha_0])
+        self._alpha = self._alpha_0 * np.ones(self.n_components)
         self._beta = self._beta_0 * np.ones(self.n_components)
         self._nu = self._nu_0 * np.ones(self.n_components)
+
+        # Means, covariances and weights
+        self.means_init = np.mean(points_data,axis=0)
+        self.inv_prec_init = Init.initialization_full_covariances(self.n_components,points_data) * self._nu_0 
         
-        self.cov_estimated = self.inv_prec / np.tile(self._nu,(1,dim,dim))
+        means,cov,log_weights = Init.initialize_mcw(self.init,self.n_components,points_data)
+        self.cov = cov
+        self.means = means
+        self.inv_prec = cov * np.tile(self._nu, (dim,dim,1)).T
+        self.log_det_inv_prec = np.log(np.linalg.det(self.inv_prec))
+        self.log_weights = log_weights
+        
+        # In case we use sampling_Normal_Wishart
+        self.cov_estimated = cov
+        self.means_estimated = means
         
         
     def step_E(self, points):
@@ -189,13 +162,15 @@ class VariationalGaussianMixture():
         resp = np.exp(log_resp)
         
         # Convenient statistics
-        N = np.sum(resp,axis=0)                                          #Array (n_components,)
+        N = np.sum(resp,axis=0) + 10*np.finfo(resp.dtype).eps            #Array (n_components,)
         X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)        #Array (n_components,dim)
         S = np.zeros((self.n_components,dim,dim))                        #Array (n_components,dim,dim)
         for i in range(self.n_components):
             diff = points - X_barre[i]
             diff_weighted = diff * np.tile(resp[:,i:i+1], (1,dim))
             S[i] = 1/N[i] * np.dot(diff_weighted.T,diff)
+            
+            S[i] += self.reg_covar * np.eye(dim)
         
         #Parameters update
         for i in range(self.n_components):
@@ -216,84 +191,80 @@ class VariationalGaussianMixture():
 #            self.cov[i] /= N[i]
             det_inv_prec = np.linalg.det(self.inv_prec[i])
             self.log_det_inv_prec[i] = np.log(det_inv_prec)
-            self.cov_estimated[i] = self.inv_prec[i] / self._nu[i]
+            self.cov[i] = self.inv_prec[i] / self._nu[i]
         
-        self.log_prior_prob = logsumexp(log_resp, axis=0) - np.log(n_points)
+        self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
         
-    def log_likelihood(self,points):
-        """
-        This method returns the log likelihood at the end of the k_means.
-        
-        @param points: an array of points (n_points,dim)
-        @return: log likelihood measurement (float)
-        """
-        n_points = len(points)
-        
-        log_normal_matrix = self.log_normal_matrix(points)
-        log_prior_duplicated = np.tile(self.log_prior_prob, (n_points,1))
-        log_product = log_normal_matrix + log_prior_duplicated
-        log_product = logsumexp(log_product,axis=1)
-        return np.sum(log_product)
-        
-    def create_graph(self,points,log_resp,t):
-        """
-        This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
-        If points have more than two coordinates, then it will be a projection including only the first coordinates.
-        
-        @param points: an array of points (n_points,dim)
-        @param means: an array of k points which are the means of the clusters (n_components,dim)
-        @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
-        @full_covariance: a string in ['full','spherical']
-        @param t: the figure number
-        """
     
+    def convergence_criterion(self,points,log_resp):
+        
+        resp = np.exp(log_resp)
         n_points,dim = points.shape
-    
-        dir_path = 'DPGMM/' + self.init + '/'
-        directory = os.path.dirname(dir_path)
-    
-        try:
-            os.stat(directory)
-        except:
-            os.mkdir(directory)  
         
-        
-        log_like = self.log_likelihood(points)
-        
-        couleurs = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-        
-        x_points = [[] for i in range(self.n_components)]
-        y_points = [[] for i in range(self.n_components)]
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        plt.title("log likelihood = " + str(log_like) + " iter = " + str(self.iter) + " k = " + str(self.n_components))
-        
-#        self._sampling_Normal_Wishart()
-
-
+        # Convenient statistics
+        N = np.exp(logsumexp(log_resp,axis=0)) + 10*np.finfo(resp.dtype).eps    #Array (n_components,)
+        X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)               #Array (n_components,dim)
+        S = np.zeros((self.n_components,dim,dim))                               #Array (n_components,dim,dim)
         for i in range(self.n_components):
+            diff = points - X_barre[i]
+            diff_weighted = diff * np.tile(resp[:,i:i+1], (1,dim))
+            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff)
             
-            if self.log_prior_prob[i] > -3:
+            S[i] += self.reg_covar * np.eye(dim)
+        
+        prec = np.linalg.inv(self.inv_prec)
+        prec_init = np.linalg.inv(self.inv_prec_init)
+        
+        log_weights = np.zeros(self.n_components)
+        log_det_prec = np.zeros(self.n_components)
+        lower_bound = np.zeros(self.n_components)
+        
+        for i in range(self.n_components): 
+            if i==0:
+                log_weights[i] = psi(self._alpha[i][0]) - psi(np.sum(self._alpha[i]))
+            else:
+                log_weights[i] = psi(self._alpha[i][0]) - psi(np.sum(self._alpha[i]))
+                log_weights[i] += log_weights[i-1] + psi(self._alpha[i-1][1]) - psi(self._alpha[i-1][0])
+            
+            digamma_sum = 0
+            for j in range(dim):
+                digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
+            log_det_prec[i] = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
+            
+            #First line
+            lower_bound[i] = log_det_prec[i] - dim/self._beta[i] - self._nu[i]*np.trace(np.dot(S[i],prec[i]))
+            diff = X_barre[i] - self.means[i]
+            lower_bound[i] += -self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T)) - dim*np.log(2*np.pi)
+            lower_bound[i] *= 0.5 * N[i]
+            
+            #Second line
+            lower_bound[i] += (self._alpha_0[1] - self._alpha[i,1]) * log_weights[i] #TODO verify the formula with alpha
+            lower_bound[i] += utils.log_B(prec_init,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            
+            resp_i = resp[:,i:i+1]
+            log_resp_i = log_resp[:,i:i+1]
+            
+            lower_bound[i] += np.sum(resp_i) * log_weights[i] - np.sum(resp_i*log_resp_i)
+            lower_bound[i] += 0.5 * (self._nu_0 - self._nu[i]) * log_det_prec[i]
+            lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
+            lower_bound[i] += dim*0.5*(1 - self._beta_0/self._beta[i] + self._nu[i])
+            
+            #Third line without the last term which is not summed
+            diff = self.means[i] - self.means_init
+            lower_bound[i] += -0.5*self._beta_0*self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
+            lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self.inv_prec_init,prec[i]))
                 
-                col = couleurs[i%7]
-                                     
-                ell = utils.ellipses(self.cov_estimated[i],self.means[i])
-                x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
-                y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
+        result = np.sum(lower_bound)
+        result += utils.log_C(self._alpha_0[1] * np.ones(self.n_components))- utils.log_C(self._alpha.T[1]) #TODO verify the formula of lower bound
         
-                ax.plot(x_points[i],y_points[i],col + 'o',alpha = 0.2)
-                ax.plot(self.means[i][0],self.means[i][1],'kx')
-                ax.add_artist(ell)
-            
+        return result
+    
+    def create_path(self):
+        """
+        Create a directory to store the graphs
         
-        titre = directory + '/figure_' + self.init + "_" + str(t)
-        plt.savefig(titre)
-        plt.close("all")
-        
-        
-    def create_graph_log(self,t):
-        
+        @return: the path of the directory (str)
+        """
         dir_path = 'DPGMM/' + self.init + '/'
         directory = os.path.dirname(dir_path)
     
@@ -301,62 +272,7 @@ class VariationalGaussianMixture():
             os.stat(directory)
         except:
             os.mkdir(directory)  
-        
-        n_iter = len(self.log_like_data)
-        
-        p1, = plt.plot(np.arange(n_iter),self.log_like_data,marker='x',label='data')
-        p2, = plt.plot(np.arange(n_iter),self.log_like_test,marker='o',label='test')
-        
-        plt.title("log likelihood evolution")
-        plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
-        
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_log_evolution"
-        plt.savefig(titre)
-        plt.close("all")
-    
-    def predict(self,points_data,points_test,draw_graphs=False):
-        """
-        The EM algorithm
-        
-        @param points: an array (n_points,dim)
-        @return resp: an array containing the responsibilities (n_points,n_components)
-        """
-        self._check_parameters()
-        self._initialize(points_data,points_test)
-        
-        self.log_like_data = []
-        self.log_like_test = []
-        
-        resume_iter = True
-        first_iter = True
-        self.iter = 0
-        patience = 0
-        
-        # EM algorithm
-        while resume_iter:
-            
-            log_assignements_data = self.step_E(points_data)
-            log_assignements_test = self.step_E(points_test)
-            self.step_M(points_data,log_assignements_data)
-            self.log_like_data.append(self.log_likelihood(points_data))
-            self.log_like_test.append(self.log_likelihood(points_test))
-            
-            #Graphic part
-            if draw_graphs:
-                self.create_graph(points_data,log_assignements_data,"data_iter" + str(self.iter))
-                self.create_graph(points_test,log_assignements_test,"test_iter" + str(self.iter))
-            
-            if first_iter:
-                resume_iter = True
-                first_iter = False
-            elif abs(self.log_like_test[self.iter] - self.log_like_test[self.iter-1]) < self.tol:
-#            elif self.log_like_test[t] < self.log_like_test[t-1] :
-                resume_iter = patience < self.patience
-                patience += 1
-            
-            self.iter+=1
-        
-        return log_assignements_data,log_assignements_test
+        return directory
     
 if __name__ == '__main__':
     
@@ -386,13 +302,14 @@ if __name__ == '__main__':
 #        print()
         
     init = "GMM"
-    for j in np.arange(1,11):
-        print(j)
-        print(">>predicting")
-        VBGMM = VariationalGaussianMixture(j,init,alpha_0=1.0/j,beta_0=1.0,nu_0=dim,patience=30)
-        log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
-        print(">>creating graphs")
-        VBGMM.create_graph(points_data,log_resp_data,str(j) + "_MFCC")
-        VBGMM.create_graph_log(str(j) + "_MFCC")
-        print()
+#    for j in np.arange(1,11):
+    j=100
+    print(j)
+    print(">>predicting")
+    VBGMM = VariationalGaussianMixture(j,init,alpha_0=1.0/j,beta_0=1.0,nu_0=dim,patience=0)
+    log_resp_data,log_resp_test = VBGMM.predict_log_assignements(points_data,points_test)
+    print(">>creating graphs")
+    VBGMM.create_graph(points_data,log_resp_data,str(j) + "_MFCC")
+    VBGMM.create_graph_convergence_criterion(str(j) + "_MFCC")
+    print()
         
