@@ -15,8 +15,6 @@ import numpy as np
 from matplotlib.patches import Ellipse
 from scipy.special import gammaln
 
-import matplotlib.pyplot as plt
-
 def read(file_name):
     """
     A method to read a file written in CSV style.
@@ -26,6 +24,13 @@ def read(file_name):
     matrix = fichier.as_matrix()
     
     return np.asarray(matrix)
+
+def write(file_name,data,sep=' '):
+    """
+    A method used to write a CSV file from data
+    """
+    df = pd.DataFrame(data)
+    df.to_csv(file_name,sep=sep,header=False,index=False)
 
 def ellipses_multidimensional(cov,mean,d1=0,d2=1):
     """
@@ -60,7 +65,7 @@ def log_B(W,nu):
     dim,_ = W.shape
     
     det_W = np.linalg.det(W)
-    log_gamma_sum = np.sum(gammaln(np.linspace(nu,nu+dim,num=dim+1)*0.5))
+    log_gamma_sum = np.sum(gammaln(.5 * (nu - np.arange(dim)[:, np.newaxis])), 0)
     result = - nu*0.5*np.log(det_W) - nu*dim*0.5*np.log(2)
     result += -dim*(dim-1)*0.25*np.log(np.pi) - log_gamma_sum
     return result

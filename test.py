@@ -6,23 +6,14 @@ Created on Thu Mar  2 17:36:06 2017
 @author: Calixi
 """
 
-import utils
-import Initializations as Init
-import GMM2
 import GMM3
-import kmeans3
-import VBGMM
+import VBGMM2
+import DPGMM2
+import utils
 
-from sklearn.metrics.pairwise import euclidean_distances
 from sklearn import manifold
 import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 import pickle
-import os
-import scipy.special
-
-
-from scipy.misc import logsumexp
 import numpy as np
 
 def matrix_sym(matrix):
@@ -72,22 +63,41 @@ def plot_comparison_means(means1, means2, legend):
             
 
 if __name__ == '__main__':
-    
-    k = 6
 
-    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-
-#    means,covariance = Init.initialization_GMM(k,points_data,points_data)
+    N=1500
+    k=100
+    n_iter = 1000
     
-    GMM = GMM3.GaussianMixture(k)
-    GMM.set_parameters(means=np.asarray([[0,1]]))
-    
-    
-    
-    
-    
-    
+    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
         
+    points = data['BUC']
+    points_data = points[:N:]
+#    idx1 = np.random.randint(0,high=len(points),size=N)
+#    points_data = points[idx1,:]
     
+    lower_bound = np.arange(n_iter)
     
+#    GMM = GMM3.GaussianMixture(k,covariance_type="full",patience=0,tol=1e-3,reg_covar=1e-6)
+#    GMM = VBGMM2.VariationalGaussianMixture(k,tol=1e-3)
+    GMM = DPGMM2.VariationalGaussianMixture(k,tol=1e-3)
+
+    #GMM
+    for i in range(n_iter):
+        print(i)
+        print(">>predicting")
+#        log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
+        log_assignements_data = GMM.predict_log_assignements(points_data,draw_graphs=False)
+        lower_bound[i] = GMM.convergence_criterion_data[-1]
+        print()
+            
+    plt.title("Lower bounds on " + str(n_iter) + " iterations")
+    plt.hist(lower_bound)
     
+    directory = GMM.create_path()
+    titre = directory + '/repartition_lower_bound_' + str(n_iter) + '_iter.png'
+    plt.savefig(titre)
+    plt.close("all")
+    
+    utils.write(directory + 'lower_bounds.csv',lower_bound)

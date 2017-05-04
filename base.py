@@ -31,6 +31,41 @@ def _compute_precisions_chol(cov,covariance_type):
                                                                lower=True).T
      return precisions_chol
 
+def _log_normal_matrix(points,means,cov,covariance_type):
+    """
+    This method computes the log of the density of probability of a normal law centered. Each line
+    corresponds to a point from points.
+    
+    @param points: an array of points (n_points,dim)
+    @param means: an array of k points which are the means of the clusters (n_components,dim)
+    @param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
+    @return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
+    """
+    n_points,dim = points.shape
+    n_components,_ = means.shape
+    
+    
+    if covariance_type == "full":
+        precisions_chol = _compute_precisions_chol(cov,covariance_type)
+        log_det_chol = np.log(np.linalg.det(precisions_chol))
+        
+        log_prob = np.empty((n_points,n_components))
+        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
+            y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
+            log_prob[:,k] = np.sum(np.square(y), axis=1)
+            
+    elif covariance_type == "spherical":
+        precisions_chol = np.sqrt(np.reciprocal(cov))
+        log_det_chol = dim * np.log(precisions_chol)
+        
+        log_prob = np.empty((n_points,n_components))
+        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
+            y = prec_chol * (points - mu)
+            log_prob[:,k] = np.sum(np.square(y), axis=1)
+            
+    return -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
+
+
 class BaseMixture():
     """
     Base class for mixture models.
@@ -130,8 +165,7 @@ class BaseMixture():
     
         n_points,dim = points.shape
         
-        cc = self.convergence_criterion(points,log_resp)
-        plt.title("convergence criterion = " + str(cc) + " iter = " + str(self.iter) + " k = " + str(self.n_components))
+        plt.title("iter = " + str(self.iter) + " k = " + str(self.n_components))
         
         if self.covariance_type == "full":
             cov = self.cov
@@ -148,7 +182,7 @@ class BaseMixture():
         
         for i in range(self.n_components):
             
-            if self.log_weights[i] > -4:
+            if self.log_weights[i] > -10:
                 
                 col = couleurs[i%7]
                                      
@@ -194,8 +228,6 @@ class BaseMixture():
         
         plt.title("Weights of the clusters")
         
-#        labels = np.arange(self.n_components)
-#        plt.pie(np.exp(self.log_weights), labels=labels, autopct='%1.1f%%', startangle=90)
         plt.hist(np.exp(self.log_weights))
         
         directory = self.create_path()
@@ -218,10 +250,6 @@ class BaseMixture():
         stress = mds.stress_
         
         plt.plot(coord.T[0],coord.T[1],'o')
-#        for i in range(self.n_components):
-#            plt.annotate('{}'.format(i), xy=coord[i], xytext=(-5,5), ha='right',
-#                         textcoords='offset points')
-        
         plt.title("MDS of the cosine distances between means, stress = " + str(stress))
         
         directory = self.create_path()
@@ -245,17 +273,6 @@ class BaseMixture():
         ent = - np.sum(log_l*l, axis=1)
         
         plt.hist(ent)
-        
-#        segments = np.zeros((self.n_components,2,2))
-#        for i in range(self.n_components):
-#            segments[i] = np.asarray([[i,0],[i,ent[i]]])
-#        
-#        lc = LineCollection(segments,linewidth=1)
-#        ax = plt.subplot(111)
-#        plt.xlim(-0.5,self.n_components-0.5)
-#        plt.xticks(np.arange(0,self.n_components))
-#        plt.ylim(0,np.max(ent)+0.1)
-#        ax.add_collection(lc)
         
         directory = self.create_path()
         titre = directory + '/figure_' + self.init + "_" + str(t) + "_cov_entropy.png"
@@ -285,30 +302,35 @@ class BaseMixture():
         self.convergence_criterion_data = []
         if not (points_test is None):
             self.convergence_criterion_test = []
-        
+            
         resume_iter = True
         first_iter = True
         self.iter = 0
         patience = 0
-        
+            
+        if draw_graphs:
+            self.create_graph_weights("_init_")
+            self.create_graph_entropy("_init_")
+
         # EM algorithm
         while resume_iter:
             
-            log_resp_data = self.step_E(points_data)
+            log_prob_norm_data,log_resp_data = self.step_E(points_data)
             self.log_assignements = log_resp_data
             if self.test_exists:
-                log_resp_test = self.step_E(points_test)
-            
+                log_prob_norm_test,log_resp_test = self.step_E(points_test)
+                
             self.step_M(points_data,log_resp_data)
             
-            self.convergence_criterion_data.append(self.convergence_criterion(points_data,log_resp_data))
+            self.convergence_criterion_data.append(self.convergence_criterion(points_data,log_resp_data,log_prob_norm_data))
             if self.test_exists:
-                self.convergence_criterion_test.append(self.convergence_criterion(points_test,log_resp_test))
+                self.convergence_criterion_test.append(self.convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
             
             #Graphic part
             if draw_graphs:
-                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
+#                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
                 self.create_graph_weights("_iter_" + str(self.iter))
+                self.create_graph_entropy("_iter_" + str(self.iter))
 #                if self.test_exists:
 #                    self.create_graph(points_test,log_resp_test,"test_iter" + str(self.iter))
             

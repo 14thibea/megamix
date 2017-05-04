@@ -16,7 +16,7 @@ import pickle
 #from scipy.misc import logsumexp
 
 
-def dist_matrix(points,means,k):
+def dist_matrix(points,means):
     """
     This method computes all the distances between the points and the actual means
     of the clusters, taking in account that the last coordinate is the cluster number
@@ -26,12 +26,8 @@ def dist_matrix(points,means,k):
     @return: a matrix which contains the distances between the ith point and the jth center
     (n_points,n_components)
     """
-    
-    if k > 0:
-        real_means = np.asarray(means)[:k:]
-    else:
-        real_means = means
-    dist_matrix = euclidean_distances(points,real_means)
+
+    dist_matrix = euclidean_distances(points,means)
     
     return dist_matrix
 
@@ -47,7 +43,7 @@ def step_E(points,means):
     n_points = len(points)
     assignements = np.zeros((n_points,k))
     
-    M = dist_matrix(points,means,-1)
+    M = dist_matrix(points,means)
     for i in range(n_points):
         index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
         if (isinstance(index_min,np.int64)):
@@ -70,12 +66,13 @@ def step_M(points,means,assignements):
     for i in range(k):
         sets = assignements[:,i:i+1]
         n_sets = np.sum(sets)
-        sets = points * np.tile(sets, (1,dim))
-        means[i] = np.mean(sets, axis=0)*n_points/n_sets
+        sets = points * sets
+        if n_sets > 0:
+            means[i] = np.mean(sets, axis=0)*n_points/n_sets
         
     return means
         
-def create_graph(points,means,assignements,t):
+def create_graph(points,means,assignements,legend,n_iter):
     """
     This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
     If points have more than two coordinates, then it will be a projection including only the first coordinates.
@@ -94,7 +91,7 @@ def create_graph(points,means,assignements,t):
     dist = distortion(points,means,assignements)
     
     fig = plt.figure()
-    plt.title("distortion = " + str(dist))
+    plt.title("distortion = " + str(dist) + "n_iter = " + str(n_iter))
     ax = fig.add_subplot(111)
     
     for i in range(k):
@@ -113,7 +110,7 @@ def create_graph(points,means,assignements,t):
     except:
         os.mkdir(directory)  
     
-    titre = directory + '/figure_' + str(t)
+    titre = directory + '/figure_' + str(legend)
 
     plt.savefig(titre)
     plt.close("all")
@@ -132,7 +129,7 @@ def distortion(points,means,assignements):
     for i in range(k):
         sets = [points[j] for j in range(n_points) if (assignements[j][i]==1)]
         sets = np.asarray(sets)
-        M = dist_matrix(sets,means[i].reshape(1,-1),-1)
+        M = dist_matrix(sets,means[i].reshape(1,-1))
         distortion += np.sum(M)
     return distortion
     
@@ -154,16 +151,18 @@ def k_means(points,k,draw_graphs=False,initialization = "plus"):
         means = Init.initialization_random(k,points)
     elif (initialization == "plus"):
         means = Init.initialization_plus_plus(k,points)
+    elif (initialization == "AF_KMC"):
+        means = Init.initialization_AF_KMC(k,points)
     else:
         raise ValueError("Invalid value for 'initialization': %s "
                              "'initialization' should be in "
-                             "['random', 'plus']"
+                             "['random', 'plus','AF_KMC']"
                               % initialization)
     
     means_pre = means.copy()
     
     resume_iter = True  
-    t=0       
+    n_iter=0       
     
     #K-means beginning
     while resume_iter:
@@ -174,18 +173,20 @@ def k_means(points,k,draw_graphs=False,initialization = "plus"):
         
         #Graphic part
         if draw_graphs:
-            create_graph(points,means,assignements,t)
+            create_graph(points,means,assignements,"iter_num",n_iter)
         
-        t+=1        
+        n_iter+=1        
         resume_iter = not np.array_equal(means,means_pre)
         
-    return means,assignements
+    return means,assignements,n_iter
 
 if __name__ == '__main__':
     
     #Lecture du fichier
     points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
     points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
+    
+    initializations = ['random','plus','AF_KMC']
     
     path = '../data/data.pickle'
     with open(path, 'rb') as fh:
@@ -194,10 +195,26 @@ if __name__ == '__main__':
     N=1500
         
     points = data['BUC']
-    points = points[:N:]
-#    
-    #k-means
-    k=40
+    points_data = points[:N:]
     
-    means,assignements = k_means(points,k,draw_graphs=False,initialization="plus")
-    create_graph(points,means,assignements,str(k) + "_MFCC")
+    k=100
+    n_iter_max = 1000
+    
+    dist = [np.empty(n_iter_max) for i in range(3)]
+    
+    #k-means
+    for t in range(n_iter_max):
+        print(t)
+        for i in range(3):
+            means,assignements,n_iter = k_means(points_data,k,draw_graphs=False,initialization=initializations[i])
+            dist[i][t] = distortion(points_data,means,assignements)
+        
+    plt.title("Distortion on " + str(n_iter_max) + " iterations")
+    plt.hist(dist,label=initializations)
+    plt.legend()
+    
+    directory = 'k_means'
+    titre = directory + '/repartition_lower_bound_' + str(n_iter_max) + '_iter.png'
+    plt.savefig(titre)
+    plt.close("all")
+        

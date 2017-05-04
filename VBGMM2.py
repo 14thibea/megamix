@@ -8,6 +8,7 @@ Created on Fri Apr 14 13:37:08 2017
 import utils
 import Initializations as Init
 from base import BaseMixture
+from base import _log_normal_matrix
 
 import pickle
 import os
@@ -79,7 +80,7 @@ class VariationalGaussianMixture(BaseMixture):
         
             self.means_estimated[i] = np.random.multivariate_normal(self.means[i] , self.cov_estimated[i]/self._beta[i])
     
-    def _initialize(self,points_data,points_test):
+    def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other parameters specific (alpha, beta, nu)
@@ -91,27 +92,28 @@ class VariationalGaussianMixture(BaseMixture):
         
         n_points,dim = points_data.shape
         
-        self._check_hyper_parameters(n_points,dim)
-        
-        self._alpha = self._alpha_0 * np.ones(self.n_components)
-        self._beta = self._beta_0 * np.ones(self.n_components)
-        self._nu = self._nu_0 * np.ones(self.n_components)
-
-        
         self.means_init = np.mean(points_data,axis=0)
-        self.inv_prec_init = Init.initialization_full_covariances(self.n_components,points_data) * self._nu_0 
+        self.inv_prec_init = Init.initialization_full_covariances(self.n_components,points_data)# * self._nu_0
         
         means,cov,log_weights = Init.initialize_mcw(self.init,self.n_components,points_data)
         self.cov = cov
         self.means = means
-        self.inv_prec = cov * np.tile(self._nu, (dim,dim,1)).T
-        self.log_det_inv_prec = np.log(np.linalg.det(self.inv_prec))
         self.log_weights = log_weights
         
         
         self.cov_estimated = cov
         self.means_estimated = means
         
+        
+        self._check_hyper_parameters(n_points,dim)
+        N = np.exp(log_weights)
+        self._alpha = self._alpha_0 + N
+        self._beta = self._beta_0 + N
+        self._nu = self._nu_0 + N
+        
+        self.inv_prec = cov * self._nu[:,np.newaxis,np.newaxis]
+        self.log_det_inv_prec = np.log(np.linalg.det(self.inv_prec))
+    
     def step_E(self, points):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
@@ -121,35 +123,19 @@ class VariationalGaussianMixture(BaseMixture):
         """
         
         n_points,dim = points.shape
-        log_resp = np.zeros((n_points,self.n_components))
+        log_prob = np.zeros((n_points,self.n_components))
         
-        for i in range(self.n_components):
-            log_weights_i = scipy.special.psi(self._alpha[i]) - scipy.special.psi(np.sum(self._alpha))
-            
-            digamma_sum = 0
-            for j in range(dim):
-                digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
-            log_det_prec_i = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
-            
-            points_centered = points - self.means[i]
-            prec = np.linalg.inv(self.inv_prec[i])
-            
-            esp_cov_mean = self._nu[i] * np.dot(points_centered,np.dot(prec,points_centered.T))
-            esp_cov_mean += dim/self._beta[i]
-            esp_cov_mean = np.diagonal(esp_cov_mean)
-             
-            # Formula page 476 Bishop
-            log_pho_i = log_weights_i + 0.5*log_det_prec_i - dim*0.5*np.log(2*np.pi) - 0.5*esp_cov_mean
-            
-            log_pho_i = np.reshape(log_pho_i, (n_points,1))
-            log_resp[:,i:i+1] = log_pho_i
+        log_weights = scipy.special.psi(self._alpha) - scipy.special.psi(np.sum(self._alpha))       
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full')
+        digamma_sum = np.sum(scipy.special.psi(.5 * (self._nu - np.arange(0, dim)[:,np.newaxis])),0)
+        log_lambda = digamma_sum + dim * np.log(2) + dim/self._beta
         
-        log_pho_norm = logsumexp(log_resp, axis=1)
-
-        for i in range(n_points):
-            log_resp[i] = log_resp[i] - log_pho_norm[i]
+        log_prob = log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self._nu))
+        
+        log_prob_norm = logsumexp(log_prob, axis=1)
+        log_resp = log_prob - log_prob_norm[:,np.newaxis]
                     
-        return log_resp
+        return log_prob_norm,log_resp
     
     def step_M(self,points,log_resp):
         """
@@ -192,7 +178,7 @@ class VariationalGaussianMixture(BaseMixture):
             
         self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
     
-    def convergence_criterion(self,points,log_resp):
+    def convergence_criterion(self,points,log_resp,log_prob_norm):
         
         resp = np.exp(log_resp)
         n_points,dim = points.shape
@@ -277,12 +263,14 @@ if __name__ == '__main__':
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
-        
+    
+    k=100
     N=1500
         
     points = data['BUC']
     points_data = points[:N:]
-    points_test = points_data
+    idx = np.random.randint(0,high=len(points),size=N)
+    points_test = points[idx,:]
     
     _,dim = points_data.shape
     
@@ -294,16 +282,17 @@ if __name__ == '__main__':
     init="GMM"
 
 #    for j in np.arange(2,11):
-    j=100
+    j=0
     print(j)
     print(">>predicting")
-    VBGMM = VariationalGaussianMixture(j,init,tol=1e-2,patience=0)
-#   log_resp_data,log_resp_test = VBGMM.predict(points_data,points_test)
-    log_resp_data = VBGMM.predict_log_assignements(points_data)
+    VBGMM = VariationalGaussianMixture(k,init,tol=1e-4,patience=0)
+    log_resp_data,log_resp_test = VBGMM.predict_log_assignements(points_data,points_test)
+#    log_resp_data = VBGMM.predict_log_assignements(points_data,draw_graphs=False)
     print(">>creating graphs")
-    VBGMM.create_graph_convergence_criterion(j)
-    VBGMM.create_graph_weights(j)
+#    VBGMM.create_graph_convergence_criterion(j)
+#    VBGMM.create_graph_weights(j)
 #    VBGMM.create_graph_MDS(j)
-    VBGMM.create_graph_entropy(j)
-    print()
+#    VBGMM.create_graph_entropy(j)
+#    print()
     
+    utils.write('VBGMM/test.csv',log_resp_data)

@@ -7,7 +7,7 @@ Created on Mon Apr 10 11:34:50 2017
 
 import utils
 from base import BaseMixture
-from base import _compute_precisions_chol
+from base import _log_normal_matrix
 import Initializations as Init
 
 import numpy as np
@@ -15,41 +15,7 @@ import os
 from scipy.misc import logsumexp
 import pickle
 
-def _log_normal_matrix(points,means,cov,covariance_type):
-    """
-    This method computes the log of the density of probability of a normal law centered. Each line
-    corresponds to a point from points.
-    
-    @param points: an array of points (n_points,dim)
-    @param means: an array of k points which are the means of the clusters (n_components,dim)
-    @param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
-    @return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
-    """
-    n_points,dim = points.shape
-    n_components,_ = means.shape
-    
-    
-    if covariance_type == "full":
-        precisions_chol = _compute_precisions_chol(cov,covariance_type)
-        log_det_chol = np.log(np.linalg.det(precisions_chol))
-        
-        log_prob = np.empty((n_points,n_components))
-        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
-            y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
-            log_prob[:,k] = np.sum(np.square(y), axis=1)
-            
-    if covariance_type == "spherical":
-        precisions_chol = np.sqrt(np.reciprocal(cov))
-        log_det_chol = dim * np.log(precisions_chol)
-        
-        log_prob = np.empty((n_points,n_components))
-        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
-            y = prec_chol * (points - mu)
-            log_prob[:,k] = np.sum(np.square(y), axis=1)
-            
-    return -.5 * (n_points * np.log(2*np.pi) + log_prob) + log_det_chol
-
-def _full_covariance_matrix(points,means,log_assignements,reg_covar):
+def _full_covariance_matrix(points,means,weights,log_assignements,reg_covar):
     """
     Compute the full covariance matrices
     """
@@ -59,24 +25,22 @@ def _full_covariance_matrix(points,means,log_assignements,reg_covar):
     covariance = np.zeros((n_components,dim,dim))
     
     for i in range(n_components):
-        log_assignements_i = log_assignements[:,i:i+1]
+        log_assignements_i = log_assignements[:,i]
         
         # We use the square root of the assignement values because values are very
         # small : this ensure that the matrix will be symmetric
-        sqrt_assignements_i = np.tile(np.exp(0.5*log_assignements_i), (1,dim))
-        sum_assignement = np.exp(logsumexp(log_assignements_i)) 
-        sum_assignement += 10 * np.finfo(log_assignements.dtype).eps
+        sqrt_assignements_i = np.exp(0.5*log_assignements_i)
         
         points_centered = points - means[i]
-        points_centered_weighted = points_centered * sqrt_assignements_i
+        points_centered_weighted = points_centered * sqrt_assignements_i[:,np.newaxis]
         covariance[i] = np.dot(points_centered_weighted.T,points_centered_weighted)
-        covariance[i] = covariance[i] / sum_assignement
+        covariance[i] = covariance[i] / weights[i]
         
         covariance[i] += reg_covar * np.eye(dim)
     
     return covariance
 
-def _spherical_covariance_matrix(points,means,assignements,reg_covar):
+def _spherical_covariance_matrix(points,means,weights,assignements,reg_covar):
     """
     Compute the coefficients for the spherical covariances matrices
     """
@@ -90,11 +54,10 @@ def _spherical_covariance_matrix(points,means,assignements,reg_covar):
         sum_assignement = np.sum(assignements_i)
         sum_assignement += 10 * np.finfo(assignements.dtype).eps
         
-        assignements_duplicated = np.tile(assignements_i, (1,dim))
         points_centered = points - means[i]
-        points_centered_weighted = points_centered * assignements_duplicated
-        product = np.dot(points_centered_weighted,points_centered.T)
-        covariance[i] = np.trace(product)/sum_assignement
+        points_centered_weighted = points_centered * assignements_i
+        product = points_centered * points_centered_weighted
+        covariance[i] = np.sum(product)/sum_assignement
         
         covariance[i] += reg_covar
     
@@ -152,15 +115,13 @@ class GaussianMixture(BaseMixture):
         @param points: an array of points (n_points,dim)
         @return: log of the soft assignements of every point (n_points,n_components)
         """
-        
-        n_points = len(points)
-        
         log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type)
-        log_weights_duplicated = np.tile(self.log_weights, (n_points,1))
-        log_product = log_normal_matrix + log_weights_duplicated
-        log_product_sum = np.tile(logsumexp(log_product,axis=1),(self.n_components,1))
+        log_product = log_normal_matrix + self.log_weights[:,np.newaxis].T
+        log_prob_norm = logsumexp(log_product,axis=1)
         
-        return log_product - log_product_sum.T
+        log_resp = log_product - log_prob_norm[:,np.newaxis]
+        
+        return log_prob_norm,log_resp
       
     def step_M(self,points,log_assignements):
         """
@@ -174,38 +135,28 @@ class GaussianMixture(BaseMixture):
         assignements = np.exp(log_assignements)
         
         #Phase 1:
-        result_inter = np.dot(assignements.T,points)
-        sum_assignements = np.sum(assignements,axis=0)
-        sum_assignements_final = np.reciprocal(np.tile(sum_assignements, (dim,1)).T)
+        product = np.dot(assignements.T,points)
+        weights = np.sum(assignements,axis=0) + 10 * np.finfo(assignements.dtype).eps
         
-        self.means_pre = np.copy(self.means)
-        self.means = result_inter * sum_assignements_final
+        self.means = product / weights[:,np.newaxis]
         
         #Phase 2:
         if self.covariance_type=="full":
-            self.cov_pre = np.copy(self.cov)
-            self.cov = _full_covariance_matrix(points,self.means,log_assignements,self.reg_covar)
+            self.cov = _full_covariance_matrix(points,self.means,weights,log_assignements,self.reg_covar)
         elif self.covariance_type=="spherical":
-            self.cov = _spherical_covariance_matrix(points,self.means,assignements,self.reg_covar)
+            self.cov = _spherical_covariance_matrix(points,self.means,weights,assignements,self.reg_covar)
                         
         #Phase 3:
-        self.log_weights_pre = np.copy(self.log_weights)
         self.log_weights = logsumexp(log_assignements, axis=0) - np.log(n_points)
     
-    def convergence_criterion(self,points,log_resp):
+    def convergence_criterion(self,points,log_resp,log_prob_norm):
         """
         This method returns the log likelihood at the end of the k_means.
         
         @param points: an array of points (n_points,dim)
         @return: log likelihood measurement (float)
         """
-        n_points = len(points)
-        
-        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type)
-        log_weights_duplicated = np.tile(self.log_weights, (n_points,1))
-        log_product = log_normal_matrix + log_weights_duplicated
-        log_product = logsumexp(log_product,axis=1)
-        return np.sum(log_product)
+        return np.sum(log_prob_norm)
         
     def create_path(self):
         """
@@ -251,36 +202,39 @@ class GaussianMixture(BaseMixture):
 if __name__ == '__main__':
     
     #Lecture du fichier
-    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
+#    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+#    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
     
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
     N=1500
-        
-    points = data['BUC']
-    points_data = points[:N:]
-    idx = np.random.randint(0,high=len(points),size=N)
-    points_test = points[idx,:]
-
-#    cluster_number = np.arange(2,10) * 10
+    k=100
     
+    points = data['BUC']
+    n_points,_ = points.shape
+    idx1 = np.random.randint(0,high=n_points,size=N)
+    points_data = points[idx1,:]
+    idx2 = np.random.randint(0,high=n_points,size=N)
+    points_test = points[idx2,:]
+
+
     #GMM
-#    for i in cluster_number:
-    i=100
+#    for i in range(10):
+    i=0
     print(i)
-    GMM = GaussianMixture(i,covariance_type="full",patience=0,tol=1e-5,reg_covar=1e-6)
+    GMM = GaussianMixture(k,covariance_type="spherical",patience=0,tol=1e-3,reg_covar=1e-6)
     
     print(">>predicting")
-#    log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
-    log_assignements_data = GMM.predict_log_assignements(points_data,draw_graphs=False)
+    log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
+#        log_assignements_data = GMM.predict_log_assignements(points_data,draw_graphs=False)
     print(">>creating graphs")
-#    GMM.create_graph(points_data,log_assignements_data,str(i) + "_data")
-#    GMM.create_graph(points_test,log_assignements_test,str(i) + "_test")
+    GMM.create_graph(points_data,log_assignements_data,str(i) + "_data")
+    GMM.create_graph(points_test,log_assignements_test,str(i) + "_test")
     GMM.create_graph_convergence_criterion(i)
     GMM.create_graph_weights(i)
 #    GMM.create_graph_entropy(i)
-#    GMM.create_graph_MDS(i)
+    GMM.create_graph_MDS(i)
     print()
+        
