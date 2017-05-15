@@ -238,8 +238,6 @@ class VariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            log_weights_i = scipy.special.psi(self._alpha[i]) - scipy.special.psi(np.sum(self._alpha))
-            
             digamma_sum = 0
             for j in range(dim):
                 digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
@@ -252,13 +250,12 @@ class VariationalGaussianMixture(BaseMixture):
             lower_bound[i] *= 0.5 * N[i]
             
             #Second line
-            lower_bound[i] += (self._alpha_0 - self._alpha[i]) * log_weights_i
             lower_bound[i] += utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
             
-            lower_bound[i] += np.sum(resp_i) * log_weights_i - np.sum(resp_i*log_resp_i)
+            lower_bound[i] -= np.sum(resp_i*log_resp_i)
             lower_bound[i] += 0.5 * (self._nu_0 - self._nu[i]) * log_det_prec_i
             lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
             lower_bound[i] += dim*0.5*(1 - self._beta_0/self._beta[i] + self._nu[i])
@@ -267,6 +264,10 @@ class VariationalGaussianMixture(BaseMixture):
             diff = self.means[i] - self.means_prior
             lower_bound[i] += -0.5*self._beta_0*self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
             lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self.inv_prec_prior,prec[i]))
+            
+            #Terms with alpha
+            lower_bound[i] += (N[i] + 1 - self._alpha[i,0]) * (psi(self._alpha[i,0]) - psi(np.sum(self._alpha[i])))
+            lower_bound[i] += np.sum(N[i+1::] + self._alpha_0 - self._alpha[i,1]) * (psi(self._alpha[i,1]) - psi(np.sum(self._alpha[i])))
         
         result = np.sum(lower_bound)
         result -= self.n_components * betaln(1,self._alpha_0)
