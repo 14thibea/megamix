@@ -10,11 +10,57 @@ import utils
 from abc import abstractmethod
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerLine2D
-#from matplotlib.collections import LineCollection
 import numpy as np
 import scipy.linalg
 from sklearn import manifold
-#import sklearn_test
+
+def _full_covariance_matrix(points,means,weights,log_assignements,reg_covar):
+    """
+    Compute the full covariance matrices
+    """
+    nb_points,dim = points.shape
+    n_components = len(means)
+    
+    covariance = np.zeros((n_components,dim,dim))
+    
+    for i in range(n_components):
+        log_assignements_i = log_assignements[:,i]
+        
+        # We use the square root of the assignement values because values are very
+        # small : this ensure that the matrix will be symmetric
+        sqrt_assignements_i = np.exp(0.5*log_assignements_i)
+        
+        points_centered = points - means[i]
+        points_centered_weighted = points_centered * sqrt_assignements_i[:,np.newaxis]
+        covariance[i] = np.dot(points_centered_weighted.T,points_centered_weighted)
+        covariance[i] = covariance[i] / weights[i]
+        
+        covariance[i] += reg_covar * np.eye(dim)
+    
+    return covariance
+
+def _spherical_covariance_matrix(points,means,weights,assignements,reg_covar):
+    """
+    Compute the coefficients for the spherical covariances matrices
+    """
+    n_points,dim = points.shape
+    n_components = len(means)
+    
+    covariance = np.zeros(n_components)
+
+    for i in range(n_components):
+        assignements_i = assignements[:,i:i+1]
+        sum_assignement = np.sum(assignements_i)
+        sum_assignement += 10 * np.finfo(assignements.dtype).eps
+        
+        points_centered = points - means[i]
+        points_centered_weighted = points_centered * assignements_i
+        product = points_centered * points_centered_weighted
+        covariance[i] = np.sum(product)/sum_assignement
+        
+        covariance[i] += reg_covar
+    
+    return covariance / dim
 
 def _compute_precisions_chol(cov,covariance_type):
     
@@ -74,12 +120,13 @@ class BaseMixture():
     """
 
     def __init__(self, n_components=1,init="GMM",n_iter_max=1000,
-                 tol=1e-4,patience=0):
+                 tol=1e-3,patience=0,type_init='resp'):
         
         super(BaseMixture, self).__init__()
 
         self.n_components = n_components
         self.init = init
+        self.type_init = type_init
         
         self.tol = tol
         self.patience = patience
@@ -91,6 +138,13 @@ class BaseMixture():
             raise ValueError("The number of components cannot be less than 1")
         else:
             self.n_components = int(self.n_components)
+            
+                        
+        if self.type_init not in ['resp','mcw']:
+            raise ValueError("Invalid value for 'type_init': %s "
+                             "'type_init' should be in "
+                             "['resp','mcw']"
+                             % self.type_init)
             
     def _check_hyper_parameters(self,n_points,dim):
         """
@@ -211,8 +265,8 @@ class BaseMixture():
         
         p1, = plt.plot(np.arange(self.iter),self.convergence_criterion_data,marker='x',label='data')
         if self.test_exists:
-            p2, = plt.plot(np.arange(self.iter),self.convergence_criterion_test,marker='o',label='test')
-        
+            p3, = plt.plot(np.arange(self.iter),self.convergence_criterion_test,marker='o',label='test')
+            
         plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
 
         
@@ -316,7 +370,6 @@ class BaseMixture():
         while resume_iter:
             
             log_prob_norm_data,log_resp_data = self.step_E(points_data)
-            self.log_assignements = log_resp_data
             if self.test_exists:
                 log_prob_norm_test,log_resp_test = self.step_E(points_test)
                 
@@ -325,7 +378,7 @@ class BaseMixture():
             self.convergence_criterion_data.append(self.convergence_criterion(points_data,log_resp_data,log_prob_norm_data))
             if self.test_exists:
                 self.convergence_criterion_test.append(self.convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
-            
+                
             #Graphic part
             if draw_graphs:
 #                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
@@ -339,8 +392,9 @@ class BaseMixture():
                 first_iter = False
                 
             elif self.test_exists:
-                criterion = abs(self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1])
-                criterion /= len(points_test)*self.n_components
+#                criterion = abs(self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1])
+                criterion = self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1]
+                criterion /= len(points_test)
                 if criterion < self.tol:
 #                if self.convergence_criterion_test[self.iter] <= self.convergence_criterion_test[self.iter-1]:
                     resume_iter = patience < self.patience
@@ -348,7 +402,7 @@ class BaseMixture():
                     
             else:
                 criterion = abs(self.convergence_criterion_data[self.iter] - self.convergence_criterion_data[self.iter-1])
-                criterion /= len(points_data)*self.n_components
+                criterion /= len(points_data)
                 if criterion < self.tol:
 #                if self.convergence_criterion_data[self.iter] <= self.convergence_criterion_data[self.iter-1]:
                     resume_iter = patience < self.patience

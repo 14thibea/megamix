@@ -5,40 +5,12 @@ Created on Mon Apr  3 15:14:34 2017
 @author: Calixi
 """
 
-import GMM3
-import VBGMM2
-import kmeans3
+import GMM
+import VBGMM
+import kmeans
 
 import numpy as np
 import random
-
-def initialization_full_covariances(n_components,points):
-    """
-    This method returns the covariances array for methods like kmeans which
-    don't deal with covariances
-    
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the covariance of one cluster      (dim,dim)
-    """
-    return np.cov(points.T) #/ np.sqrt(n_components)
-
-def initialization_spherical_covariances(n_components,points):
-    """
-    This method returns the covariances array for methods like kmeans which
-    don't deal with covariances
-    
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the coefficient of covariance
-             of one cluster                                         (float)
-    """
-    
-    _,dim= points.shape
-    
-    variance = np.var(points)
-    
-    return variance
 
 def initialization_random(n_components,points):
     """
@@ -50,9 +22,13 @@ def initialization_random(n_components,points):
     @return: an array containing the means of each cluster          (n_components,dim)
     """
 
-    n_points = len(points)
+    n_points,_ = points.shape
     idx = np.random.randint(n_points,size = n_components)
-    return points[idx,:]
+    
+    means = points[idx,:]
+    assignements = kmeans.step_E(points,means)
+    
+    return means,assignements
 
 def initialization_plus_plus(n_components,points):
     """
@@ -85,16 +61,18 @@ def initialization_plus_plus(n_components,points):
             M = np.linalg.norm(points-means[0],axis=1)
             M = M.reshape((n_points,1))
         else:
-            M = kmeans3.dist_matrix(points,means[:i+1:])
+            M = kmeans.dist_matrix(points,means[:i+1:])
             
         dst_min = np.amin(M, axis=1)
         dst_min = dst_min**2
         total_dst = np.cumsum(dst_min)
         probability_vector = total_dst/total_dst[-1]
+        
+    assignements = kmeans.step_E(points,means)
 
-    return means
+    return means,assignements
 
-def initialization_AF_KMC(n_components,points):
+def initialization_AF_KMC(n_components,points,m=100):
     """
     A method providing good seedings for kmeans inspired by MCMC
     for more information see http://papers.nips.cc/paper/6478-fast-and-provably-good-seedings-for-k-means
@@ -105,12 +83,11 @@ def initialization_AF_KMC(n_components,points):
     """
     n_points,dim = points.shape
     means = np.empty((n_components,dim))
-    m = 20
     
     #Preprocessing step
     idx_c = np.random.choice(n_points)
     c = points[idx_c]
-    M = np.square(kmeans3.dist_matrix(points,c.reshape(1,-1)))
+    M = np.square(kmeans.dist_matrix(points,c.reshape(1,-1)))
     q = 0.5 * M / np.sum(M) + 0.5 / n_points
     q = q.reshape(n_points)
     
@@ -138,7 +115,9 @@ def initialization_AF_KMC(n_components,points):
                 dist_x = dist_y
         means[i+1] = x
         
-    return means
+    assignements = kmeans.step_E(points,means)
+        
+    return means,assignements
 
 def initialization_k_means(n_components,points):
     """
@@ -149,9 +128,9 @@ def initialization_k_means(n_components,points):
     @param k: the number of clusters                                (int)
     @return: an array containing the means of each cluster          (n_components,dim)
     """
-    means,_,_ = kmeans3.k_means(points,n_components)
+    means,assignements,_ = kmeans.k_means(points,n_components)
     
-    return means
+    return means,assignements
 
 def initialization_GMM(n_components,points_data,points_test=None,covariance_type="full"):
     """
@@ -164,10 +143,13 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
              an array containing the covariances of each cluster    (n_components,dim,dim)
     """
     
-    GMM = GMM3.GaussianMixture(n_components,covariance_type=covariance_type)
-    GMM.predict_log_assignements(points_data,points_test)
+    GM = GMM.GaussianMixture(n_components,covariance_type=covariance_type)
+    if points_test is None:
+        log_assignements = GM.predict_log_assignements(points_data,points_test)
+    else:
+        log_assignements,_ = GM.predict_log_assignements(points_data,points_test)
     
-    return GMM.means,GMM.cov,GMM.log_weights
+    return GM.means,GM.cov,GM.log_weights,log_assignements
 
 def initialization_VBGMM(n_components,points_data,points_test=None,covariance_type="full"):
     """
@@ -180,10 +162,46 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
              an array containing the covariances of each cluster    (n_components,dim,dim)
     """
     
-    GMM = VBGMM2.VariationalGaussianMixture(n_components)
-    GMM.predict_log_assignements(points_data,points_test)
+    GM = VBGMM.VariationalGaussianMixture(n_components)
+    if points_test is None:
+        log_assignements = GM.predict_log_assignements(points_data,points_test)
+    else:
+        log_assignements,_ = GM.predict_log_assignements(points_data,points_test)
     
-    return GMM.means,GMM.cov,GMM.log_weights
+    return GM.means,GM.cov,GM.log_weights,log_assignements
+
+def initialize_log_assignements(init,n_components,points_data,points_test=None,covariance_type="full"):
+    """
+    This method initializes the Variational Gaussian Mixture by setting the values
+    of the means, the covariances and the log of the weights.
+    
+    @param points: an array             (n_points,dim)
+    @return: the initial means          (n_components,dim)
+             the initial covariances    (n_components,dim,dim)
+    """
+    
+    log_assignements = None
+    
+    if (init == "random"):
+        _,assignements = initialization_random(n_components,points_data)
+    elif(init == "plus"):
+        _,assignements = initialization_plus_plus(n_components,points_data)
+    elif(init == "AF_KMC"):
+        _,assignements = initialization_AF_KMC(n_components,points_data)
+    elif(init == "kmeans"):
+        _,assignements = initialization_k_means(n_components,points_data)
+    elif(init == "GMM"):
+        _,_,_,log_assignements = initialization_GMM(n_components,points_data,points_test,covariance_type)
+    elif(init == "VBGMM"):
+        _,_,_,log_assignements = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
+        
+    if log_assignements is None:
+        epsilon = np.finfo(assignements.dtype).eps
+        assignements += epsilon
+        assignements /= 1 + n_components * epsilon
+        log_assignements = np.log(assignements)
+    
+    return log_assignements
 
 def initialize_mcw(init,n_components,points_data,points_test=None,covariance_type="full"):
     """
@@ -199,28 +217,28 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
     
     log_weights = - np.log(n_components) * np.ones(n_components)
     
+    # Warning : the algorithm is very sensitive to these first covariances given
     if covariance_type == "full":
-        cov_init = initialization_full_covariances(n_components,points_data)
+        cov_init = np.cov(points_data.T)
         cov = np.tile(cov_init, (n_components,1,1))
     elif covariance_type == "spherical":
-        cov_init = initialization_spherical_covariances(n_components,points_data)
+        cov_init = np.var(points_data, axis=0, ddof=1).mean()
         cov = cov_init * np.ones(n_components)
     
     if (init == "random"):
-        means = initialization_random(n_components,points_data)
+        means,_ = initialization_random(n_components,points_data)
     elif(init == "plus"):
-        means = initialization_plus_plus(n_components,points_data)
+        means,_ = initialization_plus_plus(n_components,points_data)
     elif(init == "AF_KMC"):
-        means = initialization_AF_KMC(n_components,points_data)
+        means,_ = initialization_AF_KMC(n_components,points_data)
     elif(init == "kmeans"):
-        means = initialization_k_means(n_components,points_data)
+        means,_ = initialization_k_means(n_components,points_data)
     elif(init == "GMM"):
-        means,cov,log_weights = initialization_GMM(n_components,points_data,points_test,covariance_type)
+        means,cov,log_weights,_ = initialization_GMM(n_components,points_data,points_test,covariance_type)
     elif(init == "VBGMM"):
-        means,cov,log_weights = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
+        means,cov,log_weights,_ = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
     
     return means,cov,log_weights
-
     
 if __name__ == '__main__':
     
@@ -231,12 +249,13 @@ if __name__ == '__main__':
         data = pickle.load(fh)
     
     k=100
-    N=10000
+    N=1500
         
     points = data['BUC']
     points_data = points[:N:]
     points_test = points[N:2*N:]
     
-    means = initialization_random(k,points_data)
-    means = initialization_AF_KMC(k,points_data)
-    means = initialization_plus_plus(k,points_data)
+    _,assignements1 = initialization_random(k,points_data)
+    _,assignements2 = initialization_AF_KMC(k,points_data)
+    _,assignements3 = initialization_plus_plus(k,points_data)
+    M,C,W = initialize_mcw('VBGMM',k,points_data)
