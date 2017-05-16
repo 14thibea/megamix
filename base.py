@@ -131,6 +131,7 @@ class BaseMixture():
         self.tol = tol
         self.patience = patience
         self.n_iter_max = n_iter_max
+        self._is_fitted = False
         
     def _check_common_parameters(self):
         
@@ -168,7 +169,22 @@ class BaseMixture():
         elif self._nu_0 < dim:
             raise ValueError("nu_0 must be more than the dimension of the"
                              "problem or the gamma function won't be defined")
+        
+    def _check_points(self,points):
+        
+        if len(points.shape) == 1:
+            points=points.reshape(1,len(points))
             
+        elif len(points.shape) != 2:
+            raise ValueError('Only 2D or 1D arrays are admitted')
+
+        _,dim_points = points.shape
+        _,dim_means = self.means.shape
+        if dim_means != dim_points:
+            raise ValueError('The points given must have the same '
+                             'dimension as the problem : ' + str(dim_means))
+        return points
+
     def _sampling_Normal_Wishart(self):
         """
         Sampling mu and sigma from Normal-Wishart distribution.
@@ -198,7 +214,7 @@ class BaseMixture():
         return means_estimated, cov_estimated
     
     @abstractmethod   
-    def convergence_criterion(self,points,log_resp):
+    def convergence_criterion(self,points,log_resp,log_prob_norm):
         """
         The convergence criterion is different for GMM and VBGMM/DPGMM :
             - in GMM the log likelihood is used
@@ -206,15 +222,24 @@ class BaseMixture():
         """
         pass
         
-    def create_graph(self,points,log_resp,t):
+    @abstractmethod   
+    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+        """
+        The convergence criterion is different for GMM and VBGMM/DPGMM :
+            - in GMM the log likelihood is used
+            - in VBGMM/DPGMM the lower bound of the log likelihood is used
+        """
+        pass
+    
+    def create_graph(self,points,log_resp,directory,legend):
         """
         This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
         If points have more than two coordinates, then it will be a projection including only the first coordinates.
         
         @param points: an array of points (n_points,dim)
-        @param means: an array of k points which are the means of the clusters (n_components,dim)
-        @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
-        @param t: the figure number
+        @param log_resp: an array containing the log of soft assignements of every point (n_points,n_components)
+        @param directory: the path to the directory where the figure will be saved (str)
+        @param legend: a legend for the name of the figure (str)
         """
     
         n_points,dim = points.shape
@@ -248,17 +273,18 @@ class BaseMixture():
                 ax.plot(self.means[i][0],self.means[i][1],'kx')
                 ax.add_artist(ell)
             
-        
-        directory = self.create_path()
-        titre = directory + '/figure_' + self.init + "_" + str(t) + ".png"
+        titre = directory + '/figure_' + self.init + "_" + str(legend) + ".png"
         plt.savefig(titre)
         plt.close("all")
         
-    def create_graph_convergence_criterion(self,t):
+    def create_graph_convergence_criterion(self,directory,legend):
         """
         This method draws a graph displaying the evolution of the convergence criterion :
             - log likelihood for GMM (should never decrease)
             - the lower bound of the log likelihood for VBGMM/DPGMM (should never decrease)
+        
+        @param directory: the path to the directory where the figure will be saved (str)
+        @param legend: a legend for the name of the figure (str)
         """
         
         plt.title("Convergence criterion evolution")
@@ -270,30 +296,34 @@ class BaseMixture():
         plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
 
         
-        directory = self.create_path()
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_cc_evolution.png"
+        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_cc_evolution.png"
         plt.savefig(titre)
         plt.close("all")
         
-    def create_graph_weights(self,t):
+    def create_graph_weights(self,directory,legend):
         """
         This method draws an histogram illustrating the repartition of the weights of the clusters
+        
+        @param directory: the path to the directory where the figure will be saved (str)
+        @param legend: a legend for the name of the figure (str)
         """
         
         plt.title("Weights of the clusters")
         
         plt.hist(np.exp(self.log_weights))
         
-        directory = self.create_path()
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_weights.png"
+        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_weights.png"
         plt.savefig(titre)
         plt.close("all")
         
-    def create_graph_MDS(self,t):
+    def create_graph_MDS(self,directory,legend):
         """
         This method displays the means of the clusters on a 2D graph in order to visualize
         the cosine distances between them
         (see scikit-learn doc on manifold.MDS for more information)
+        
+        @param directory: the path to the directory where the figure will be saved (str)
+        @param legend: a legend for the name of the figure (str)
         """
         
         mds = manifold.MDS(2)
@@ -306,48 +336,43 @@ class BaseMixture():
         plt.plot(coord.T[0],coord.T[1],'o')
         plt.title("MDS of the cosine distances between means, stress = " + str(stress))
         
-        directory = self.create_path()
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_means.png"
+        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_means.png"
         plt.savefig(titre)
         plt.close("all")
         
-    def create_graph_entropy(self,t):
+    def create_graph_entropy(self,directory,legend):
         """
         This method draws an histogram illustrating the repartition of the
         entropy of the covariance matrices
+        
+        @param directory: the path to the directory where the figure will be saved (str)
+        @param legend: a legend for the name of the figure (str)
         """
+        if self.covariance_type == 'spherical':
+            print('This graph is irrelevant')
         
-        plt.title('Entropy of the covariances')
-        
-        l,_ = np.linalg.eig(self.cov)
-        norm = np.trace(self.cov.T)
-        l = l/norm[:,np.newaxis]
-        
-        log_l = np.log(l)
-        ent = - np.sum(log_l*l, axis=1)
-        
-        plt.hist(ent)
-        
-        directory = self.create_path()
-        titre = directory + '/figure_' + self.init + "_" + str(t) + "_cov_entropy.png"
-        plt.savefig(titre)
-        plt.close("all")
-       
-    @abstractmethod
-    def create_path(self):
-        """
-        Create a directory to store the graphs
-        
-        @return: the path of the directory (str)
-        """
-        pass
+        else:
+            plt.title('Entropy of the covariances')
+            
+            l = np.linalg.eigvalsh(self.cov)
+            norm = np.trace(self.cov.T)
+            l = l/norm[:,np.newaxis]
+            
+            log_l = np.log(l)
+            ent = - np.sum(log_l*l, axis=1)
+            
+            plt.hist(ent)
+            
+            titre = directory + '/figure_' + self.init + "_" + str(legend) + "_cov_entropy.png"
+            plt.savefig(titre)
+            plt.close("all")
     
-    def predict_log_assignements(self,points_data,points_test=None,draw_graphs=False):
+    def fit(self,points_data,points_test=None,draw_graphs=False):
         """
         The EM algorithm
         
         @param points: an array (n_points,dim)
-        @return resp: an array containing the responsibilities (n_points,n_components)
+        @return self
         """
         
         self._initialize(points_data,points_test)
@@ -375,45 +400,78 @@ class BaseMixture():
                 
             self.step_M(points_data,log_resp_data)
             
-            self.convergence_criterion_data.append(self.convergence_criterion(points_data,log_resp_data,log_prob_norm_data))
+            self.convergence_criterion_data.append(self.convergence_criterion_simplified(points_data,log_resp_data,log_prob_norm_data))
             if self.test_exists:
                 self.convergence_criterion_test.append(self.convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
                 
             #Graphic part
             if draw_graphs:
-#                self.create_graph(points_data,log_resp_data,"data_iter" + str(self.iter))
                 self.create_graph_weights("_iter_" + str(self.iter))
                 self.create_graph_entropy("_iter_" + str(self.iter))
-#                if self.test_exists:
-#                    self.create_graph(points_test,log_resp_test,"test_iter" + str(self.iter))
             
             if first_iter:
                 resume_iter = True
                 first_iter = False
                 
             elif self.test_exists:
-#                criterion = abs(self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1])
                 criterion = self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1]
                 criterion /= len(points_test)
                 if criterion < self.tol:
-#                if self.convergence_criterion_test[self.iter] <= self.convergence_criterion_test[self.iter-1]:
                     resume_iter = patience < self.patience
                     patience += 1
                     
             else:
-                criterion = abs(self.convergence_criterion_data[self.iter] - self.convergence_criterion_data[self.iter-1])
+                criterion = self.convergence_criterion_data[self.iter] - self.convergence_criterion_data[self.iter-1]
                 criterion /= len(points_data)
                 if criterion < self.tol:
-#                if self.convergence_criterion_data[self.iter] <= self.convergence_criterion_data[self.iter-1]:
                     resume_iter = patience < self.patience
                     patience += 1
                     
             self.iter+=1
         
+        self._is_fitted = True
         print("Number of iterations :", self.iter)
         
-        if self.test_exists:
-            return log_resp_data,log_resp_test
-        else:
-            return log_resp_data
+        return self
     
+    def predict_log_prob_resp(self,points):
+        """
+        This function return the logarithm of the norm of the probability of
+        each point and their responsibilities
+        
+        @param points: a 1D or 2D array of points with the same dimension as
+                       as the problem
+        @return log_prob_norm: the logarithm of the norm of the probability
+                               of each point (n_points,)
+                log_resp: the logarithm of the responsibilities (n_points,n_components)
+        """
+        
+        points = self._check_points(points)
+        
+        if self._is_fitted:
+            log_prob,log_resp = self.step_E(points)
+            return log_prob,log_resp
+    
+        else:
+            raise Exception("The model is not fitted")
+    
+    def score_convergence_criterion(self,points):
+        """
+        This function return the score of the function, which is the logarithm of
+        the likelihood for GMM and the logarithm of the lower bound of the likelihood
+        for VBGMM and DPGMM
+        
+        @param points: a 1D or 2D array of points with the same dimension as
+                       as the problem
+        @return score: (float)
+        """
+        points = self._check_points(points)
+            
+        if self._is_fitted:
+            log_prob,log_resp = self.step_E(points)
+            score = self.convergence_criterion(points,log_resp,log_prob)
+            return score
+        
+        else:
+            raise Exception("The model is not fitted")
+        

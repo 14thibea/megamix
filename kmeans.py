@@ -13,7 +13,6 @@ import numpy as np
 import os
 from sklearn.metrics.pairwise import euclidean_distances
 import pickle
-#from scipy.misc import logsumexp
 
 
 def dist_matrix(points,means):
@@ -28,7 +27,7 @@ def dist_matrix(points,means):
     """
 
     dist_matrix = euclidean_distances(points,means)
-    
+
     return dist_matrix
 
 def step_E(points,means):
@@ -68,7 +67,7 @@ def step_M(k,points,assignements):
         n_sets = np.sum(sets)
         sets = points * sets
         if n_sets > 0:
-            means[i] = np.mean(sets, axis=0)*n_points/n_sets
+            means[i] = np.sum(sets, axis=0)/n_sets
         
     return means
         

@@ -305,6 +305,41 @@ class VariationalGaussianMixture(BaseMixture):
             self.cov = self.inv_prec / self._nu
         
         self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
+                
+    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+        """
+        Compute the lower bound of the likelihood using the simplified Bishop's
+        book formula. Can only be used with data which fits the model.
+        
+        @param points: an array of points (n_points,dim)
+        @param log resp: the logarithm of the soft assignements of each point to
+                         each cluster     (n_points,n_components)
+        @return result: the lower bound of the likelihood (float)
+        """
+        
+        resp = np.exp(log_resp)
+        n_points,dim = points.shape
+        
+        prec = np.linalg.inv(self.inv_prec)
+        prec_prior = np.linalg.inv(self.inv_prec_prior)
+        
+        lower_bound = np.zeros(self.n_components)
+        
+        for i in range(self.n_components):
+            
+            lower_bound[i] = utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            
+            resp_i = resp[:,i:i+1]
+            log_resp_i = log_resp[:,i:i+1]
+            
+            lower_bound[i] -= np.sum(resp_i*log_resp_i)
+            lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
+        
+        result = np.sum(lower_bound)
+        result += utils.log_C(self._alpha_0 * np.ones(self.n_components))- utils.log_C(self._alpha)
+        result -= n_points * dim * 0.5 * np.log(2*np.pi)
+        
+        return result
         
     def convergence_criterion(self,points,log_resp,log_prob_norm):
         """
@@ -374,21 +409,6 @@ class VariationalGaussianMixture(BaseMixture):
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
-        
-    def create_path(self):
-        """
-        Create a directory to store the graphs
-        
-        @return: the path of the directory (str)
-        """
-        dir_path = 'VBGMM/' + self.init + '/'
-        directory = os.path.dirname(dir_path)
-    
-        try:
-            os.stat(directory)
-        except:
-            os.mkdir(directory)  
-        return directory
     
 if __name__ == '__main__':
     
@@ -402,7 +422,7 @@ if __name__ == '__main__':
         data = pickle.load(fh)
     
     k=100
-    N=10000
+    N=1500
         
     points = data['BUC']
     n_points,dim = points.shape
@@ -412,23 +432,17 @@ if __name__ == '__main__':
     points_test = points[idx,:]
 #    points_data = points[:N:]
     
-    
-#    for init in initializations:
-#        print()
-#        print(init)
-#        print()
     init="GMM"
-
+    directory = os.getcwd() + '/../Results/VBGMM/' + init
+    
 #    for j in np.arange(2,11):
     j=0
     print(j)
     print(">>predicting")
     VBGMM = VariationalGaussianMixture(k,init,tol=1e-3,patience=0,type_init='mcw')
-    log_resp_data,log_resp_test = VBGMM.predict_log_assignements(points_data,points_test)
-#    log_resp_data_ = VBGMM.predict_log_assignements(points_data,draw_graphs=False)
+    VBGMM.fit(points_data,points_test)
     print(">>creating graphs")
-    VBGMM.create_graph_convergence_criterion(VBGMM.type_init)
-    VBGMM.create_graph_weights(VBGMM.type_init)
-#    VBGMM.create_graph_MDS(j)
-#    VBGMM.create_graph_entropy(j)
+    VBGMM.create_graph_convergence_criterion(directory,VBGMM.type_init)
+    VBGMM.create_graph_weights(directory,VBGMM.type_init)
+    VBGMM.create_graph_entropy(directory,VBGMM.type_init)
 #    print()

@@ -56,8 +56,7 @@ if __name__ == '__main__':
     for i in range(n_iter):
         print(i)
         print(">>predicting")
-#        log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
-        log_assignements_data = GM.predict_log_assignements(points_data,draw_graphs=False)
+        GM.fit(points_data,draw_graphs=False)
         lower_bound[i] = GM.convergence_criterion_data[-1]
         print()
             

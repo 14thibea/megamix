@@ -35,8 +35,7 @@ if __name__ == '__main__':
     
     import argparse
     parser = argparse.ArgumentParser()
-    early_stop = False
-    parser.add_argument('--early_stop', action='store_true')
+    parser.add_argument('early_stop', help='True if early stop is computed')
     parser.add_argument('method', help='The EM algorithm used')
     parser.add_argument('type_init', help='How the algorithm will be initialized ("resp" or "mcw")')
     parser.add_argument('init', help='The method used to initialize')
@@ -47,6 +46,7 @@ if __name__ == '__main__':
     N=15000
     k=int(args.cluster_number)
     n_iter = 1000
+    early_stop = bool(args.early_stop)
     
     path = '/home/ethibeau-sutre/data/data.pickle'
     with open(path, 'rb') as fh:
@@ -61,6 +61,7 @@ if __name__ == '__main__':
         points_test = points[idx,:]
     else:
         points_data = points[:N:]
+        points_test = None
     
     
     lower_bound = np.arange(n_iter)
@@ -81,13 +82,11 @@ if __name__ == '__main__':
     for i in range(n_iter):
         print(i)
         print(">>predicting")
-        if early_stop:
-            log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
-        else:
-            log_assignements_data = GM.predict_log_assignements(points_data,draw_graphs=False)
+        GM.fit(points_data,points_test)
         lower_bound[i] = GM.convergence_criterion_data[-1]
         print()
     
     directory = GM.create_path()
+    print('early stop : ' + str(early_stop))
     print(directory)
-    utils.write(directory + '/lower_bounds_' + args.type_init + '.csv',lower_bound)
+    utils.write(directory + '/lower_bounds_' + args.type_init + '_early_stop_' + str(early_stop) + '.csv',lower_bound)

@@ -144,10 +144,8 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
     """
     
     GM = GMM.GaussianMixture(n_components,covariance_type=covariance_type)
-    if points_test is None:
-        log_assignements = GM.predict_log_assignements(points_data,points_test)
-    else:
-        log_assignements,_ = GM.predict_log_assignements(points_data,points_test)
+    GM.fit(points_data,points_test)
+    _,log_assignements = GM.predict_log_prob_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 
@@ -163,10 +161,8 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
     """
     
     GM = VBGMM.VariationalGaussianMixture(n_components)
-    if points_test is None:
-        log_assignements = GM.predict_log_assignements(points_data,points_test)
-    else:
-        log_assignements,_ = GM.predict_log_assignements(points_data,points_test)
+    GM.fit(points_data,points_test)
+    _,log_assignements = GM.predict_log_prob_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 
@@ -219,10 +215,10 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
     
     # Warning : the algorithm is very sensitive to these first covariances given
     if covariance_type == "full":
-        cov_init = np.cov(points_data.T)
+        cov_init = np.cov(points_data.T) / n_components**2
         cov = np.tile(cov_init, (n_components,1,1))
     elif covariance_type == "spherical":
-        cov_init = np.var(points_data, axis=0, ddof=1).mean()
+        cov_init = np.var(points_data, axis=0, ddof=1).mean() / n_components**2
         cov = cov_init * np.ones(n_components)
     
     if (init == "random"):

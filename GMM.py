@@ -5,7 +5,6 @@ Created on Mon Apr 10 11:34:50 2017
 @author: Calixi
 """
 
-import utils
 from base import BaseMixture
 from base import _log_normal_matrix
 from base import _full_covariance_matrix
@@ -108,6 +107,15 @@ class GaussianMixture(BaseMixture):
                         
         #Phase 3:
         self.log_weights = logsumexp(log_assignements, axis=0) - np.log(n_points)
+        
+    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+        """
+        This method returns the log likelihood at the end of the k_means.
+        
+        @param points: an array of points (n_points,dim)
+        @return: log likelihood measurement (float)
+        """
+        return np.sum(log_prob_norm)
     
     def convergence_criterion(self,points,log_resp,log_prob_norm):
         """
@@ -118,22 +126,7 @@ class GaussianMixture(BaseMixture):
         """
         return np.sum(log_prob_norm)
         
-    def create_path(self):
-        """
-        Create a directory to store the graphs
-        
-        @return: the path of the directory (str)
-        """
-        dir_path = 'GMM/' + self.covariance_type + '/'
-        directory = os.path.dirname(dir_path)
-    
-        try:
-            os.stat(directory)
-        except:
-            os.mkdir(directory)  
-        return directory
 
-    
     def set_parameters(self,means=None,cov=None,log_weights=None):
         """
         This method allows the user to change one or more parameters used by the algorithm
@@ -161,41 +154,41 @@ class GaussianMixture(BaseMixture):
                 
 if __name__ == '__main__':
     
-    #Lecture du fichier
-#    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-#    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
-    
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
-    N=5000
-    k=200
+    N=1500
+    k=100
+    early_stop = False
     
     points = data['BUC']
-    n_points,_ = points.shape
-    idx1 = np.random.randint(0,high=n_points,size=N)
-    points_data = points[idx1,:]
-    idx2 = np.random.randint(0,high=n_points,size=N)
-    points_test = points[idx2,:]
-#    points_data = points[:N:]
+    
+    if early_stop:
+        n_points,_ = points.shape
+        idx1 = np.random.randint(0,high=n_points,size=N)
+        points_data = points[idx1,:]
+        idx2 = np.random.randint(0,high=n_points,size=N)
+        points_test = points[idx2,:]
+    else:
+        points_data = points[:N:]
+        points_test = None
 
+
+    init = 'kmeans'
+    directory = os.getcwd() + '/../Results/GMM/' + init
 
     #GMM
 #    for i in range(10):
     i=0
     print(i)
-    GMM = GaussianMixture(k,covariance_type="full",patience=0,tol=1e-3,type_init='resp')
+    GM = GaussianMixture(k,covariance_type="full",patience=0,tol=1e-3,type_init='resp')
     
-#    print(">>predicting")
-    log_assignements_data,log_assignements_test = GMM.predict_log_assignements(points_data,points_test)
-#    log_assignements_data = GMM.predict_log_assignements(points_data,draw_graphs=False)
-#    print(">>creating graphs")
-#    GMM.create_graph(points_data,log_assignements_data,str(i) + "_data")
-#    GMM.create_graph(points_test,log_assignements_test,str(i) + "_test")
-    GMM.create_graph_convergence_criterion(GMM.type_init)
-    GMM.create_graph_weights(GMM.type_init)
-#        GMM.create_graph_entropy(i)
-#        GMM.create_graph_MDS(i)
-#    print()
+    print(">>predicting")
+    GM.fit(points_data,points_test)
+    print(">>creating graphs")
+    GM.create_graph_convergence_criterion(directory,GM.type_init)
+    GM.create_graph_weights(directory,GM.type_init)
+    GM.create_graph_entropy(directory,GM.type_init)
+    print()
         
