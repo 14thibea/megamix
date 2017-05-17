@@ -342,7 +342,7 @@ if __name__ == '__main__':
     _,dim = points_data.shape
     
 
-    init = "GMM"
+    init = "VBGMM"
     directory = os.getcwd() + '/../Results/DPGMM/' + init
     
     print(">>predicting")
