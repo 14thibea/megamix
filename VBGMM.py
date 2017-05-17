@@ -2,7 +2,7 @@
 """
 Created on Fri Apr 14 13:37:08 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 import utils
@@ -29,9 +29,6 @@ class VariationalGaussianMixture(BaseMixture):
     The weights distribution is a Dirichlet distribution with parameter _alpha
     (see Bishop's book p474-486)
 
-        
-    The hyperparameters alpha_0, beta_0, nu_0 may be initialized by
-    _check_hyper_parameters() in base.py if not initialized by the user
     
     Parameters :
     ---------------
@@ -54,7 +51,7 @@ class VariationalGaussianMixture(BaseMixture):
                          diagonal of covariances after their computation
                          
     @param _alpha_0:     float, optional defaults to None
-                         The prior paramete on the weight distribution (Dirichlet).
+                         The prior parameter on the weight distribution (Dirichlet).
                          A high value of _alpha_0 will lead to equal weights, while
                          a low value will allow some clusters to shrink and disappear.
                          Must be greater than 0.
@@ -74,36 +71,70 @@ class VariationalGaussianMixture(BaseMixture):
                          
                          If it is None, the value is set to dim
                          
+    --------------------------------------------------------------------------------------                    
+    The hyperparameters alpha_0, beta_0, nu_0 may be initialized by
+    _check_hyper_parameters() in base.py if not initialized by the user
+    --------------------------------------------------------------------------------------
+                         
     @param patience:     int, optional defaults to 0
                          Allows the user to resume the computation of the EM algorithm
                          after that the convergence criterion was reached
         
     Attributes :
     ---------------
-    @attribute _alpha:
-    @attribute _beta:
-    @attribute _nu:
-    @attribute inv_prec:
-    @attribute log_det_inv_prec:
-    @attribute cov
-    @attribute means
-    @attribute log_weights:
-    @attribute cov_estimated:
-    @attribute means_estimated:
+    @attribute _alpha: array of floats (n_components,)
+        Contains the parameters of the weight distribution (Dirichlet)
+        
+    @attribute _beta: array of floats (n_components,)
+        Contains coefficients which are multipied with the precision matrices
+        to form the precision matrix on the Gaussian distribution of the means.
+        
+    @attribute _nu: array of floats (n_components,)
+        Contains the number of degrees of freedom on the distribution of
+        covariance matrices.
+        
+    @attribute inv_prec: array of floats (n_components,dim,dim)
+        Contains the equivalent of the matrix W described in Bishop's book. It
+        is proportional to cov.
+        
+    @attribute log_det_inv_prec: array of floats (n_components,)
+        Contains the logarithm of the determinant of W matrices.
+        
+    @attribute cov: array of floats (n_components,dim,dim)
+        Contains the computed covariance matrices of the mixture.
+        
+    @attribute means: array of floats (n_components,dim)
+        Contains the computed means of the mixture.
+        
+    @attribute log_weights: array of floats (n_components,)
+        Contains the logarithm of weights of each cluster.
+        
+    @attribute cov_estimated: NOT USED YET
+    @attribute means_estimated: NOT USED YET
         
     (inherited from BaseMixture)
-    @attribute iter:
-    @attribute test_exists:
-    @attribute convergence_criterion_data:
-    @attribute convergence_criterion_test:
-    @attribute 
+    @attribute iter: int
+        The number of iterations computed with the method fit()
+        
+    @attribute test_exists: bool
+        A boolean to deal with test data (case of the early stopping)
+        
+    @attribute convergence_criterion_data: array of floats (iter,)
+        Stores the value of the convergence criterion computed with data
+        on which the model is fitted.
     
-    The hyperparameters alpha_0, beta_0, nu_0 may be initialized by
-    _check_hyper_parameters() in base.py if not initialized by the user
+    @attribute convergence_criterion_test: array of floats (iter,)
+        Stores the value of the convergence criterion computed with test data
+        if it exists.
+        
+    @attribute _is_fitted: bool
+        Ensures that the method fit() has been used before using other methods
+        such as score() or predict_log_assignements().
+        
+    @raise ValueError: if the parameters are inconsistent, for example if the
+    cluster number is negative, init_type is not in ['resp','mcw']...
+    
     """
-    
-    
-    
 
     def __init__(self, n_components=1,init="GMM",n_iter_max=1000,alpha_0=None,\
                  beta_0=None,nu_0=None,tol=1e-3,reg_covar=1e-6,patience=0, \
@@ -128,6 +159,9 @@ class VariationalGaussianMixture(BaseMixture):
         self._check_parameters()
         
     def _check_parameters(self):
+        """
+        Check the value of the init parameter
+        """
         
         if self.init not in ['random', 'plus', 'kmeans', 'AF_KMC', 'GMM']:
             raise ValueError("Invalid value for 'init': %s "
@@ -161,11 +195,12 @@ class VariationalGaussianMixture(BaseMixture):
     def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
-        of the means, the covariances and other parameters specific (alpha, beta, nu)
-        @param points: an array (n_points,dim)
-        @param alpha_0: a float which influences on the number of cluster kept
-        @param beta_0: a float
-        @param nu_0: a float
+        of the means, the covariances and other specific parameters (alpha, beta, nu)
+        
+        @param points_data: an array (n_points,dim)
+            Data on which the model is fitted.
+        @param points_test: an array (n_points,dim) | Optional
+            Data used to do early stopping (avoid overfitting)
         """
         
         n_points,dim = points_data.shape
@@ -311,10 +346,14 @@ class VariationalGaussianMixture(BaseMixture):
         Compute the lower bound of the likelihood using the simplified Bishop's
         book formula. Can only be used with data which fits the model.
         
-        @param points: an array of points (n_points,dim)
-        @param log resp: the logarithm of the soft assignements of each point to
-                         each cluster     (n_points,n_components)
-        @return result: the lower bound of the likelihood (float)
+        @param points: array of floats (n_points,dim)
+        @param log resp: array of floats (n_points,n_components)
+            the logarithm of the soft assignements of each point to each cluster
+        @param log_prob_norm: array of floats (n_points,)
+            logarithm of the probability of each sample in points
+            
+        @return result: float
+            the lower bound of the likelihood
         """
         
         resp = np.exp(log_resp)
@@ -348,9 +387,14 @@ class VariationalGaussianMixture(BaseMixture):
         use it to calculate the lower bound of test points, in this case no
         simplification can be done.
         
-        @param points: an array of points (n_points,dim)
-        @param log resp: the logarithm of the soft assignements of each point to
-                         each cluster     (n_points,n_components)
+        @param points: array of floats (n_points,dim)
+        @param log resp: array of floats (n_points,n_components)
+            the logarithm of the soft assignements of each point to each cluster
+        @param log_prob_norm: array of floats (n_points,)
+            logarithm of the probability of each sample in points
+            
+        @return result: float
+            the lower bound of the likelihood
         """
         
         resp = np.exp(log_resp)
