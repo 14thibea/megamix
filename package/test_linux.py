@@ -3,7 +3,7 @@
 """
 Created on Thu Mar  2 17:36:06 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 import GMM

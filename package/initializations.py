@@ -2,7 +2,7 @@
 """
 Created on Mon Apr  3 15:14:34 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 import GMM
@@ -26,7 +26,10 @@ def initialization_random(n_components,points):
     idx = np.random.randint(n_points,size = n_components)
     
     means = points[idx,:]
-    assignements = kmeans.step_E(points,means)
+    
+    km = kmeans.Kmeans(n_components)
+    km.means = means
+    assignements = km._step_E(points)
     
     return means,assignements
 
@@ -68,11 +71,13 @@ def initialization_plus_plus(n_components,points):
         total_dst = np.cumsum(dst_min)
         probability_vector = total_dst/total_dst[-1]
         
-    assignements = kmeans.step_E(points,means)
+    km = kmeans.Kmeans(n_components)
+    km.means = means
+    assignements = km._step_E(points)
 
     return means,assignements
 
-def initialization_AF_KMC(n_components,points,m=100):
+def initialization_AF_KMC(n_components,points,m=20):
     """
     A method providing good seedings for kmeans inspired by MCMC
     for more information see http://papers.nips.cc/paper/6478-fast-and-provably-good-seedings-for-k-means
@@ -115,8 +120,10 @@ def initialization_AF_KMC(n_components,points,m=100):
                 dist_x = dist_y
         means[i+1] = x
         
-    assignements = kmeans.step_E(points,means)
-        
+    km = kmeans.Kmeans(n_components)
+    km.means = means
+    assignements = km._step_E(points)
+    
     return means,assignements
 
 def initialization_k_means(n_components,points):
@@ -128,9 +135,11 @@ def initialization_k_means(n_components,points):
     @param k: the number of clusters                                (int)
     @return: an array containing the means of each cluster          (n_components,dim)
     """
-    means,assignements,_ = kmeans.k_means(points,n_components)
+    km = kmeans.Kmeans(n_components)
+    km.fit(points)
+    assignements = km.predict_assignements(points)
     
-    return means,assignements
+    return km.means,assignements
 
 def initialization_GMM(n_components,points_data,points_test=None,covariance_type="full"):
     """
@@ -144,8 +153,8 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
     """
     
     GM = GMM.GaussianMixture(n_components,covariance_type=covariance_type)
-    GM.fit(points_data,points_test)
-    _,log_assignements = GM.predict_log_prob_resp(points_data)
+    GM.fit(points_data,points_test,patience=0)
+    log_assignements = GM.predict_log_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 
@@ -161,8 +170,8 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
     """
     
     GM = VBGMM.VariationalGaussianMixture(n_components)
-    GM.fit(points_data,points_test)
-    _,log_assignements = GM.predict_log_prob_resp(points_data)
+    GM.fit(points_data,points_test,patience=0)
+    log_assignements = GM.predict_log_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 

@@ -2,14 +2,14 @@
 """
 Created on Mon Apr 10 11:34:50 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 from base import BaseMixture
 from base import _log_normal_matrix
 from base import _full_covariance_matrix
 from base import _spherical_covariance_matrix
-import Initializations as Init
+import initializations as initial
 
 import numpy as np
 import os
@@ -18,24 +18,25 @@ import pickle
 
 class GaussianMixture(BaseMixture):
 
-    def __init__(self, n_components=1,covariance_type="full",init="kmeans"\
-                 ,n_iter_max=100,tol=1e-3,reg_covar=1e-6,patience=0,
-                 type_init='resp'):
+    def __init__(self, n_components=1,covariance_type="full",init="kmeans",
+                 reg_covar=1e-6,type_init='resp'):
         
         super(GaussianMixture, self).__init__()
 
+        self.name = 'GMM'
         self.n_components = n_components
         self.covariance_type = covariance_type
         self.init = init
         self.type_init = type_init
+        self.reg_covar = reg_covar
         
-        self.tol = tol
-        self.patience = patience
-        self.n_iter_max = n_iter_max
+        self._is_initialized = False
+        self.iter = 0
+        self.convergence_criterion_data = []
+        self.convergence_criterion_test = []
         
         self._check_common_parameters()
         self._check_parameters()
-        self.reg_covar = reg_covar
 
     def _check_parameters(self):
         
@@ -57,15 +58,17 @@ class GaussianMixture(BaseMixture):
         """
         
         if self.type_init=='resp':
-            log_assignements = Init.initialize_log_assignements(self.init,self.n_components,points_data,points_test,self.covariance_type)
-            self.step_M(points_data,log_assignements)
+            log_assignements = initial.initialize_log_assignements(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            self._step_M(points_data,log_assignements)
         elif self.type_init=='mcw':
-            means,cov,log_weights = Init.initialize_mcw(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            means,cov,log_weights = initial.initialize_mcw(self.init,self.n_components,points_data,points_test,self.covariance_type)
             self.means = means
             self.cov = cov
             self.log_weights = log_weights
+            
+        self._is_initialized = True
     
-    def step_E(self,points):
+    def _step_E(self,points):
         """
         This method returns the list of the soft assignements of each point to each cluster
         @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
@@ -82,7 +85,7 @@ class GaussianMixture(BaseMixture):
         
         return log_prob_norm,log_resp
       
-    def step_M(self,points,log_assignements):
+    def _step_M(self,points,log_assignements):
         """
         This method computes the new position of each mean and each covariance matrix
         
@@ -108,7 +111,7 @@ class GaussianMixture(BaseMixture):
         #Phase 3:
         self.log_weights = logsumexp(log_assignements, axis=0) - np.log(n_points)
         
-    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
         """
         This method returns the log likelihood at the end of the k_means.
         
@@ -117,7 +120,7 @@ class GaussianMixture(BaseMixture):
         """
         return np.sum(log_prob_norm)
     
-    def convergence_criterion(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion(self,points,log_resp,log_prob_norm):
         """
         This method returns the log likelihood at the end of the k_means.
         
@@ -125,33 +128,33 @@ class GaussianMixture(BaseMixture):
         @return: log likelihood measurement (float)
         """
         return np.sum(log_prob_norm)
+                
+                
+    def write(self,group):
+        """
+        A method creating datasets in a group of an hdf5 file in order to save
+        the model
+        
+        @param group: HDF5 group
+        """
+        group.create_dataset('means',self.means.shape,dtype='float64')
+        group['means'][...] = self.means
+        group.create_dataset('cov',self.cov.shape,dtype='float64')
+        group['cov'][...] = self.cov
+        group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
+        group['log_weights'][...] = self.log_weights
+        
+    def read_and_init(self,group):
+        """
+        A method reading a group of an hdf5 file to initialize DPGMM
+        
+        @param group: HDF5 group
+        """
+        self.means = np.asarray(group['means'].value)
+        self.cov = np.asarray(group['cov'].value)
+        self.log_weights = np.asarray(group['log_weights'].value)
         
 
-    def set_parameters(self,means=None,cov=None,log_weights=None):
-        """
-        This method allows the user to change one or more parameters used by the algorithm
-        
-        @param means: the new means of the clusters     (n_components,dim)
-        @param cov: the new covariance matrices         (n_components,dim,dim)
-        @param log_weights: the logarithm of the weights(n_components,)
-        """
-        
-        if not means is None:
-            n_components,dim = means.shape
-            self.means = np.zeros((self.n_components,dim))
-            if n_components != self.n_components:
-                print("Warning : you decided to work with", self.n_components,
-                      "components, the means given are going to be truncated "
-                      "or multiplied")
-                if n_components < self.n_components:
-                    rest = self.n_components - n_components
-                    self.means[:n_components:] = means
-                    self.means[n_components::] = np.tile(means[-1], (rest,1))
-                else:
-                    self.means = means[:self.n_components:]
-            else:
-                self.means = means
-                
 if __name__ == '__main__':
     
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
@@ -160,7 +163,7 @@ if __name__ == '__main__':
         
     N=1500
     k=100
-    early_stop = False
+    early_stop = True
     
     points = data['BUC']
     
@@ -174,7 +177,6 @@ if __name__ == '__main__':
         points_data = points[:N:]
         points_test = None
 
-
     init = 'kmeans'
     directory = os.getcwd() + '/../Results/GMM/' + init
 
@@ -182,10 +184,10 @@ if __name__ == '__main__':
 #    for i in range(10):
     i=0
     print(i)
-    GM = GaussianMixture(k,covariance_type="full",patience=0,tol=1e-3,type_init='resp')
+    GM = GaussianMixture(k,covariance_type="full",type_init='resp')
     
     print(">>predicting")
-    GM.fit(points_data,points_test)
+    GM.fit(points_data,points_test,patience=0,directory=directory,saving='log')
     print(">>creating graphs")
     GM.create_graph_convergence_criterion(directory,GM.type_init)
     GM.create_graph_weights(directory,GM.type_init)

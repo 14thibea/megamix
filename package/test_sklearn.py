@@ -2,7 +2,7 @@
 """
 Created on Thu Mar 23 10:33:23 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 from sklearn import mixture
@@ -147,6 +147,8 @@ def convergence_criterion_DP(n_components,points,log_resp,alpha_0,beta_0,nu_0,
     result -= n_components * betaln(1,alpha_0)
     result += np.sum(betaln(alpha[0],alpha[1]))
     result -= n_points * dim * 0.5 * np.log(2*np.pi)
+    
+    return result
 
 def convergence_criterion_GM(points,log_resp,means,cov,covariance_type='full'):
     """
@@ -175,11 +177,11 @@ if __name__ == '__main__':
 #    parser.add_argument('cluster_number', help='the number of clusters wanted')
 #    args = parser.parse_args()
     
-    path = '../data/data.pickle'
+    path = '../../data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
-    N=1500
+    N=15000
     k=100
     n_iter = 1
     

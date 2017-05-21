@@ -3,7 +3,7 @@
 """
 Created on Thu Mar  2 17:36:06 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 import GMM
@@ -14,6 +14,7 @@ import utils
 import matplotlib.pyplot as plt
 import pickle
 import numpy as np
+import h5features as h5f
 
 def matrix_sym(matrix):
     sym = True
@@ -35,37 +36,23 @@ if __name__ == '__main__':
 
     N=1500
     k=100
-    n_iter = 1000
     
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
-        
+    
+    
     points = data['BUC']
     points_data = points[:N:]
 #    idx1 = np.random.randint(0,high=len(points),size=N)
 #    points_data = points[idx1,:]
     
-    lower_bound = np.arange(n_iter)
-    
-    GM = GMM.GaussianMixture(k,covariance_type="full",patience=0,tol=1e-4,reg_covar=1e-6)
+    GM = GMM.GaussianMixture(k,covariance_type="full",patience=0,tol=1e-3,reg_covar=1e-6)
 #    GM = VBGMM.VariationalGaussianMixture(k,tol=1e-3,init="GMM")
 #    GM = DPGMM.VariationalGaussianMixture(k,tol=1e-3,init='kmeans')
 
     #GMM
-    for i in range(n_iter):
-        print(i)
-        print(">>predicting")
-        GM.fit(points_data,draw_graphs=False)
-        lower_bound[i] = GM.convergence_criterion_data[-1]
-        print()
-            
-    plt.title("Lower bounds on " + str(n_iter) + " iterations")
-    plt.hist(lower_bound)
+    print(">>predicting")
+    GM.fit(feature1,draw_graphs=False)
+    print()
     
-    directory = GM.create_path()
-    titre = directory + '/repartition_lower_bound_' + str(n_iter) + '_iter.png'
-    plt.savefig(titre)
-    plt.close("all")
-    
-    utils.write(directory + '/lower_bounds.csv',lower_bound)

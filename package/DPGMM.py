@@ -2,11 +2,11 @@
 """
 Created on Fri Apr 14 15:21:17 2017
 
-@author: Calixi
+@author: Elina Thibeau-Sutre
 """
 
 import utils
-import Initializations as Init
+import initializations as initial
 from base import _log_normal_matrix
 from base import BaseMixture
 
@@ -16,27 +16,30 @@ import numpy as np
 import scipy.stats
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
+import h5features
 
 class VariationalGaussianMixture(BaseMixture):
 
-    def __init__(self, n_components=1,init="VBGMM",n_iter_max=100,alpha_0=None,\
-                 beta_0=None,nu_0=None,tol=1e-3,reg_covar=1e-6,patience=0, \
-                 type_init='resp'):
+    def __init__(self, n_components=1,init="VBGMM",alpha_0=None,reg_covar=1e-6,\
+                 beta_0=None,nu_0=None,patience=0,type_init='resp'):
         
         super(VariationalGaussianMixture, self).__init__()
-
+        
+        self.name = 'DPGMM'
         self.n_components = n_components
         self.covariance_type = "full"
         self.init = init
         self.type_init = type_init
-        self.n_iter_max = n_iter_max
-        self.tol = tol
-        self.patience = patience
         self.reg_covar = reg_covar
         
         self._alpha_0 = alpha_0
         self._beta_0 = beta_0
         self._nu_0 = nu_0
+        
+        self._is_initialized = False
+        self.iter = 0
+        self.convergence_criterion_data = []
+        self.convergence_criterion_test = []
         
         self._check_common_parameters()
         self._check_parameters()
@@ -48,31 +51,7 @@ class VariationalGaussianMixture(BaseMixture):
                              "'init' should be in "
                              "['random','plus','kmeans','AF_KMC','GMM','VBGMM']"
                              % self.init)
-        
-    def _sampling_Normal_Wishart(self):
-        """
-        Sampling mu and sigma from Normal-Wishart distribution.
-
-        """
-        # Create the matrix A of the Bartlett decomposition (cf Wikipedia)
-        n_components,dim,_ = self.inv_prec.shape
-
-        for i in range(self.n_components):
-            prec = np.linalg.inv(self.inv_prec[i])
-            chol = np.linalg.cholesky(prec)
-            
-            A_diag = np.sqrt(np.random.chisquare(self._nu[i] - np.arange(0,dim), size = dim))
-            A = np.diag(A_diag)
-            A[np.tri(dim,k=-1,dtype = bool)] = np.random.normal(size = (dim*(dim-1))//2)
-            
-            X = np.dot(chol,A)
-            prec_estimated = np.dot(X,X.T) / self._nu[i]
-            
-            cov = np.linalg.inv(prec_estimated)
-            self.cov_estimated[i] = cov / self._nu[i]
-        
-            self.means_estimated[i] = np.random.multivariate_normal(self.means[i] , self.cov[i]/self._beta[i])
-    
+          
     def _initialize(self,points_data,points_test):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
@@ -86,22 +65,22 @@ class VariationalGaussianMixture(BaseMixture):
         n_points,dim = points_data.shape
 
         # Prior mean and prior covariance
-        self.means_prior = np.mean(points_data,axis=0)
-        self.inv_prec_prior = np.cov(points_data.T)
+        self._means_prior = np.mean(points_data,axis=0)
+        self._inv_prec_prior = np.cov(points_data.T)
         
         self._check_hyper_parameters(n_points,dim)
         
         if self.type_init == 'resp':
-            log_assignements = Init.initialize_log_assignements(self.init,self.n_components,points_data,points_test)
-            self.inv_prec = np.empty((self.n_components,dim,dim))
-            self.log_det_inv_prec = np.empty(self.n_components)
+            log_assignements = initial.initialize_log_assignements(self.init,self.n_components,points_data,points_test)
+            self._inv_prec = np.empty((self.n_components,dim,dim))
+            self._log_det_inv_prec = np.empty(self.n_components)
             self.cov = np.empty((self.n_components,dim,dim))
             self._alpha = np.empty((self.n_components,2))
-            self.step_M(points_data,log_assignements)
+            self._step_M(points_data,log_assignements)
         
         elif self.type_init == 'mcw':
             #Means, covariances and weights
-            means,cov,log_weights = Init.initialize_mcw(self.init,self.n_components,points_data,points_test)
+            means,cov,log_weights = initial.initialize_mcw(self.init,self.n_components,points_data,points_test)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -116,14 +95,13 @@ class VariationalGaussianMixture(BaseMixture):
             self._nu = self._nu_0 + N
             
             # Matrix W
-            self.inv_prec = cov * self._nu[:,np.newaxis,np.newaxis]
-            self.log_det_inv_prec = np.log(np.linalg.det(self.inv_prec))
+            self._inv_prec = cov * self._nu[:,np.newaxis,np.newaxis]
+            self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
             
-        # In case of sampling with the Normal-Wishart law
-        self.cov_estimated = self.cov
-        self.means_estimated = self.means
+        self._is_initialized = True
+
         
-    def step_E(self, points):
+    def _step_E(self, points):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -156,7 +134,7 @@ class VariationalGaussianMixture(BaseMixture):
                     
         return log_prob_norm,log_resp
     
-    def step_M(self,points,log_resp):
+    def _step_M(self,points,log_resp):
         """
         In this step the algorithm updates the values of the parameters (means, covariances,
         alpha, beta, nu).
@@ -188,22 +166,22 @@ class VariationalGaussianMixture(BaseMixture):
         self._beta = self._beta_0 + N
         self._nu = self._nu_0 + N
         
-        means = self._beta_0 * self.means_prior + np.tile(N,(dim,1)).T * X_barre
+        means = self._beta_0 * self._means_prior + np.tile(N,(dim,1)).T * X_barre
         self.means = means * np.tile(np.reciprocal(self._beta), (dim,1)).T
         self.means_estimated = self.means
         
         for i in range(self.n_components):
-            diff = X_barre[i] - self.means_prior
+            diff = X_barre[i] - self._means_prior
             product = self._beta_0 * N[i]/self._beta[i] * np.outer(diff,diff)
-            self.inv_prec[i] = self.inv_prec_prior + N[i] * S[i] + product
+            self._inv_prec[i] = self._inv_prec_prior + N[i] * S[i] + product
             
-            det_inv_prec = np.linalg.det(self.inv_prec[i])
-            self.log_det_inv_prec[i] = np.log(det_inv_prec)
-            self.cov[i] = self.inv_prec[i] / self._nu[i]
+            det_inv_prec = np.linalg.det(self._inv_prec[i])
+            self._log_det_inv_prec[i] = np.log(det_inv_prec)
+            self.cov[i] = self._inv_prec[i] / self._nu[i]
             
         self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
         
-    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
         """
         Compute the lower bound of the likelihood using the simplified Bishop's
         book formula. Can only be used with data which fits the model.
@@ -217,8 +195,8 @@ class VariationalGaussianMixture(BaseMixture):
         resp = np.exp(log_resp)
         n_points,dim = points.shape
         
-        prec = np.linalg.inv(self.inv_prec)
-        prec_prior = np.linalg.inv(self.inv_prec_prior)
+        prec = np.linalg.inv(self._inv_prec)
+        prec_prior = np.linalg.inv(self._inv_prec_prior)
         
         lower_bound = np.zeros(self.n_components)
         
@@ -240,7 +218,7 @@ class VariationalGaussianMixture(BaseMixture):
         return result
     
     
-    def convergence_criterion(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion(self,points,log_resp,log_prob_norm):
         """
         Compute the lower bound of the likelihood using the Bishop's book formula.
         The formula cannot be simplified (as it is done in scikit-learn) as we also
@@ -267,8 +245,8 @@ class VariationalGaussianMixture(BaseMixture):
             
             S[i] += self.reg_covar * np.eye(dim)
         
-        prec = np.linalg.inv(self.inv_prec)
-        prec_prior = np.linalg.inv(self.inv_prec_prior)
+        prec = np.linalg.inv(self._inv_prec)
+        prec_prior = np.linalg.inv(self._inv_prec_prior)
         
         lower_bound = np.zeros(self.n_components)
         
@@ -277,7 +255,7 @@ class VariationalGaussianMixture(BaseMixture):
             digamma_sum = 0
             for j in range(dim):
                 digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
-            log_det_prec_i = digamma_sum + dim * np.log(2) - self.log_det_inv_prec[i] #/!\ Inverse
+            log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line
             lower_bound[i] = log_det_prec_i - dim/self._beta[i] - self._nu[i]*np.trace(np.dot(S[i],prec[i]))
@@ -297,9 +275,9 @@ class VariationalGaussianMixture(BaseMixture):
             lower_bound[i] += dim*0.5*(1 - self._beta_0/self._beta[i] + self._nu[i])
             
             #Third line without the last term which is not summed
-            diff = self.means[i] - self.means_prior
+            diff = self.means[i] - self._means_prior
             lower_bound[i] += -0.5*self._beta_0*self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
-            lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self.inv_prec_prior,prec[i]))
+            lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self._inv_prec_prior,prec[i]))
             
             #Terms with alpha
             lower_bound[i] += (N[i] + 1 - self._alpha[i,0]) * (psi(self._alpha[i,0]) - psi(np.sum(self._alpha[i])))
@@ -312,44 +290,116 @@ class VariationalGaussianMixture(BaseMixture):
         
         return result
     
+    def write(self,group):
+        """
+        A method creating datasets in a group of an hdf5 file in order to save
+        the model
+        
+        @param group: HDF5 group
+        """
+        group.create_dataset('means',self.means.shape,dtype='float64')
+        group['means'][...] = self.means
+        group.create_dataset('cov',self.cov.shape,dtype='float64')
+        group['cov'][...] = self.cov
+        group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
+        group['log_weights'][...] = self.log_weights
+        
+        initial_parameters = np.asarray([self._alpha_0,self._beta_0,self._nu_0])
+        group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
+        group['initial parameters'][...] = initial_parameters
+        group.create_dataset('means prior',self._means_prior.shape,dtype='float64')
+        group['means prior'][...] = self._means_prior
+        group.create_dataset('inv prec prior',self._inv_prec_prior.shape,dtype='float64')
+        group['inv prec prior'][...] = self._inv_prec_prior
+        
+        group.create_dataset('alpha',self._alpha.shape,dtype='float64')
+        group['alpha'][...] = self._alpha
+        group.create_dataset('beta',self._beta.shape,dtype='float64')
+        group['beta'][...] = self._beta
+        group.create_dataset('nu',self._nu.shape,dtype='float64')
+        group['nu'][...] = self._nu
+        
+    def read_and_init(self,group):
+        """
+        A method reading a group of an hdf5 file to initialize DPGMM
+        
+        @param group: HDF5 group
+        """
+        self.means = np.asarray(group['means'].value)
+        self.cov = np.asarray(group['cov'].value)
+        self.log_weights = np.asarray(group['log_weights'].value)
+        
+        initial_parameters = group['initial parameters'].value
+        self._alpha_0 = initial_parameters[0]
+        self._beta_0 = initial_parameters[1]
+        self._nu_0 = initial_parameters[2]
+        self._means_prior = np.asarray(group['means prior'].value)
+        self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
+        
+        self._alpha = np.asarray(group['alpha'])
+        self._beta = np.asarray(group['beta'])
+        self._nu = np.asarray(group['nu'])
+        
+        # Matrix W
+        self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
+        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
+        
+        self.n_components = len(self.means)
+        self._is_initialized = True
+        self.type_init ='user'
+        self.init = 'user'
+    
 if __name__ == '__main__':
     
     points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
     points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
+#    
+#    initializations = ["random","plus","kmeans","GMM"]
+#    
+#    
+#    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+#    with open(path, 'rb') as fh:
+#        data = pickle.load(fh)
     
-    initializations = ["random","plus","kmeans","GMM"]
-    
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-    
-    k=100
+    k=10
     N=1500
     early_stop = False
-        
-    points = data['BUC']
-    if early_stop:
-        n_points,_ = points.shape
-        idx1 = np.random.randint(0,high=n_points,size=N)
-        points_data = points[idx1,:]
-        idx2 = np.random.randint(0,high=n_points,size=N)
-        points_test = points[idx2,:]
-    else:
-        points_data = points[:N:]
-        points_test = None
     
-    _,dim = points_data.shape
+#    points = data['BUC']
+#    if early_stop:
+#        n_points,_ = points.shape
+#        idx1 = np.random.randint(0,high=n_points,size=N)
+#        points_data = points[idx1,:]
+#        idx2 = np.random.randint(0,high=n_points,size=N)
+#        points_test = points[idx2,:]
+#    else:
+#        points_data = points[:N:]
+#        points_test = None
     
-
+#    data = h5features.Reader('D:/Mines/Cours/Stages/Stage_ENS/Code/data/mfcc_delta_cmn.features').read()
+#    points = np.concatenate(data.features(),axis=0)
+#    points = np.random.shuffle(points)
+#    n_points,dim = points.shape
+    
+#    points_data = points[:n_points//2:]
+#    points_test = points[n_points//2::]
+    
     init = "VBGMM"
     directory = os.getcwd() + '/../Results/DPGMM/' + init
     
+    coeffs = 10.0**np.arange(-5,5)
+    coeffs_nu = 13 + coeffs
+    
+#    for c in coeffs_nu:
+        
     print(">>predicting")
-    DPGMM = VariationalGaussianMixture(k,init,tol=1e-3,type_init='resp')
-    DPGMM.fit(points_data,points_test=points_test,draw_graphs=False)
+    DPGMM = VariationalGaussianMixture(k,init,type_init='resp',alpha_0=0.0001)
+    DPGMM.fit(points_data,points_test=points_test,patience=0,directory=directory,saving='log')
     print(">>creating graphs")
+    DPGMM.create_graph(points_data,directory,'data')
+    DPGMM.create_graph(points_test,directory,'test')
     DPGMM.create_graph_convergence_criterion(directory,DPGMM.type_init)
     DPGMM.create_graph_weights(directory,DPGMM.type_init)
     DPGMM.create_graph_entropy(directory,DPGMM.type_init)
+    print()
         

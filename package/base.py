@@ -12,7 +12,10 @@ import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerLine2D
 import numpy as np
 import scipy.linalg
+import os
+import warnings
 from sklearn import manifold
+import h5py
 
 def _full_covariance_matrix(points,means,weights,log_assignements,reg_covar):
     """
@@ -128,10 +131,7 @@ class BaseMixture():
         self.init = init
         self.type_init = type_init
         
-        self.tol = tol
-        self.patience = patience
-        self.n_iter_max = n_iter_max
-        self._is_fitted = False
+        self._is_initialized = False
         
     def _check_common_parameters(self):
         
@@ -184,37 +184,9 @@ class BaseMixture():
             raise ValueError('The points given must have the same '
                              'dimension as the problem : ' + str(dim_means))
         return points
-
-    def _sampling_Normal_Wishart(self):
-        """
-        Sampling mu and sigma from Normal-Wishart distribution.
-        This method may only be used in VBGMM and DPGMM
-
-        """
-        # Create the matrix A of the Bartlett decomposition (cf Wikipedia)
-        n_components,dim,_ = self.inv_prec.shape
-
-        cov_estimated = np.zeros((n_components,dim,dim))
-        means_estimated = np.zeros((n_components,dim))
-
-        for i in range(self.n_components):
-            prec = np.linalg.inv(self.inv_prec[i])
-            chol = np.linalg.cholesky(prec)
-            
-            A_diag = np.sqrt(np.random.chisquare(self._nu[i] - np.arange(0,dim), size = dim))
-            A = np.diag(A_diag)
-            A[np.tri(dim,k=-1,dtype = bool)] = np.random.normal(size = (dim*(dim-1))//2)
-            
-            X = np.dot(chol,A)
-            prec_estimated = np.dot(X,X.T)
-            
-            cov_estimated[i] = np.linalg.inv(prec_estimated)
-            means_estimated[i] = np.random.multivariate_normal(self.means[i] , self.cov_estimated[i]/self._beta[i])
-    
-        return means_estimated, cov_estimated
     
     @abstractmethod   
-    def convergence_criterion(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion(self,points,log_resp,log_prob_norm):
         """
         The convergence criterion is different for GMM and VBGMM/DPGMM :
             - in GMM the log likelihood is used
@@ -223,7 +195,7 @@ class BaseMixture():
         pass
         
     @abstractmethod   
-    def convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
         """
         The convergence criterion is different for GMM and VBGMM/DPGMM :
             - in GMM the log likelihood is used
@@ -231,7 +203,7 @@ class BaseMixture():
         """
         pass
     
-    def create_graph(self,points,log_resp,directory,legend):
+    def create_graph(self,points,directory,legend):
         """
         This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
         If points have more than two coordinates, then it will be a projection including only the first coordinates.
@@ -243,6 +215,7 @@ class BaseMixture():
         """
     
         n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
         
         plt.title("iter = " + str(self.iter) + " k = " + str(self.n_components))
         
@@ -251,8 +224,6 @@ class BaseMixture():
         elif self.covariance_type == "spherical":
             cov = np.asarray([np.eye(dim) * coeff for coeff in self.cov])
         
-        couleurs = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-        
         x_points = [[] for i in range(self.n_components)]
         y_points = [[] for i in range(self.n_components)]
         
@@ -260,16 +231,13 @@ class BaseMixture():
         ax = fig.add_subplot(111)
         
         for i in range(self.n_components):
+                                 
+            x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
+            y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
             
-            if self.log_weights[i] > -10:
-                
-                col = couleurs[i%7]
-                                     
+            if len(x_points[i]) > 0:
                 ell = utils.ellipses_multidimensional(cov[i],self.means[i])
-                x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
-                y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
-        
-                ax.plot(x_points[i],y_points[i],col + 'o',alpha = 0.2)
+                ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
                 ax.plot(self.means[i][0],self.means[i][1],'kx')
                 ax.add_artist(ell)
             
@@ -290,7 +258,7 @@ class BaseMixture():
         plt.title("Convergence criterion evolution")
         
         p1, = plt.plot(np.arange(self.iter),self.convergence_criterion_data,marker='x',label='data')
-        if self.test_exists:
+        if self.early_stopping:
             p3, = plt.plot(np.arange(self.iter),self.convergence_criterion_test,marker='o',label='test')
             
         plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
@@ -367,74 +335,118 @@ class BaseMixture():
             plt.savefig(titre)
             plt.close("all")
     
-    def fit(self,points_data,points_test=None,draw_graphs=False):
+    def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
+            n_iter_max=100,n_iter_fix=None,directory=None,saving=None):
         """
         The EM algorithm
-        
-        @param points: an array (n_points,dim)
+        @param n_iter_max: int, defaults to 1000
+            number of iterations maximum that can be done
+                         
+        @param tol: float, defaults to 1e-3
+             The EM algorithm will stop when the difference between the
+             convergence criterion
+                         
+        @param reg_covar: float, defaults to 1e-6
+            In order to avoid null covariances this float is added to the
+            diagonal of covariances after their computation
+            
+        @param points_data: an array (n_points,dim)
+        @param points_test: an array (n_points,dim) | Optional
+        @param draw_graphs: bool | Optional
+        @param directory: str | Optional
+        @param saving: str | Optional
+            Allows the user to save the model parameters in the directory given
+            by the user. Options are ['log','final']
         @return self
         """
         
-        self._initialize(points_data,points_test)
+        if directory==None:
+            directory = os.getcwd()
         
-        self.test_exists = not(points_test is None)
-        self.convergence_criterion_data = []
-        if not (points_test is None):
-            self.convergence_criterion_test = []
+        self.early_stopping = not(points_test is None)
             
         resume_iter = True
         first_iter = True
-        self.iter = 0
-        patience = 0
-            
-        if draw_graphs:
-            self.create_graph_weights("_init_")
-            self.create_graph_entropy("_init_")
+        log_iter = 0
+        iter_patience = 0
+        
+        if patience is None:
+            if self.early_stopping:
+                warnings.warn('You are using early stopping with no patience. '
+                              'Set the patience parameter to 0 to not see this '
+                              'message again')
+            patience = 0
+            iter_patience = 0
 
-        # EM algorithm
+        #Initialization
+        if not self._is_initialized:
+            self._initialize(points_data,points_test)
+        
+        if saving is not None:
+            file = h5py.File(directory + "/" + self.name + ".h5", "w")
+            grp = file.create_group('init')
+            self.write(grp)
+            
+        
         while resume_iter:
-            
-            log_prob_norm_data,log_resp_data = self.step_E(points_data)
-            if self.test_exists:
-                log_prob_norm_test,log_resp_test = self.step_E(points_test)
+            #EM algorithm
+            log_prob_norm_data,log_resp_data = self._step_E(points_data)
+            if self.early_stopping:
+                log_prob_norm_test,log_resp_test = self._step_E(points_test)
                 
-            self.step_M(points_data,log_resp_data)
+            self._step_M(points_data,log_resp_data)
             
-            self.convergence_criterion_data.append(self.convergence_criterion_simplified(points_data,log_resp_data,log_prob_norm_data))
-            if self.test_exists:
-                self.convergence_criterion_test.append(self.convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
-                
-            #Graphic part
-            if draw_graphs:
-                self.create_graph_weights("_iter_" + str(self.iter))
-                self.create_graph_entropy("_iter_" + str(self.iter))
+            #Computation of the convergence criterion(s)
+            self.convergence_criterion_data.append(self._convergence_criterion_simplified(points_data,log_resp_data,log_prob_norm_data))
+            if self.early_stopping:
+                self.convergence_criterion_test.append(self._convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
             
+            
+            #Computation of resume_iter
             if first_iter:
                 resume_iter = True
                 first_iter = False
                 
-            elif self.test_exists:
+            elif n_iter_fix is not None:
+                resume_iter = self.iter < n_iter_fix
+            
+            elif self.iter > n_iter_max:
+                resume_iter = False
+            
+            elif self.early_stopping:
                 criterion = self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1]
                 criterion /= len(points_test)
-                if criterion < self.tol:
-                    resume_iter = patience < self.patience
-                    patience += 1
+                if criterion < tol:
+                    resume_iter = iter_patience < patience
+                    iter_patience += 1
                     
             else:
                 criterion = self.convergence_criterion_data[self.iter] - self.convergence_criterion_data[self.iter-1]
                 criterion /= len(points_data)
-                if criterion < self.tol:
-                    resume_iter = patience < self.patience
-                    patience += 1
-                    
+                if criterion < tol:
+                    resume_iter = iter_patience < patience
+                    iter_patience += 1
+            
+            
+            #Saving the model
+            if saving is not None and resume_iter == False:
+                grp = file.create_group("final")
+                self.write(grp)
+                
+            elif saving=='log' and self.iter == 2**log_iter:
+                grp = file.create_group("log_iter" + str(log_iter))
+                self.write(grp)
+                log_iter += 1
+            
+            
             self.iter+=1
         
-        self._is_fitted = True
-        print("Number of iterations :", self.iter)
+        if saving is not None:
+            file.close()
         
-        return self
+        print("Number of iterations :", self.iter)
     
-    def predict_log_prob_resp(self,points):
+    def predict_log_resp(self,points):
         """
         This function return the logarithm of the norm of the probability of
         each point and their responsibilities
@@ -448,12 +460,12 @@ class BaseMixture():
         
         points = self._check_points(points)
         
-        if self._is_fitted:
-            log_prob,log_resp = self.step_E(points)
-            return log_prob,log_resp
+        if self._is_initialized:
+            _,log_resp = self._step_E(points)
+            return log_resp
     
         else:
-            raise Exception("The model is not fitted")
+            raise Exception("The model is not initialized")
     
     def score_convergence_criterion(self,points):
         """
@@ -467,11 +479,31 @@ class BaseMixture():
         """
         points = self._check_points(points)
             
-        if self._is_fitted:
+        if self._is_initialized:
             log_prob,log_resp = self.step_E(points)
             score = self.convergence_criterion(points,log_resp,log_prob)
             return score
         
         else:
             raise Exception("The model is not fitted")
+    
+    @abstractmethod
+    def write(self,directory,legend):
+        """
+        A method which saves the model parameters in order to be reloaded and reused
         
+        @param directory: str
+            The directory path. The model will be saved there.
+        @param legend: str
+        """
+        pass
+    
+    
+    @abstractmethod
+    def read_and_init(self,group):
+        """
+        A method reading a group of an hdf5 file to initialize DPGMM
+        
+        @param group: HDF5 group
+        """
+        pass
