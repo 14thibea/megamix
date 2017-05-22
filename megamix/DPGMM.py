@@ -9,6 +9,7 @@ import utils
 import initializations as initial
 from base import _log_normal_matrix
 from base import BaseMixture
+from base import _log_B
 import graphics
 
 import pickle
@@ -203,7 +204,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            lower_bound[i] = utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            lower_bound[i] = _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
@@ -265,7 +266,7 @@ class DPVariationalGaussianMixture(BaseMixture):
             lower_bound[i] *= 0.5 * N[i]
             
             #Second line
-            lower_bound[i] += utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            lower_bound[i] += _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
@@ -336,8 +337,18 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._nu_0 = initial_parameters[2]
         self._means_prior = np.asarray(group['means prior'].value)
         self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
+        self.n_components = len(self.means)
         
-        self._alpha = np.asarray(group['alpha'])
+        #We want to be able to use data written by VBGMM or GMM
+        alpha = np.asarray(group['alpha'])
+        if len(alpha) == 1:
+            self._alpha = np.empty((self.n_components,2))
+            N = alpha - self._alpha_0
+            for i in range(self.n_components):
+                sum_N = np.sum(N[i+1::])
+                self._alpha[i] = np.asarray([1+N[i],self._alpha_0+sum_N])
+        else:
+            self._alpha = alpha
         self._beta = np.asarray(group['beta'])
         self._nu = np.asarray(group['nu'])
         
@@ -345,7 +356,6 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
         
-        self.n_components = len(self.means)
         self._is_initialized = True
         self.type_init ='user'
         self.init = 'user'

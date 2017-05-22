@@ -145,6 +145,27 @@ class GaussianMixture(BaseMixture):
         group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
         group['log_weights'][...] = self.log_weights
         
+        alpha_0 = 1/self.n_components
+        beta_0 = 1.0
+        _,nu_0 = self.means.shape
+        means_prior = np.mean(points_data,axis=0)
+        inv_prec_prior = np.cov(points_data.T)
+        
+        initial_parameters = np.asarray([alpha_0,beta_0,nu_0])
+        group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
+        group['initial parameters'][...] = initial_parameters
+        group.create_dataset('means prior',means_prior.shape,dtype='float64')
+        group['means prior'][...] = means_prior
+        group.create_dataset('inv prec prior',inv_prec_prior.shape,dtype='float64')
+        group['inv prec prior'][...] = inv_prec_prior
+        
+        group.create_dataset('alpha',(self.n_components,),dtype='float64')
+        group['alpha'][...] = np.tile(alpha_0, (self.n_components))
+        group.create_dataset('beta',(self.n_components,),dtype='float64')
+        group['beta'][...] = np.tile(beta_0, (self.n_components))
+        group.create_dataset('nu',(self.n_components,),dtype='float64')
+        group['nu'][...] = np.tile(nu_0, (self.n_components))
+        
     def read_and_init(self,group):
         """
         A method reading a group of an hdf5 file to initialize DPGMM
@@ -154,7 +175,11 @@ class GaussianMixture(BaseMixture):
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
         self.log_weights = np.asarray(group['log_weights'].value)
-        
+        self.n_components = len(self.means)
+                
+        self._is_initialized = True
+        self.type_init ='user'
+        self.init = 'user'
 
 if __name__ == '__main__':
     
@@ -179,7 +204,7 @@ if __name__ == '__main__':
         points_test = None
 
     init = 'kmeans'
-    directory = os.getcwd() + '/../Results/GMM/' + init
+    directory = os.getcwd() + '/../../Results/GMM/' + init
 
     #GMM
 #    for i in range(10):

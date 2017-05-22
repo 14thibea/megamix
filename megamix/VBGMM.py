@@ -2,15 +2,15 @@
 """
 Created on Fri Apr 14 13:37:08 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 import utils
 import initializations as initial
+from base import _log_B,_log_C
 from base import BaseMixture
 from base import _log_normal_matrix
-from base import _full_covariance_matrix
-from base import _spherical_covariance_matrix
+from base import _full_covariance_matrix,_spherical_covariance_matrix
 import graphics
 
 import pickle
@@ -18,7 +18,6 @@ import os
 import numpy as np
 import scipy.special
 from scipy.misc import logsumexp
-#import sklearn_test
 
 class VariationalGaussianMixture(BaseMixture):
     """
@@ -29,101 +28,102 @@ class VariationalGaussianMixture(BaseMixture):
     
     The weights distribution is a Dirichlet distribution with parameter _alpha
     (see Bishop's book p474-486)
-
     
-    Parameters :
-    ---------------
-    @param n_components: int, defaults to 1
-                         number of clusters used
-
-    @param init:         str, defaults to 'kmeans'
-                         method used in order to perform the initialization
-                         must be in ['random','plus','AF_KMC','kmeans','GMM']
-                         
-    @param type_init:    str, defaults to 'resp'
-                         
-    @param _alpha_0:     float, optional defaults to None
-                         The prior parameter on the weight distribution (Dirichlet).
-                         A high value of _alpha_0 will lead to equal weights, while
-                         a low value will allow some clusters to shrink and disappear.
-                         Must be greater than 0.
-                         
-                         If it is None, the value is set to 1/n_components
-                         
-    @param _beta_0:      float, optional defaults to None
-                         The precision prior on the mean distribution (Gaussian).
-                         Must be greater than 0.
-                         
-                         If it is None, the value is set to 1.0
-                         
-    @param _nu_0:        float, optional defaults to None
-                         The prior of the number of degrees of freedom on the covariance
-                         distributions (Wishart).
-                         Must be greater or equal to dim.
-                         
-                         If it is None, the value is set to dim
-                         
-    --------------------------------------------------------------------------------------                    
-    The hyperparameters alpha_0, beta_0, nu_0 may be initialized by
-    _check_hyper_parameters() in base.py if not initialized by the user
-    --------------------------------------------------------------------------------------
-        
-    Attributes :
-    ---------------
-    @attribute name: (str)
+    Parameters
+    ----------
     
-    @attribute _alpha: array of floats (n_components,)
+    n_components : int, defaults to 1.
+        Number of clusters used.
+    
+    init : str, defaults to 'kmeans'.
+        Method used in order to perform the initialization,
+        must be in ['random','plus','AF_KMC','kmeans','GMM'].                  
+    
+    type_init : str, defaults to 'resp'.        
+        The algorithm is initialized using this data (responsibilities if 'resp'
+        or means, covariances and weights if 'mcw').
+
+    Other parameters
+    ----------------                
+    
+    alpha_0 : float, Optional | defaults to None.
+        The prior parameter on the weight distribution (Dirichlet).
+        A high value of _alpha_0 will lead to equal weights, while a low value
+        will allow some clusters to shrink and disappear. Must be greater than 0.
+    
+        If it is None, the value is set to 1/n_components                         
+    
+    beta_0 : float, Optional | defaults to None.
+        The precision prior on the mean distribution (Gaussian).
+        Must be greater than 0.
+    
+        If it is None, the value is set to 1.0                         
+    
+    nu_0 : float, Optional | defaults to None.
+        The prior of the number of degrees of freedom on the covariance
+        distributions (Wishart). Must be greater or equal to dim.
+    
+        If it is None, the value is set to dim
+
+    Attributes
+    ----------
+    
+    name : str, 'VBGMM'
+    
+    _alpha : array of floats (n_components,)
         Contains the parameters of the weight distribution (Dirichlet)
-        
-    @attribute _beta: array of floats (n_components,)
+    
+    _beta : array of floats (n_components,)
         Contains coefficients which are multipied with the precision matrices
-        to form the precision matrix on the Gaussian distribution of the means.
-        
-    @attribute _nu: array of floats (n_components,)
+        to form the precision matrix on the Gaussian distribution of the means.    
+    
+    _nu : array of floats (n_components,)
         Contains the number of degrees of freedom on the distribution of
         covariance matrices.
-        
-    @attribute _inv_prec: array of floats (n_components,dim,dim)
+    
+    _inv_prec : array of floats (n_components,dim,dim)
         Contains the equivalent of the matrix W described in Bishop's book. It
         is proportional to cov.
-        
-    @attribute _log_det_inv_prec: array of floats (n_components,)
+    
+    _log_det_inv_prec : array of floats (n_components,)
         Contains the logarithm of the determinant of W matrices.
-        
-    @attribute cov: array of floats (n_components,dim,dim)
+    
+    cov : array of floats (n_components,dim,dim)
         Contains the computed covariance matrices of the mixture.
-        
-    @attribute means: array of floats (n_components,dim)
+    
+    means : array of floats (n_components,dim)
         Contains the computed means of the mixture.
-        
-    @attribute log_weights: array of floats (n_components,)
+    
+    log_weights : array of floats (n_components,)
         Contains the logarithm of weights of each cluster.
-        
-    (inherited from BaseMixture)
-    @attribute iter: int
+    
+    iter : int
         The number of iterations computed with the method fit()
-        
-    @attribute _early_stopping: bool
+    
+    _early_stopping : bool
         A boolean to deal with test data (case of the early stopping)
-        
-    @attribute convergence_criterion_data: array of floats (iter,)
+    
+    convergence_criterion_data : array of floats (iter,)
         Stores the value of the convergence criterion computed with data
         on which the model is fitted.
     
-    @attribute convergence_criterion_test: array of floats (iter,)
+    convergence_criterion_test : array of floats (iter,) | if _early_stopping only
         Stores the value of the convergence criterion computed with test data
         if it exists.
-        
-    @attribute _is_initialized: bool
+    
+    _is_initialized : bool
         Ensures that the method _initialize() has been used before using other
         methods such as score() or predict_log_assignements().
-        
-    Errors raised :
-    -----------------
-        
-    @raise ValueError: if the parameters are inconsistent, for example if the
+    
+    Raises
+    ------
+    ValueError: if the parameters are inconsistent, for example if the
     cluster number is negative, init_type is not in ['resp','mcw']...
     
+    References
+    ----------
+    'Pattern Recognition and Machine Learning', Bishop
+ 
     """
 
     def __init__(self, n_components=1,init="GMM",alpha_0=None,beta_0=None,
@@ -154,6 +154,7 @@ class VariationalGaussianMixture(BaseMixture):
     def _check_parameters(self):
         """
         Check the value of the init parameter
+        
         """
         
         if self.init not in ['random', 'plus', 'kmeans', 'AF_KMC', 'GMM']:
@@ -167,10 +168,13 @@ class VariationalGaussianMixture(BaseMixture):
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other specific parameters (alpha, beta, nu)
         
-        @param points_data: an array (n_points,dim)
+        Parameters
+        ----------
+        points_data : an array (n_points,dim)
             Data on which the model is fitted.
-        @param points_test: an array (n_points,dim) | Optional
+        points_test: an array (n_points,dim) | Optional
             Data used to do early stopping (avoid overfitting)
+            
         """
         
         n_points,dim = points_data.shape
@@ -215,11 +219,17 @@ class VariationalGaussianMixture(BaseMixture):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
-        @param points: an array                                     (n_points,dim)
-        @return log_resp: an array containing the logarithm of the 
-                          responsibilities                          (n_points,n_components)
-                log_prob_norm: logarithm of the probability of each
-                               sample in points                     (n_points,)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        Returns
+        -------
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+            
         """
         
         n_points,dim = points.shape
@@ -242,9 +252,15 @@ class VariationalGaussianMixture(BaseMixture):
         This method computes the new value of _inv_prec with given parameteres
         (in the case of full covariances)
         
-        @param N: the empirical weights     (n_components,)
-        @param X_barre: the empirical means (n_components,dim)
-        @param S: the empirical covariances (n_components,dim,dim)
+        Parameters
+        ----------
+        N : an array (n_components,)
+            the empirical weights
+        X_barre: an array (n_components,dim)
+            the empirical means 
+        S: an array (n_components,dim,dim)
+            the empirical covariances
+            
         """
         for i in range(self.n_components):
             diff = X_barre[i] - self._means_prior
@@ -256,9 +272,15 @@ class VariationalGaussianMixture(BaseMixture):
         This method computes the new value of _inv_prec with given parameteres
         (in the case of spherical covariances)
         
-        @param N: the empirical weights     (n_components)
-        @param X_barre: the empirical means (n_components,dim)
-        @param S: the empirical covariances (n_components,)
+        Parameters
+        ----------
+        N : an array (n_components,)
+            the empirical weights
+        X_barre: an array (n_components,dim)
+            the empirical means 
+        S: an array (n_components,dim,dim)
+            the empirical covariances
+            
         """
         for i in range(self.n_components):
             diff = X_barre[i] - self._means_prior
@@ -271,9 +293,13 @@ class VariationalGaussianMixture(BaseMixture):
         In this step the algorithm updates the values of the parameters (means, covariances,
         alpha, beta, nu).
         
-        @param points: an array of points                       (n_points,dim)
-        @param log_resp: an array containing the logarithm of
-                         the responsibilities                   (n_points,n_components)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
+            
         """
         
         n_points,dim = points.shape
@@ -314,14 +340,22 @@ class VariationalGaussianMixture(BaseMixture):
         Compute the lower bound of the likelihood using the simplified Bishop's
         book formula. Can only be used with data which fits the model.
         
-        @param points: array of floats (n_points,dim)
-        @param log resp: array of floats (n_points,n_components)
-            the logarithm of the soft assignements of each point to each cluster
-        @param log_prob_norm: array of floats (n_points,)
-            logarithm of the probability of each sample in points
+        
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
             
-        @return result: float
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+        
+        Returns
+        -------
+        result : float
             the lower bound of the likelihood
+            
         """
         
         resp = np.exp(log_resp)
@@ -334,7 +368,7 @@ class VariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            lower_bound[i] = utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            lower_bound[i] = _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
@@ -343,7 +377,7 @@ class VariationalGaussianMixture(BaseMixture):
             lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
         
         result = np.sum(lower_bound)
-        result += utils.log_C(self._alpha_0 * np.ones(self.n_components))- utils.log_C(self._alpha)
+        result += _log_C(self._alpha_0 * np.ones(self.n_components))- _log_C(self._alpha)
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
@@ -354,15 +388,23 @@ class VariationalGaussianMixture(BaseMixture):
         The formula cannot be simplified (as it is done in scikit-learn) as we also
         use it to calculate the lower bound of test points, in this case no
         simplification can be done.
+          
         
-        @param points: array of floats (n_points,dim)
-        @param log resp: array of floats (n_points,n_components)
-            the logarithm of the soft assignements of each point to each cluster
-        @param log_prob_norm: array of floats (n_points,)
-            logarithm of the probability of each sample in points
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
             
-        @return result: float
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+        
+        Returns
+        -------
+        result : float
             the lower bound of the likelihood
+            
         """
         
         resp = np.exp(log_resp)
@@ -401,7 +443,7 @@ class VariationalGaussianMixture(BaseMixture):
             
             #Second line
             lower_bound[i] += (self._alpha_0 - self._alpha[i]) * log_weights_i
-            lower_bound[i] += utils.log_B(prec_prior,self._nu_0) - utils.log_B(prec[i],self._nu[i])
+            lower_bound[i] += _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
@@ -417,7 +459,7 @@ class VariationalGaussianMixture(BaseMixture):
             lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self._inv_prec_prior,prec[i]))
                 
         result = np.sum(lower_bound)
-        result += utils.log_C(self._alpha_0 * np.ones(self.n_components))- utils.log_C(self._alpha)
+        result += _log_C(self._alpha_0 * np.ones(self.n_components))- _log_C(self._alpha)
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
@@ -428,7 +470,10 @@ class VariationalGaussianMixture(BaseMixture):
         A method creating datasets in a group of an hdf5 file in order to save
         the model
         
-        @param group: HDF5 group
+        Parameters
+        ----------
+        group : HDF5 group
+
         """
         group.create_dataset('means',self.means.shape,dtype='float64')
         group['means'][...] = self.means
@@ -457,7 +502,10 @@ class VariationalGaussianMixture(BaseMixture):
         """
         A method reading a group of an hdf5 file to initialize DPGMM
         
-        @param group: HDF5 group
+        Parameters
+        ----------
+        group : HDF5 group
+
         """
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
@@ -469,6 +517,24 @@ class VariationalGaussianMixture(BaseMixture):
         self._nu_0 = initial_parameters[2]
         self._means_prior = np.asarray(group['means prior'].value)
         self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
+        self.n_components = len(self.means)
+        
+        # We want to be able to use data written by DPGMM
+        alpha = np.asarray(group['alpha'])
+        if len(alpha.shape) == 2:
+            self._alpha = alpha.T[0] - 1 + self._alpha_0
+        else:
+            self._alpha = alpha
+        self._beta = np.asarray(group['beta'])
+        self._nu = np.asarray(group['nu'])
+        
+        # Matrix W
+        self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
+        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
+        
+        self._is_initialized = True
+        self.type_init ='user'
+        self.init = 'user'
     
 if __name__ == '__main__':
     

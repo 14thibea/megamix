@@ -4,14 +4,37 @@ Created on Mon May 22 09:38:22 2017
 
 @author: Elina Thibeau-Sutre
 """
-import utils
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerLine2D
+from matplotlib.patches import Ellipse
 from sklearn import manifold
 
     
+def ellipses_multidimensional(cov,mean,d1=0,d2=1):
+    """
+    A method which creates an object of Ellipse class (from matplotlib.patches).
+    As it is only a 2D object dimensions may be precised to project it.
+    
+    @return: ell (Ellipse)
+    """
+    
+    covariance = np.asarray([[cov[d1,d1],cov[d1,d2]],[cov[d1,d2],cov[d2,d2]]])
+    lambda_, v = np.linalg.eig(covariance)
+    lambda_sqrt = np.sqrt(lambda_)
+    
+    width = lambda_sqrt[0] * 2
+    height = lambda_sqrt[1] * 2
+    
+    angle = np.rad2deg(np.arccos(v[0,0]))
+    
+    ell = Ellipse(xy=(mean[d1], mean[d2]),
+              width=width, height=height,
+              angle=angle)
+    ell.set_facecolor('none')
+    ell.set_edgecolor('k')
+    return ell
+
 def create_graph(self,points,directory,legend):
     """
     This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
@@ -45,7 +68,7 @@ def create_graph(self,points,directory,legend):
         y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
         
         if len(x_points[i]) > 0:
-            ell = utils.ellipses_multidimensional(cov[i],self.means[i])
+            ell = ellipses_multidimensional(cov[i],self.means[i])
             ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
             ax.plot(self.means[i][0],self.means[i][1],'kx')
             ax.add_artist(ell)

@@ -7,6 +7,7 @@ Created on Fri Apr 21 11:13:09 2017
 from abc import abstractmethod
 import numpy as np
 import scipy.linalg
+from scipy.special import gammaln
 import os
 import warnings
 import h5py
@@ -109,6 +110,29 @@ def _log_normal_matrix(points,means,cov,covariance_type):
     return -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
 
 
+def _log_B(W,nu):
+    """
+    The log of a coefficient involved in the Wishart distribution
+    see Bishop book p.693 (B.78)
+    """
+    
+    dim,_ = W.shape
+    
+    det_W = np.linalg.det(W)
+    log_gamma_sum = np.sum(gammaln(.5 * (nu - np.arange(dim)[:, np.newaxis])), 0)
+    result = - nu*0.5*np.log(det_W) - nu*dim*0.5*np.log(2)
+    result += -dim*(dim-1)*0.25*np.log(np.pi) - log_gamma_sum
+    return result
+
+
+def _log_C(alpha):
+    """
+    The log of a coefficient involved in the Dirichlet distribution
+    see Bishop book p.687 (B.23)
+    """
+    
+    return gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))
+
 class BaseMixture():
     """
     Base class for mixture models.
@@ -201,27 +225,24 @@ class BaseMixture():
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
             init=None):
-        """
-        The EM algorithm
-        @param n_iter_max: int, defaults to 1000
-            number of iterations maximum that can be done
-                         
-        @param tol: float, defaults to 1e-3
-             The EM algorithm will stop when the difference between the
-             convergence criterion
-                         
-        @param reg_covar: float, defaults to 1e-6
-            In order to avoid null covariances this float is added to the
-            diagonal of covariances after their computation
-            
-        @param points_data: an array (n_points,dim)
-        @param points_test: an array (n_points,dim) | Optional
-        @param draw_graphs: bool | Optional
-        @param directory: str | Optional
-        @param saving: str | Optional
-            Allows the user to save the model parameters in the directory given
-            by the user. Options are ['log','final']
-        @return self
+        """The EM algorithm
+        
+        :param n_iter_max: int, defaults to 1000
+        number of iterations maximum that can be done
+        :param tol: float, defaults to 1e-3
+        The EM algorithm will stop when the difference between the
+        convergence criterion               
+        :param reg_covar: float, defaults to 1e-6
+        In order to avoid null covariances this float is added to the diagonal 
+        of covariances after their computation
+        :param points_data: an array (n_points,dim)
+        :param points_test: an array (n_points,dim) | Optional
+        :param draw_graphs: bool | Optional
+        :param directory: str | Optional
+        :param saving: str | Optional
+        Allows the user to save the model parameters in the directory given
+        by the user. Options are ['log','final']
+        
         """
         
         if directory==None:
@@ -243,9 +264,14 @@ class BaseMixture():
             iter_patience = 0
 
         #Initialization
+        if init=='user' and self._is_initialized == False:
+            warnings.warn('The system is going to be initialized')
+        
         if init is None or self._is_initialized==False:
             self._initialize(points_data,points_test)
             self.iter = 0
+            
+        
         
         if saving is not None:
             file = h5py.File(directory + "/" + self.name + ".h5", "w")
