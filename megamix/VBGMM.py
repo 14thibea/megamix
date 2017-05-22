@@ -11,6 +11,7 @@ from base import BaseMixture
 from base import _log_normal_matrix
 from base import _full_covariance_matrix
 from base import _spherical_covariance_matrix
+import graphics
 
 import pickle
 import os
@@ -498,7 +499,7 @@ if __name__ == '__main__':
     VBGMM = VariationalGaussianMixture(k,init,type_init='mcw')
     VBGMM.fit(points_data,points_test,patience=0,directory=directory,saving='log')
     print(">>creating graphs")
-    VBGMM.create_graph_convergence_criterion(directory,VBGMM.type_init)
-    VBGMM.create_graph_weights(directory,VBGMM.type_init)
-    VBGMM.create_graph_entropy(directory,VBGMM.type_init)
+    graphics.create_graph_convergence_criterion(VBGMM,directory,VBGMM.type_init)
+    graphics.create_graph_weights(VBGMM,directory,VBGMM.type_init)
+    graphics.create_graph_entropy(VBGMM,directory,VBGMM.type_init)
 #    print()

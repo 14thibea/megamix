@@ -23,9 +23,6 @@ def convergence_criterion_VB(n_components,points,log_resp,alpha_0,beta_0,nu_0,
     inv_prec = cov * nu[:,np.newaxis,np.newaxis]
     log_det_inv_prec = np.log(np.linalg.det(inv_prec))
     inv_prec_prior = cov_prior
-        
-    prec = np.linalg.inv(inv_prec)
-    prec_prior = np.linalg.inv(inv_prec_prior)
     
     # Convenient statistics
     N = np.exp(logsumexp(log_resp,axis=0)) + 10*np.finfo(resp.dtype).eps    #Array (n_components,)

@@ -9,6 +9,7 @@ import utils
 import initializations as initial
 from base import _log_normal_matrix
 from base import BaseMixture
+import graphics
 
 import pickle
 import os
@@ -18,12 +19,12 @@ from scipy.special import psi,betaln
 from scipy.misc import logsumexp
 import h5features
 
-class VariationalGaussianMixture(BaseMixture):
+class DPVariationalGaussianMixture(BaseMixture):
 
     def __init__(self, n_components=1,init="VBGMM",alpha_0=None,reg_covar=1e-6,\
                  beta_0=None,nu_0=None,patience=0,type_init='resp'):
         
-        super(VariationalGaussianMixture, self).__init__()
+        super(DPVariationalGaussianMixture, self).__init__()
         
         self.name = 'DPGMM'
         self.n_components = n_components
@@ -351,30 +352,30 @@ class VariationalGaussianMixture(BaseMixture):
     
 if __name__ == '__main__':
     
-    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
+#    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
+#    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
 #    
 #    initializations = ["random","plus","kmeans","GMM"]
 #    
 #    
-#    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-#    with open(path, 'rb') as fh:
-#        data = pickle.load(fh)
+    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
     
-    k=10
+    k=100
     N=1500
     early_stop = False
     
-#    points = data['BUC']
-#    if early_stop:
-#        n_points,_ = points.shape
-#        idx1 = np.random.randint(0,high=n_points,size=N)
-#        points_data = points[idx1,:]
-#        idx2 = np.random.randint(0,high=n_points,size=N)
-#        points_test = points[idx2,:]
-#    else:
-#        points_data = points[:N:]
-#        points_test = None
+    points = data['BUC']
+    if early_stop:
+        n_points,_ = points.shape
+        idx1 = np.random.randint(0,high=n_points,size=N)
+        points_data = points[idx1,:]
+        idx2 = np.random.randint(0,high=n_points,size=N)
+        points_test = points[idx2,:]
+    else:
+        points_data = points[:N:]
+        points_test = None
     
 #    data = h5features.Reader('D:/Mines/Cours/Stages/Stage_ENS/Code/data/mfcc_delta_cmn.features').read()
 #    points = np.concatenate(data.features(),axis=0)
@@ -384,8 +385,8 @@ if __name__ == '__main__':
 #    points_data = points[:n_points//2:]
 #    points_test = points[n_points//2::]
     
-    init = "VBGMM"
-    directory = os.getcwd() + '/../Results/DPGMM/' + init
+    init = "kmeans"
+    directory = os.getcwd() + '/../../Results/DPGMM/' + init
     
     coeffs = 10.0**np.arange(-5,5)
     coeffs_nu = 13 + coeffs
@@ -393,13 +394,14 @@ if __name__ == '__main__':
 #    for c in coeffs_nu:
         
     print(">>predicting")
-    DPGMM = VariationalGaussianMixture(k,init,type_init='resp',alpha_0=0.0001)
-    DPGMM.fit(points_data,points_test=points_test,patience=0,directory=directory,saving='log')
+    DPGMM = DPVariationalGaussianMixture(k,init,type_init='resp')
+    DPGMM.fit(points_data,points_test=points_test)
     print(">>creating graphs")
-    DPGMM.create_graph(points_data,directory,'data')
-    DPGMM.create_graph(points_test,directory,'test')
-    DPGMM.create_graph_convergence_criterion(directory,DPGMM.type_init)
-    DPGMM.create_graph_weights(directory,DPGMM.type_init)
-    DPGMM.create_graph_entropy(directory,DPGMM.type_init)
+    graphics.create_graph(DPGMM,points_data,directory,'data')
+    if early_stop:
+        graphics.create_graph(DPGMM,points_test,directory,'test')
+    graphics.create_graph_convergence_criterion(DPGMM,directory,DPGMM.type_init)
+    graphics.create_graph_weights(DPGMM,directory,DPGMM.type_init)
+    graphics.create_graph_entropy(DPGMM,directory,DPGMM.type_init)
     print()
         

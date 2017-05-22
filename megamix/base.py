@@ -4,17 +4,11 @@ Created on Fri Apr 21 11:13:09 2017
 
 @author: Elina THIBEAU-SUTRE
 """
-
-import utils
-
 from abc import abstractmethod
-import matplotlib.pyplot as plt
-from matplotlib.legend_handler import HandlerLine2D
 import numpy as np
 import scipy.linalg
 import os
 import warnings
-from sklearn import manifold
 import h5py
 
 def _full_covariance_matrix(points,means,weights,log_assignements,reg_covar):
@@ -203,140 +197,10 @@ class BaseMixture():
         """
         pass
     
-    def create_graph(self,points,directory,legend):
-        """
-        This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
-        If points have more than two coordinates, then it will be a projection including only the first coordinates.
-        
-        @param points: an array of points (n_points,dim)
-        @param log_resp: an array containing the log of soft assignements of every point (n_points,n_components)
-        @param directory: the path to the directory where the figure will be saved (str)
-        @param legend: a legend for the name of the figure (str)
-        """
-    
-        n_points,dim = points.shape
-        log_resp = self.predict_log_resp(points)
-        
-        plt.title("iter = " + str(self.iter) + " k = " + str(self.n_components))
-        
-        if self.covariance_type == "full":
-            cov = self.cov
-        elif self.covariance_type == "spherical":
-            cov = np.asarray([np.eye(dim) * coeff for coeff in self.cov])
-        
-        x_points = [[] for i in range(self.n_components)]
-        y_points = [[] for i in range(self.n_components)]
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        
-        for i in range(self.n_components):
-                                 
-            x_points[i] = [points[j][0] for j in range(n_points) if (np.argmax(log_resp[j])==i)]        
-            y_points[i] = [points[j][1] for j in range(n_points) if (np.argmax(log_resp[j])==i)]
-            
-            if len(x_points[i]) > 0:
-                ell = utils.ellipses_multidimensional(cov[i],self.means[i])
-                ax.plot(x_points[i],y_points[i],'o',alpha = 0.2)
-                ax.plot(self.means[i][0],self.means[i][1],'kx')
-                ax.add_artist(ell)
-            
-        titre = directory + '/figure_' + self.init + "_" + str(legend) + ".png"
-        plt.savefig(titre)
-        plt.close("all")
-        
-    def create_graph_convergence_criterion(self,directory,legend):
-        """
-        This method draws a graph displaying the evolution of the convergence criterion :
-            - log likelihood for GMM (should never decrease)
-            - the lower bound of the log likelihood for VBGMM/DPGMM (should never decrease)
-        
-        @param directory: the path to the directory where the figure will be saved (str)
-        @param legend: a legend for the name of the figure (str)
-        """
-        
-        plt.title("Convergence criterion evolution")
-        
-        p1, = plt.plot(np.arange(self.iter),self.convergence_criterion_data,marker='x',label='data')
-        if self.early_stopping:
-            p3, = plt.plot(np.arange(self.iter),self.convergence_criterion_test,marker='o',label='test')
-            
-        plt.legend(handler_map={p1: HandlerLine2D(numpoints=4)})
-
-        
-        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_cc_evolution.png"
-        plt.savefig(titre)
-        plt.close("all")
-        
-    def create_graph_weights(self,directory,legend):
-        """
-        This method draws an histogram illustrating the repartition of the weights of the clusters
-        
-        @param directory: the path to the directory where the figure will be saved (str)
-        @param legend: a legend for the name of the figure (str)
-        """
-        
-        plt.title("Weights of the clusters")
-        
-        plt.hist(np.exp(self.log_weights))
-        
-        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_weights.png"
-        plt.savefig(titre)
-        plt.close("all")
-        
-    def create_graph_MDS(self,directory,legend):
-        """
-        This method displays the means of the clusters on a 2D graph in order to visualize
-        the cosine distances between them
-        (see scikit-learn doc on manifold.MDS for more information)
-        
-        @param directory: the path to the directory where the figure will be saved (str)
-        @param legend: a legend for the name of the figure (str)
-        """
-        
-        mds = manifold.MDS(2)
-        norm = np.linalg.norm(self.means,axis=1)
-        means_normed = self.means / norm[:,np.newaxis]
-        
-        coord = mds.fit_transform(means_normed)
-        stress = mds.stress_
-        
-        plt.plot(coord.T[0],coord.T[1],'o')
-        plt.title("MDS of the cosine distances between means, stress = " + str(stress))
-        
-        titre = directory + '/figure_' + self.init + "_" + str(legend) + "_means.png"
-        plt.savefig(titre)
-        plt.close("all")
-        
-    def create_graph_entropy(self,directory,legend):
-        """
-        This method draws an histogram illustrating the repartition of the
-        entropy of the covariance matrices
-        
-        @param directory: the path to the directory where the figure will be saved (str)
-        @param legend: a legend for the name of the figure (str)
-        """
-        if self.covariance_type == 'spherical':
-            print('This graph is irrelevant')
-        
-        else:
-            plt.title('Entropy of the covariances')
-            
-            l = np.linalg.eigvalsh(self.cov)
-            norm = np.trace(self.cov.T)
-            l = l/norm[:,np.newaxis]
-            
-            log_l = np.log(l)
-            ent = - np.sum(log_l*l, axis=1)
-            
-            plt.hist(ent)
-            
-            titre = directory + '/figure_' + self.init + "_" + str(legend) + "_cov_entropy.png"
-            plt.savefig(titre)
-            plt.close("all")
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
-            n_iter_max=100,n_iter_fix=None,directory=None,saving=None):
+            n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
+            init=None):
         """
         The EM algorithm
         @param n_iter_max: int, defaults to 1000
@@ -363,7 +227,7 @@ class BaseMixture():
         if directory==None:
             directory = os.getcwd()
         
-        self.early_stopping = not(points_test is None)
+        self.early_stopping = points_test is not None
             
         resume_iter = True
         first_iter = True
@@ -379,8 +243,9 @@ class BaseMixture():
             iter_patience = 0
 
         #Initialization
-        if not self._is_initialized:
+        if init is None or self._is_initialized==False:
             self._initialize(points_data,points_test)
+            self.iter = 0
         
         if saving is not None:
             file = h5py.File(directory + "/" + self.name + ".h5", "w")
@@ -480,8 +345,8 @@ class BaseMixture():
         points = self._check_points(points)
             
         if self._is_initialized:
-            log_prob,log_resp = self.step_E(points)
-            score = self.convergence_criterion(points,log_resp,log_prob)
+            log_prob,log_resp = self._step_E(points)
+            score = self._convergence_criterion(points,log_resp,log_prob)
             return score
         
         else:

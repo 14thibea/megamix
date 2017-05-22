@@ -33,22 +33,24 @@ def create_hist(filename,data,title=""):
     
 if __name__ == '__main__':
     
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('early_stop', help='True if early stop is computed')
-    parser.add_argument('method', help='The EM algorithm used')
-    parser.add_argument('type_init', help='How the algorithm will be initialized ("resp" or "mcw")')
-    parser.add_argument('init', help='The method used to initialize')
-    parser.add_argument('covariance_type', help='the covariance type : "full" or "spherical"')
-    parser.add_argument('cluster_number', help='the number of clusters wanted')
-    args = parser.parse_args()
+#    import argparse
+#    parser = argparse.ArgumentParser()
+#    parser.add_argument('early_stop', help='True if early stop is computed')
+#    parser.add_argument('method', help='The EM algorithm used')
+#    parser.add_argument('type_init', help='How the algorithm will be initialized ("resp" or "mcw")')
+#    parser.add_argument('init', help='The method used to initialize')
+#    parser.add_argument('covariance_type', help='the covariance type : "full" or "spherical"')
+#    parser.add_argument('cluster_number', help='the number of clusters wanted')
+#    args = parser.parse_args()
     
     N=15000
-    k=int(args.cluster_number)
-    n_iter = 1000
-    early_stop = bool(args.early_stop)
+    k=100
+    n_iter = 1
+    early_stop = False
+    method = 'DPGMM'
+    init='GMM'
     
-    path = '/home/ethibeau-sutre/data/data.pickle'
+    path = '../../data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
@@ -66,17 +68,17 @@ if __name__ == '__main__':
     
     lower_bound = np.arange(n_iter)
     
-    if args.method == 'GMM':
-        GM = GMM.GaussianMixture(k,covariance_type=args.covariance_type,type_init=args.type_init)
-    elif args.method == 'VBGMM':
-        GM = VBGMM.VariationalGaussianMixture(k,init=args.init,type_init=args.type_init)
-    elif args.method == 'DPGMM':
-        GM = DPGMM.VariationalGaussianMixture(k,init=args.init,type_init=args.type_init)
+    if method == 'GMM':
+        GM = GMM.GaussianMixture(k,init=init)
+    elif method == 'VBGMM':
+        GM = VBGMM.VariationalGaussianMixture(k,init=init)
+    elif method == 'DPGMM':
+        GM = DPGMM.VariationalGaussianMixture(k,init=init)
     else:
         raise ValueError("Invalid value for 'method' : %s "
                          "'method' should be in "
                          "['GMM','VBGMM','DPGMM']"
-                         % args.method)
+                         % method)
 
     #GMM
     for i in range(n_iter):
@@ -86,7 +88,7 @@ if __name__ == '__main__':
         lower_bound[i] = GM.convergence_criterion_data[-1]
         print()
     
-    directory = GM.create_path()
+    directory = 'D:/Mines/Cours/Stages/Stage_ENS/Code/Results/' + method + '/' + init
     print('early stop : ' + str(early_stop))
     print(directory)
-    utils.write(directory + '/lower_bounds_' + args.type_init + '_early_stop_' + str(early_stop) + '.csv',lower_bound)
+    utils.write(directory + '/lower_bounds_early_stop_' + str(early_stop) + '.csv',lower_bound)

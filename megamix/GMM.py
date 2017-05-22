@@ -10,6 +10,7 @@ from base import _log_normal_matrix
 from base import _full_covariance_matrix
 from base import _spherical_covariance_matrix
 import initializations as initial
+import graphics
 
 import numpy as np
 import os
@@ -189,8 +190,8 @@ if __name__ == '__main__':
     print(">>predicting")
     GM.fit(points_data,points_test,patience=0,directory=directory,saving='log')
     print(">>creating graphs")
-    GM.create_graph_convergence_criterion(directory,GM.type_init)
-    GM.create_graph_weights(directory,GM.type_init)
-    GM.create_graph_entropy(directory,GM.type_init)
+    graphics.create_graph_convergence_criterion(GM,directory,GM.type_init)
+    graphics.create_graph_weights(GM,directory,GM.type_init)
+    graphics.create_graph_entropy(GM,directory,GM.type_init)
     print()
         
