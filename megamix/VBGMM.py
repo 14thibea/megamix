@@ -37,7 +37,11 @@ class VariationalGaussianMixture(BaseMixture):
     
     init : str, defaults to 'kmeans'.
         Method used in order to perform the initialization,
-        must be in ['random','plus','AF_KMC','kmeans','GMM'].                  
+        must be in ['random','plus','AF_KMC','kmeans','GMM'].  
+
+    reg_covar : float, defaults to 1e-6
+        In order to avoid null covariances this float is added to the diagonal
+        of covariance matrices.                
     
     type_init : str, defaults to 'resp'.        
         The algorithm is initialized using this data (responsibilities if 'resp'
@@ -68,7 +72,8 @@ class VariationalGaussianMixture(BaseMixture):
     Attributes
     ----------
     
-    name : str, 'VBGMM'
+    name : str
+        The name of the method : 'VBGMM'
     
     _alpha : array of floats (n_components,)
         Contains the parameters of the weight distribution (Dirichlet)
@@ -117,7 +122,7 @@ class VariationalGaussianMixture(BaseMixture):
     
     Raises
     ------
-    ValueError: if the parameters are inconsistent, for example if the
+    ValueError : if the parameters are inconsistent, for example if the
     cluster number is negative, init_type is not in ['resp','mcw']...
     
     References
@@ -500,7 +505,7 @@ class VariationalGaussianMixture(BaseMixture):
         
     def read_and_init(self,group):
         """
-        A method reading a group of an hdf5 file to initialize DPGMM
+        A method reading a group of an hdf5 file to initialize VBGMM
         
         Parameters
         ----------

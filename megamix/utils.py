@@ -2,7 +2,7 @@
 """
 Created on Mon Apr  3 14:48:20 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 import pandas as pd

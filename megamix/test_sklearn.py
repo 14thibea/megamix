@@ -2,7 +2,7 @@
 """
 Created on Thu Mar 23 10:33:23 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 from sklearn import mixture

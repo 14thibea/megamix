@@ -2,7 +2,7 @@
 """
 Created on Mon Apr 10 11:34:50 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 from base import BaseMixture
@@ -18,6 +18,74 @@ from scipy.misc import logsumexp
 import pickle
 
 class GaussianMixture(BaseMixture):
+    """
+    Gaussian Mixture Model
+    
+    Representation of a Gaussian mixture model probability distribution.
+    This class allows to estimate the parameters of a Gaussian mixture
+    distribution.
+    
+    Parameters
+    ----------
+    
+    n_components : int, defaults to 1.
+        Number of clusters used.
+    
+    init : str, defaults to 'kmeans'.
+        Method used in order to perform the initialization,
+        must be in ['random','plus','AF_KMC','kmeans','GMM'].  
+
+    reg_covar : float, defaults to 1e-6
+        In order to avoid null covariances this float is added to the diagonal
+        of covariance matrices.                
+    
+    type_init : str, defaults to 'resp'.        
+        The algorithm is initialized using this data (responsibilities if 'resp'
+        or means, covariances and weights if 'mcw').
+
+    Attributes
+    ----------
+    
+    name : str
+        The name of the method : 'GMM'
+    
+    cov : array of floats (n_components,dim,dim)
+        Contains the computed covariance matrices of the mixture.
+    
+    means : array of floats (n_components,dim)
+        Contains the computed means of the mixture.
+    
+    log_weights : array of floats (n_components,)
+        Contains the logarithm of weights of each cluster.
+    
+    iter : int
+        The number of iterations computed with the method fit()
+    
+    _early_stopping : bool
+        A boolean to deal with test data (case of the early stopping)
+    
+    convergence_criterion_data : array of floats (iter,)
+        Stores the value of the convergence criterion computed with data
+        on which the model is fitted.
+    
+    convergence_criterion_test : array of floats (iter,) | if _early_stopping only
+        Stores the value of the convergence criterion computed with test data
+        if it exists.
+    
+    _is_initialized : bool
+        Ensures that the method _initialize() has been used before using other
+        methods such as score() or predict_log_assignements().
+    
+    Raises
+    ------
+    ValueError : if the parameters are inconsistent, for example if the
+    cluster number is negative, init_type is not in ['resp','mcw']...
+    
+    References
+    ----------
+    'Pattern Recognition and Machine Learning', Bishop
+ 
+    """
 
     def __init__(self, n_components=1,covariance_type="full",init="kmeans",
                  reg_covar=1e-6,type_init='resp'):
@@ -55,7 +123,16 @@ class GaussianMixture(BaseMixture):
             
     def _initialize(self,points_data,points_test=None):
         """
-        This method initializes the means, covariances and weights of the model
+        This method initializes the Gaussian Mixture by setting the values of
+        the means, covariances and weights.
+        
+        Parameters
+        ----------
+        points_data : an array (n_points,dim)
+            Data on which the model is fitted.
+        points_test: an array (n_points,dim) | Optional
+            Data used to do early stopping (avoid overfitting)
+            
         """
         
         if self.type_init=='resp':
@@ -71,12 +148,19 @@ class GaussianMixture(BaseMixture):
     
     def _step_E(self,points):
         """
-        This method returns the list of the soft assignements of each point to each cluster
-        @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
+        In this step the algorithm evaluates the responsibilities of each points in each cluster
         
+        Parameters
+        ----------
+        points : an array (n_points,dim)
         
-        @param points: an array of points (n_points,dim)
-        @return: log of the soft assignements of every point (n_points,n_components)
+        Returns
+        -------
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+            
         """
         log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type)
         log_product = log_normal_matrix + self.log_weights[:,np.newaxis].T
@@ -88,10 +172,16 @@ class GaussianMixture(BaseMixture):
       
     def _step_M(self,points,log_assignements):
         """
-        This method computes the new position of each mean and each covariance matrix
+        In this step the algorithm updates the values of the parameters (means, covariances,
+        alpha, beta, nu).
         
-        @param points: an array of points (n_points,dim)
-        @param log_assignements: an array containing the log of soft assignements of every point (n_points,n_components)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
+            
         """
         n_points,dim = points.shape
         
@@ -112,21 +202,43 @@ class GaussianMixture(BaseMixture):
         #Phase 3:
         self.log_weights = logsumexp(log_assignements, axis=0) - np.log(n_points)
         
-    def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion_simplified(self,points,_,log_prob_norm):
         """
-        This method returns the log likelihood at the end of the k_means.
+        Compute the log likelihood.
         
-        @param points: an array of points (n_points,dim)
-        @return: log likelihood measurement (float)
+        
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+            
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+        
+        Returns
+        -------
+        result : float
+            the log likelihood
+            
         """
         return np.sum(log_prob_norm)
     
-    def _convergence_criterion(self,points,log_resp,log_prob_norm):
+    def _convergence_criterion(self,points,_,log_prob_norm):
         """
-        This method returns the log likelihood at the end of the k_means.
+        Compute the log likelihood.
         
-        @param points: an array of points (n_points,dim)
-        @return: log likelihood measurement (float)
+        
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+            
+        log_prob_norm : an array (n_points,)
+            logarithm of the probability of each sample in points
+        
+        Returns
+        -------
+        result : float
+            the log likelihood
+            
         """
         return np.sum(log_prob_norm)
                 
@@ -136,7 +248,10 @@ class GaussianMixture(BaseMixture):
         A method creating datasets in a group of an hdf5 file in order to save
         the model
         
-        @param group: HDF5 group
+        Parameters
+        ----------
+        group : HDF5 group
+
         """
         group.create_dataset('means',self.means.shape,dtype='float64')
         group['means'][...] = self.means
@@ -168,9 +283,12 @@ class GaussianMixture(BaseMixture):
         
     def read_and_init(self,group):
         """
-        A method reading a group of an hdf5 file to initialize DPGMM
+        A method reading a group of an hdf5 file to initialize GMM
         
-        @param group: HDF5 group
+        Parameters
+        ----------
+        group : HDF5 group
+
         """
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)

@@ -2,7 +2,7 @@
 """
 Created on Mon Apr  3 15:14:34 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 import GMM
@@ -17,9 +17,21 @@ def initialization_random(n_components,points):
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    assignements : an array (n_points,n_components)
+        The hard assignements according to kmeans
+        
     """
 
     n_points,_ = points.shape
@@ -38,9 +50,21 @@ def initialization_plus_plus(n_components,points):
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    assignements : an array (n_points,n_components)
+        The hard assignements according to kmeans
+        
     """
     n_points,dim = points.shape
     probability_vector = np.arange(n_points)/n_points #All points have the same probability to be chosen the first time
@@ -82,9 +106,21 @@ def initialization_AF_KMC(n_components,points,m=20):
     A method providing good seedings for kmeans inspired by MCMC
     for more information see http://papers.nips.cc/paper/6478-fast-and-provably-good-seedings-for-k-means
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    assignements : an array (n_points,n_components)
+        The hard assignements according to kmeans
+        
     """
     n_points,dim = points.shape
     means = np.empty((n_components,dim))
@@ -131,9 +167,21 @@ def initialization_k_means(n_components,points):
     This method returns an array of k means which will be used in order to
     initialize an EM algorithm
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    assignements : an array (n_points,n_components)
+        The hard assignements according to kmeans
+        
     """
     km = kmeans.Kmeans(n_components)
     km.fit(points)
@@ -146,10 +194,27 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
-             an array containing the covariances of each cluster    (n_components,dim,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    cov : an array (n_components,dim,dim)
+        The initial covariances computed
+        
+    log_weights : an array (n_components,)
+        The initial weights (log) computed
+        
+    log_assignements : an array (n_points,n_components)
+        The log of the soft assignements according to GMM
+        
     """
     
     GM = GMM.GaussianMixture(n_components,covariance_type=covariance_type)
@@ -163,10 +228,27 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
     
-    @param points: an array of points                               (n_points,dim)
-    @param k: the number of clusters                                (int)
-    @return: an array containing the means of each cluster          (n_components,dim)
-             an array containing the covariances of each cluster    (n_components,dim,dim)
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    cov : an array (n_components,dim,dim)
+        The initial covariances computed
+        
+    log_weights : an array (n_components,)
+        The initial weights (log) computed
+        
+    log_assignements : an array (n_points,n_components)
+        The log of the soft assignements according to VBGMM
+        
     """
     
     GM = VBGMM.VariationalGaussianMixture(n_components)
@@ -177,12 +259,33 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
 
 def initialize_log_assignements(init,n_components,points_data,points_test=None,covariance_type="full"):
     """
-    This method initializes the Variational Gaussian Mixture by setting the values
-    of the means, the covariances and the log of the weights.
+    This method initializes the Variational Gaussian Mixture by giving the value
+    of the responsibilities to the algorithm.
     
-    @param points: an array             (n_points,dim)
-    @return: the initial means          (n_components,dim)
-             the initial covariances    (n_components,dim,dim)
+    Parameters
+    ----------
+    init : str
+        The method with which the algorithm can be initialized.
+        Must be in ['random','plus','AF_KMC','kmeans','GMM','VBGMM']
+    
+    n_components : int
+        the number of clusters
+        
+    points_data : an array (n_points,dim)
+    
+    covariance_type : str
+        Type of covariance : 'full' or 'spherical'
+    
+    Other Parameters
+    ----------------
+    points_test : array (n_points_bis,dim) | Optional
+        Initializes using early stopping in order to avoid over fitting.
+    
+    Returns
+    -------
+    log_assignements : an array (n_points,n_components)
+        The log of the soft assignements according to VBGMM
+        
     """
     
     log_assignements = None
@@ -213,9 +316,36 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
     This method initializes the Variational Gaussian Mixture by setting the values
     of the means, the covariances and the log of the weights.
     
-    @param points: an array             (n_points,dim)
-    @return: the initial means          (n_components,dim)
-             the initial covariances    (n_components,dim,dim)
+    Parameters
+    ----------
+    init : str
+        The method with which the algorithm can be initialized.
+        Must be in ['random','plus','AF_KMC','kmeans','GMM','VBGMM']
+    
+    n_components : int
+        the number of clusters
+        
+    points_data : an array (n_points,dim)
+    
+    covariance_type : str
+        Type of covariance : 'full' or 'spherical'
+    
+    Other Parameters
+    ----------------
+    points_test : array (n_points_bis,dim) | Optional
+        Initializes using early stopping in order to avoid over fitting.
+    
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    cov : an array (n_components,dim,dim)
+        The initial covariances computed
+        
+    log_weights : an array (n_components,)
+        The initial weights (log) computed
+        
     """
     
     n_points,dim = points_data.shape
@@ -244,23 +374,3 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
         means,cov,log_weights,_ = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
     
     return means,cov,log_weights
-    
-if __name__ == '__main__':
-    
-    import pickle
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-    
-    k=100
-    N=1500
-        
-    points = data['BUC']
-    points_data = points[:N:]
-    points_test = points[N:2*N:]
-    
-    _,assignements1 = initialization_random(k,points_data)
-    _,assignements2 = initialization_AF_KMC(k,points_data)
-    _,assignements3 = initialization_plus_plus(k,points_data)
-    M,C,W = initialize_mcw('VBGMM',k,points_data)

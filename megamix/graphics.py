@@ -2,7 +2,7 @@
 """
 Created on Mon May 22 09:38:22 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 import numpy as np
 import matplotlib.pyplot as plt

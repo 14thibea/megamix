@@ -2,7 +2,7 @@
 """
 Created on Fri Apr 21 11:13:09 2017
 
-@author: Elina THIBEAU-SUTRE
+:author: Elina THIBEAU-SUTRE
 """
 from abc import abstractmethod
 import numpy as np
@@ -152,6 +152,10 @@ class BaseMixture():
         self._is_initialized = False
         
     def _check_common_parameters(self):
+        """
+        This function tests the parameters common to all algorithms
+        
+        """
         
         if self.n_components < 1:
             raise ValueError("The number of components cannot be less than 1")
@@ -168,6 +172,7 @@ class BaseMixture():
     def _check_hyper_parameters(self,n_points,dim):
         """
         This function tests the hyperparameters of the VBGMM and the DBGMM
+        
         """
         
         #Checking alpha_0
@@ -189,6 +194,12 @@ class BaseMixture():
                              "problem or the gamma function won't be defined")
         
     def _check_points(self,points):
+        """
+        This method checks that the points have the same dimension than the
+        problem
+        
+        """
+        
         
         if len(points.shape) == 1:
             points=points.reshape(1,len(points))
@@ -209,6 +220,7 @@ class BaseMixture():
         The convergence criterion is different for GMM and VBGMM/DPGMM :
             - in GMM the log likelihood is used
             - in VBGMM/DPGMM the lower bound of the log likelihood is used
+            
         """
         pass
         
@@ -218,30 +230,63 @@ class BaseMixture():
         The convergence criterion is different for GMM and VBGMM/DPGMM :
             - in GMM the log likelihood is used
             - in VBGMM/DPGMM the lower bound of the log likelihood is used
+            
+        This function was implemented as the convergence criterion is easier
+        to compute with training data as the original formula can be simplified
+        
         """
         pass
     
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            init=None):
+            init=None,legend=''):
         """The EM algorithm
         
-        :param n_iter_max: int, defaults to 1000
-        number of iterations maximum that can be done
-        :param tol: float, defaults to 1e-3
-        The EM algorithm will stop when the difference between the
-        convergence criterion               
-        :param reg_covar: float, defaults to 1e-6
-        In order to avoid null covariances this float is added to the diagonal 
-        of covariances after their computation
-        :param points_data: an array (n_points,dim)
-        :param points_test: an array (n_points,dim) | Optional
-        :param draw_graphs: bool | Optional
-        :param directory: str | Optional
-        :param saving: str | Optional
-        Allows the user to save the model parameters in the directory given
-        by the user. Options are ['log','final']
+        Parameters
+        ----------
+        points_data : array (n_points,dim)
+            A 2D array of points on which the model will be trained
+            
+        tol : float, defaults to 1e-3
+            The EM algorithm will stop when the difference between two steps 
+            regarding the convergence criterion is less than tol.
+            
+        n_iter_max: int, defaults to 100
+            number of iterations maximum that can be done
+        
+        Other Parameters
+        ----------------
+        points_test : array (n_points_bis,dim) | Optional
+            A 2D array of points on which the model will be tested.
+            
+        patience : int | Optional
+            The number of iterations performed after having satisfied the
+            convergence criterion
+        
+        n_iter_fix : int | Optional
+            If not None, the algorithm will exactly do the number of iterations
+            of n_iter_fix and stop.
+            
+        saving : str | Optional
+            Allows the user to save the model parameters in the directory given
+            by the user. Options are ['log','final'].
+            
+        directory : str | Optional
+            Give the emplacement where data of the model will be saved if saving
+            is not None.
+            
+        legend : str | Optional
+            A string added to the name of the hdf5 file which will be saved.
+        
+        init : str | Optional
+            If None, the algorithm will be reinitialized.
+            If 'user' the algorithm will not be initialized by an implemented
+            method.
+            
+        Returns
+        -------
+        None
         
         """
         
@@ -274,7 +319,7 @@ class BaseMixture():
         
         
         if saving is not None:
-            file = h5py.File(directory + "/" + self.name + ".h5", "w")
+            file = h5py.File(directory + "/" + self.name + legend +".h5", "w")
             grp = file.create_group('init')
             self.write(grp)
             
@@ -339,14 +384,18 @@ class BaseMixture():
     
     def predict_log_resp(self,points):
         """
-        This function return the logarithm of the norm of the probability of
-        each point and their responsibilities
+        This function returns the logarithm of each point's responsibilities
         
-        @param points: a 1D or 2D array of points with the same dimension as
-                       as the problem
-        @return log_prob_norm: the logarithm of the norm of the probability
-                               of each point (n_points,)
-                log_resp: the logarithm of the responsibilities (n_points,n_components)
+        Parameters
+        ----------
+        points : array (n_points_bis,dim)
+            a 1D or 2D array of points with the same dimension as the problem
+            
+        Returns
+        -------
+        log_resp : array (n_points_bis,n_components)
+            the logarithm of the responsibilities
+            
         """
         
         points = self._check_points(points)
@@ -358,15 +407,21 @@ class BaseMixture():
         else:
             raise Exception("The model is not initialized")
     
-    def score_convergence_criterion(self,points):
+    def score(self,points):
         """
         This function return the score of the function, which is the logarithm of
         the likelihood for GMM and the logarithm of the lower bound of the likelihood
         for VBGMM and DPGMM
         
-        @param points: a 1D or 2D array of points with the same dimension as
-                       as the problem
-        @return score: (float)
+        Parameters
+        ----------
+        points : array (n_points_bis,dim)
+            a 1D or 2D array of points with the same dimension as the problem
+            
+        Returns
+        -------
+        score : float
+            
         """
         points = self._check_points(points)
             
@@ -379,13 +434,15 @@ class BaseMixture():
             raise Exception("The model is not fitted")
     
     @abstractmethod
-    def write(self,directory,legend):
+    def write(self,directory):
         """
         A method which saves the model parameters in order to be reloaded and reused
         
-        @param directory: str
+        Parameters
+        ----------
+        directory : str
             The directory path. The model will be saved there.
-        @param legend: str
+        
         """
         pass
     
@@ -395,6 +452,10 @@ class BaseMixture():
         """
         A method reading a group of an hdf5 file to initialize DPGMM
         
-        @param group: HDF5 group
+        Parameters
+        ----------
+        group : HDF5 group
+            A group of a hdf5 file in reading mode
+            
         """
         pass

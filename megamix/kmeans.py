@@ -2,7 +2,7 @@
 """
 Created on Mon Apr 10 14:20:27 2017
 
-@author: Elina Thibeau-Sutre
+:author: Elina Thibeau-Sutre
 """
 
 import initializations as initial
