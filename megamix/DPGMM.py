@@ -19,6 +19,7 @@ import scipy.stats
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
 import h5features
+import warnings
 
 class DPVariationalGaussianMixture(BaseMixture):
 
@@ -496,7 +497,11 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._nu_0 = initial_parameters[2]
         self._means_prior = np.asarray(group['means prior'].value)
         self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
-        self.n_components = len(self.means)
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
         
         #We want to be able to use data written by VBGMM or GMM
         alpha = np.asarray(group['alpha'])
@@ -529,31 +534,31 @@ if __name__ == '__main__':
 #    
         
     k=100
-    N=15000
+    N=1500
     early_stop = False
     
-#    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-#    with open(path, 'rb') as fh:
-#        data = pickle.load(fh)
-#        
-#    points = data['BUC']
-#    if early_stop:
-#        n_points,_ = points.shape
-#        idx1 = np.random.randint(0,high=n_points,size=N)
-#        points_data = points[idx1,:]
-#        idx2 = np.random.randint(0,high=n_points,size=N)
-#        points_test = points[idx2,:]
-#    else:
-#        points_data = points[:N:]
-#        points_test = None
+    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+    with open(path, 'rb') as fh:
+        data = pickle.load(fh)
+        
+    points = data['BUC']
+    if early_stop:
+        n_points,_ = points.shape
+        idx1 = np.random.randint(0,high=n_points,size=N)
+        points_data = points[idx1,:]
+        idx2 = np.random.randint(0,high=n_points,size=N)
+        points_test = points[idx2,:]
+    else:
+        points_data = points[:N:]
+        points_test = None
     
-    data = h5features.Reader('D:/Mines/Cours/Stages/Stage_ENS/Code/data/mfcc_delta_cmn.features').read()
-    points = np.concatenate(data.features(),axis=0)
-    np.random.shuffle(points)
-    n_points,dim = points.shape
-    
-    points_data = points[:n_points//2:]
-    points_test = points[n_points//2::]
+#    data = h5features.Reader('D:/Mines/Cours/Stages/Stage_ENS/Code/data/mfcc_delta_cmn.features').read()
+#    points = np.concatenate(data.features(),axis=0)
+#    np.random.shuffle(points)
+#    n_points,dim = points.shape
+#    
+#    points_data = points[:N:]
+#    points_test = points[N:2*N:]
     
     init = "GMM"
     directory = os.getcwd() + '/../../Results/DPGMM/' + init
@@ -563,7 +568,7 @@ if __name__ == '__main__':
     
     print(">>predicting")
     DPGMM = DPVariationalGaussianMixture(k,init,type_init='mcw')
-    DPGMM.fit(points_data,points_test=points_test)
+    DPGMM.fit(points_data,points_test=points_test,saving='log',directory=directory)
     print(">>creating graphs")
     graphics.create_graph(DPGMM,points_data,directory,'data')
     if early_stop:

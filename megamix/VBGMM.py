@@ -522,7 +522,11 @@ class VariationalGaussianMixture(BaseMixture):
         self._nu_0 = initial_parameters[2]
         self._means_prior = np.asarray(group['means prior'].value)
         self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
-        self.n_components = len(self.means)
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
         
         # We want to be able to use data written by DPGMM
         alpha = np.asarray(group['alpha'])

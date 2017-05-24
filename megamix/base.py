@@ -315,14 +315,12 @@ class BaseMixture():
         if init is None or self._is_initialized==False:
             self._initialize(points_data,points_test)
             self.iter = 0
-            
         
-        
+        #Saving the initialization
         if saving is not None:
-            file = h5py.File(directory + "/" + self.name + legend +".h5", "w")
-            grp = file.create_group('init')
-            self.write(grp)
-            
+            file = h5py.File(directory + "/" + self.name + legend + "_init.h5", "w")
+            self.write(file)
+            file.close()
         
         while resume_iter:
             #EM algorithm
@@ -366,19 +364,17 @@ class BaseMixture():
             
             #Saving the model
             if saving is not None and resume_iter == False:
-                grp = file.create_group("final")
-                self.write(grp)
+                file = h5py.File(directory + "/" + self.name + legend + "_final.h5", "w")
+                self.write(file)
+                file.close()
                 
             elif saving=='log' and self.iter == 2**log_iter:
-                grp = file.create_group("log_iter" + str(log_iter))
-                self.write(grp)
-                log_iter += 1
-            
+                file = h5py.File(directory + "/" + self.name + '_' + self.type_init +  legend + "_log_iter" + str(log_iter) + ".h5", "w")
+                self.write(file)
+                file.close()
+                log_iter +=1
             
             self.iter+=1
-        
-        if saving is not None:
-            file.close()
         
         print("Number of iterations :", self.iter)
     

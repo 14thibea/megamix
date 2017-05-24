@@ -293,7 +293,11 @@ class GaussianMixture(BaseMixture):
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
         self.log_weights = np.asarray(group['log_weights'].value)
-        self.n_components = len(self.means)
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
                 
         self._is_initialized = True
         self.type_init ='user'
