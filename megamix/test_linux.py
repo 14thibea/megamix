@@ -36,7 +36,7 @@ if __name__ == '__main__':
     
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('early_stop', help='True if early stop is computed')
+    parser.add_argument('--early_stop', action='store_true', help='True if early stop is computed')
     parser.add_argument('method', help='The EM algorithm used')
     parser.add_argument('type_init', help='How the algorithm will be initialized ("resp" or "mcw")')
     parser.add_argument('init', help='The method used to initialize')
@@ -44,16 +44,16 @@ if __name__ == '__main__':
     parser.add_argument('cluster_number', help='the number of clusters wanted')
     args = parser.parse_args()
     
-    N=15000
+    N=1500
     n_iter = 1
-    early_stop = True
+    early_stop = args.early_stop
     k=int(args.cluster_number)
     method = args.method
     init=args.init
     type_init = args.type_init
     covariance_type = args.covariance_type
     
-    path = '../../data/data.pickle'
+    path = '/home/ethibeau-sutre/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
@@ -69,18 +69,17 @@ if __name__ == '__main__':
         points_test = None
     
     
-#    data = h5features.Reader('../../data/mfcc_delta_cmn.features').read()
-    data = h5features.Reader('/fhgfs/bootphon/scratch/ethibeau/mfcc_delta_cmn.features').read()
-    points = np.concatenate(data.features(),axis=0)
-    n_points,dim = points.shape
-    
-    if early_stop:
-        np.random.shuffle(points)
-        points_data = points[:n_points//2:]
-        points_test = points[n_points//2::]
-    else:
-        points_data = points[:n_points//2:]
-        points_test = None
+#    data = h5features.Reader('/fhgfs/bootphon/scratch/ethibeau/mfcc_delta_cmn.features').read()
+#    points = np.concatenate(data.features(),axis=0)
+#    n_points,dim = points.shape
+#    
+#    if early_stop:
+#        np.random.shuffle(points)
+#        points_data = points[:n_points//2:]
+#        points_test = points[n_points//2::]
+#    else:
+#        points_data = points
+#        points_test = None
     
     lower_bound = np.arange(n_iter)
     
@@ -95,18 +94,24 @@ if __name__ == '__main__':
                          "'method' should be in "
                          "['GMM','VBGMM','DPGMM']"
                          % method)
+        
+    if early_stop:
+        legend = '_mfcc_delta_cmn_early_stop'
+    else:
+        legend = '_mfcc_delta_cmn'
 
     #GMM
-    directory = 'D:/Mines/Cours/Stages/Stage_ENS/Code/Results/' + method + '/' + init
+    directory = '/home/ethibeau-sutre/Results/' + method + '/' + init
     
     for i in range(n_iter):
         print(i)
         print(">>predicting")
-        GM.fit(points_data,points_test,saving='log_iter',directory=directory,legend='_mfcc_delta_cmn')
+        GM.fit(points_data,points_test,saving='log',directory=directory,legend=legend)
         lower_bound[i] = GM.convergence_criterion_data[-1]
         print()
-    
-    directory = 'D:/Mines/Cours/Stages/Stage_ENS/Code/Results/' + method + '/' + init
-    print('early stop : ' + str(early_stop))
+        
+    if GM.early_stopping:
+        print('you used early stopping')
+    print('early stop : ', early_stop)
     print(directory)
     utils.write(directory + '/lower_bounds_early_stop_' + str(early_stop) + '.csv',lower_bound)

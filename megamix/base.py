@@ -169,11 +169,12 @@ class BaseMixture():
                              "['resp','mcw']"
                              % self.type_init)
             
-    def _check_hyper_parameters(self,n_points,dim):
+    def _check_prior_parameters(self,points):
         """
         This function tests the hyperparameters of the VBGMM and the DBGMM
         
         """
+        n_points,dim = points.shape
         
         #Checking alpha_0
         if self._alpha_0 is None:
@@ -192,6 +193,31 @@ class BaseMixture():
         elif self._nu_0 < dim:
             raise ValueError("nu_0 must be more than the dimension of the"
                              "problem or the gamma function won't be defined")
+        
+        
+        #Checking prior mean
+        if self._means_prior is None:
+            self._means_prior = np.mean(points,axis=0)
+        elif len(self._means_prior) != dim:
+            raise ValueError("the mean prior must have the same dimension as "
+                             "the points : %s."
+                             % dim)
+        
+        # Checking prior W-1
+        if self.covariance_type == 'full':
+            if self._inv_prec_prior is None:
+                self._inv_prec_prior = np.cov(points.T)
+            elif self._inv_prec_prior.shape != (dim,dim):
+                raise ValueError("the covariance prior must have the same "
+                                 "dimension as the points : %s."
+                                 % dim)
+                
+        elif self.covariance_type == 'spherical':
+            if self._inv_prec_prior is None:
+                self._inv_prec_prior = np.var(points)
+            elif not isinstance(self._inv_prec_prior, float):
+                raise ValueError("Please enter a float for "
+                                 "the spherical covariance prior.")
         
     def _check_points(self,points):
         """
@@ -240,7 +266,7 @@ class BaseMixture():
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            init=None,legend=''):
+            legend=''):
         """The EM algorithm
         
         Parameters
@@ -278,11 +304,6 @@ class BaseMixture():
             
         legend : str | Optional
             A string added to the name of the hdf5 file which will be saved.
-        
-        init : str | Optional
-            If None, the algorithm will be reinitialized.
-            If 'user' the algorithm will not be initialized by an implemented
-            method.
             
         Returns
         -------
@@ -309,17 +330,18 @@ class BaseMixture():
             iter_patience = 0
 
         #Initialization
-        if init=='user' and self._is_initialized == False:
+        if self.init=='user' and self._is_initialized == False:
             warnings.warn('The system is going to be initialized')
         
-        if init is None or self._is_initialized==False:
+        if self.init !='user' or self._is_initialized==False:
             self._initialize(points_data,points_test)
             self.iter = 0
         
         #Saving the initialization
         if saving is not None:
-            file = h5py.File(directory + "/" + self.name + legend + "_init.h5", "w")
-            self.write(file)
+            file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "w")
+            grp = file.create_group('init')
+            self.write(grp)
             file.close()
         
         while resume_iter:
@@ -364,13 +386,15 @@ class BaseMixture():
             
             #Saving the model
             if saving is not None and resume_iter == False:
-                file = h5py.File(directory + "/" + self.name + legend + "_final.h5", "w")
-                self.write(file)
+                file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
+                grp = file.create_group('final')
+                self.write(grp)
                 file.close()
                 
             elif saving=='log' and self.iter == 2**log_iter:
-                file = h5py.File(directory + "/" + self.name + '_' + self.type_init +  legend + "_log_iter" + str(log_iter) + ".h5", "w")
-                self.write(file)
+                file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
+                grp = file.create_group('log_iter' + str(log_iter))
+                self.write(grp)
                 file.close()
                 log_iter +=1
             
@@ -429,22 +453,35 @@ class BaseMixture():
         else:
             raise Exception("The model is not fitted")
     
-    @abstractmethod
-    def write(self,directory):
+    def write(self,group):
         """
-        A method which saves the model parameters in order to be reloaded and reused
+        A method creating datasets in a group of an hdf5 file in order to save
+        the model
         
         Parameters
         ----------
-        directory : str
-            The directory path. The model will be saved there.
-        
+        group : HDF5 group
+
         """
-        pass
+        group.create_dataset('means',self.means.shape,dtype='float64')
+        group['means'][...] = self.means
+        group.create_dataset('cov',self.cov.shape,dtype='float64')
+        group['cov'][...] = self.cov
+        group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
+        group['log_weights'][...] = self.log_weights
+        
+        if self.name in ['VBGMM','DPGMM']:
+            initial_parameters = np.asarray([self._alpha_0,self._beta_0,self._nu_0])
+            group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
+            group['initial parameters'][...] = initial_parameters
+            group.create_dataset('means prior',self._means_prior.shape,dtype='float64')
+            group['means prior'][...] = self._means_prior
+            group.create_dataset('inv prec prior',self._inv_prec_prior.shape,dtype='float64')
+            group['inv prec prior'][...] = self._inv_prec_prior
+        
     
     
-    @abstractmethod
-    def read_and_init(self,group):
+    def read_and_init(self,group,points):
         """
         A method reading a group of an hdf5 file to initialize DPGMM
         
@@ -454,4 +491,38 @@ class BaseMixture():
             A group of a hdf5 file in reading mode
             
         """
-        pass
+        """
+        A method reading a group of an hdf5 file to initialize VBGMM
+        
+        Parameters
+        ----------
+        group : HDF5 group
+
+        """
+        self.means = np.asarray(group['means'].value)
+        self.cov = np.asarray(group['cov'].value)
+        self.log_weights = np.asarray(group['log_weights'].value)
+        
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
+        
+        self.type_init ='user'
+        self.init = 'user'
+        
+        if self.name in ['VBGMM','DPGMM']:
+            try:
+                initial_parameters = group['initial parameters'].value
+                self._alpha_0 = initial_parameters[0]
+                self._beta_0 = initial_parameters[1]
+                self._nu_0 = initial_parameters[2]
+                self._means_prior = np.asarray(group['means prior'].value)
+                self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
+            except KeyError:
+                warnings.warn('You are reading a model with no prior '
+                              'parameters. They will be initialized '
+                              'if not already given during __init__')
+            
+        self._initialize(points)
