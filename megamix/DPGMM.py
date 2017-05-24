@@ -472,7 +472,7 @@ if __name__ == '__main__':
         
     k=100
     N=15000
-    n_iter = 1000
+    n_iter = 2
     early_stop = False
     
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
@@ -498,7 +498,7 @@ if __name__ == '__main__':
 #    points_data = points[:N:]
 #    points_test = points[N:2*N:]
     
-    init = "VBGMM"
+    init = "kmeans"
     directory = os.getcwd() + '/../../Results/DPGMM/' + init
     
     lower_bound = []

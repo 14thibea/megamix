@@ -55,20 +55,31 @@ class VariationalGaussianMixture(BaseMixture):
         A high value of _alpha_0 will lead to equal weights, while a low value
         will allow some clusters to shrink and disappear. Must be greater than 0.
     
-        If it is None, the value is set to 1/n_components                         
+        If None, the value is set to 1/n_components                         
     
     beta_0 : float, Optional | defaults to None.
         The precision prior on the mean distribution (Gaussian).
         Must be greater than 0.
     
-        If it is None, the value is set to 1.0                         
+        If None, the value is set to 1.0                         
     
     nu_0 : float, Optional | defaults to None.
         The prior of the number of degrees of freedom on the covariance
         distributions (Wishart). Must be greater or equal to dim.
     
-        If it is None, the value is set to dim
+        If None, the value is set to dim
 
+    means_prior : array (dim,), Optional | defaults to None
+        The prior value to compute the value of the means.
+        If None, the value is set to the mean of points_data
+        
+    cov_wishart_prior : type depends on covariance_type, Optional | defaults to None
+        If covariance_type is 'full' type must be array (dim,dim)
+        If covariance_type is 'spherical' type must be float
+        The prior value to compute the value of the precisions.
+        
+        If None, the value is set to the covariance of points_data
+        
     Attributes
     ----------
     
