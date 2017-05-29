@@ -67,7 +67,7 @@ if __name__ == '__main__':
         points_test = None
     
     if method == 'GMM':
-        GM = GMM.GaussianMixture(k,init=init,type_init=type_init)
+        GM = GMM.GaussianMixture(k,init=init,type_init=type_init,alpha_0=1.0,nu_0=42)
     elif method == 'VBGMM':
         GM = VBGMM.VariationalGaussianMixture(k,init=init,type_init=type_init)
     elif method == 'DPGMM':
@@ -102,6 +102,6 @@ if __name__ == '__main__':
         features_w.append(np.exp(log_resp))
     
     data_w = h5features.Data(items,labels,features_w)
-    writer = h5features.Writer(directory + '/' + type_init + '_assignements.h5')
-    writer.write(data)
+    writer = h5features.Writer(directory + '/' + type_init + legend + '_assignements.h5')
+    writer.write(data_w)
     writer.close()
