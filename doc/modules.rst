@@ -4,4 +4,10 @@ Scripts
 .. toctree::
    :maxdepth: 4
 
-   Scripts
+   DPGMM
+   GMM
+   VBGMM
+   base
+   graphics
+   initializations
+   kmeans
