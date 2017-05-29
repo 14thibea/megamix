@@ -78,8 +78,7 @@ class GaussianMixture(BaseMixture):
     
     Raises
     ------
-    ValueError : if the parameters are inconsistent, for example if the
-    cluster number is negative, init_type is not in ['resp','mcw']...
+    ValueError : if the parameters are inconsistent, for example if the cluster number is negative, init_type is not in ['resp','mcw']...
     
     References
     ----------
@@ -242,6 +241,14 @@ class GaussianMixture(BaseMixture):
         """
         return np.sum(log_prob_norm)
         
+    
+    def _get_parameters(self):
+        return (self.log_weights, self.means, self.cov)
+    
+
+    def _set_parameters(self, params):
+        self.log_weights, self.means, self.cov = params
+
 
 if __name__ == '__main__':
     

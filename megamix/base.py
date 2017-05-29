@@ -278,7 +278,7 @@ class BaseMixture():
             The EM algorithm will stop when the difference between two steps 
             regarding the convergence criterion is less than tol.
             
-        n_iter_max: int, defaults to 100
+        n_iter_max : int, defaults to 100
             number of iterations maximum that can be done
         
         Other Parameters
@@ -320,6 +320,7 @@ class BaseMixture():
         first_iter = True
         log_iter = 0
         iter_patience = 0
+        best_criterion = -np.Inf
         
         if patience is None:
             if self.early_stopping:
@@ -357,7 +358,13 @@ class BaseMixture():
             if self.early_stopping:
                 self.convergence_criterion_test.append(self._convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
             
-            
+            if self.early_stopping:
+                criterion = self.convergence_criterion_test
+                norm = len(points_test)
+            else:
+                criterion = self.convergence_criterion_data
+                norm = len(points_data)
+                
             #Computation of resume_iter
             if first_iter:
                 resume_iter = True
@@ -369,25 +376,22 @@ class BaseMixture():
             elif self.iter > n_iter_max:
                 resume_iter = False
             
-            elif self.early_stopping:
-                criterion = self.convergence_criterion_test[self.iter] - self.convergence_criterion_test[self.iter-1]
-                criterion /= len(points_test)
-                if criterion < tol:
-                    resume_iter = iter_patience < patience
-                    iter_patience += 1
-                    
             else:
-                criterion = self.convergence_criterion_data[self.iter] - self.convergence_criterion_data[self.iter-1]
-                criterion /= len(points_data)
-                if criterion < tol:
+                diff = criterion[self.iter] - criterion[self.iter-1]
+                diff /= norm
+                if diff < tol:
                     resume_iter = iter_patience < patience
                     iter_patience += 1
             
-            
+            # Keep the best parameters
+            if criterion[self.iter] > best_criterion:
+                best_params = self._get_parameters()
+                
             #Saving the model
             if saving is not None and resume_iter == False:
+                self._set_parameters(best_params)
                 file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
-                grp = file.create_group('final')
+                grp = file.create_group('best')
                 self.write(grp)
                 file.close()
                 
@@ -461,6 +465,7 @@ class BaseMixture():
         Parameters
         ----------
         group : HDF5 group
+            A group of a hdf5 file in reading mode
 
         """
         group.create_dataset('means',self.means.shape,dtype='float64')

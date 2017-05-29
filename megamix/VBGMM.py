@@ -71,6 +71,7 @@ class VariationalGaussianMixture(BaseMixture):
 
     means_prior : array (dim,), Optional | defaults to None
         The prior value to compute the value of the means.
+        
         If None, the value is set to the mean of points_data
         
     cov_wishart_prior : type depends on covariance_type, Optional | defaults to None
@@ -133,8 +134,7 @@ class VariationalGaussianMixture(BaseMixture):
     
     Raises
     ------
-    ValueError : if the parameters are inconsistent, for example if the
-    cluster number is negative, init_type is not in ['resp','mcw']...
+    ValueError : if the parameters are inconsistent, for example if the cluster number is negative, init_type is not in ['resp','mcw']...
     
     References
     ----------
@@ -486,6 +486,20 @@ class VariationalGaussianMixture(BaseMixture):
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
+    
+    
+    def _get_parameters(self):
+        return (self.log_weights, self.means, self.cov,
+                self._alpha, self._beta, self._nu)
+    
+
+    def _set_parameters(self, params):
+        (self.log_weights, self.means, self.cov,
+        self._alpha, self._beta, self._nu )= params
+         
+        # Matrix W
+        self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
+        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
         
         
 if __name__ == '__main__':

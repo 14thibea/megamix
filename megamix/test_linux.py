@@ -44,8 +44,6 @@ if __name__ == '__main__':
     parser.add_argument('cluster_number', help='the number of clusters wanted')
     args = parser.parse_args()
     
-    N=1500
-    n_iter = 1
     early_stop = args.early_stop
     k=int(args.cluster_number)
     method = args.method
@@ -53,35 +51,20 @@ if __name__ == '__main__':
     type_init = args.type_init
     covariance_type = args.covariance_type
     
-    path = '/home/ethibeau-sutre/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-        
-    points = data['BUC']
-    n_points,_ = points.shape
+    data = h5features.Reader('/fhgfs/bootphon/scratch/ethibeau/mfcc_delta_cmn.features').read()
+    items = data.items()
+    labels = data.labels()
+    features = data.features()
+    points = np.concatenate(data.features(),axis=0)
+    n_points,dim = points.shape
+    
     if early_stop:
-        idx = np.random.randint(0,high=len(points),size=N)
-        points_data = points[idx,:]
-        idx = np.random.randint(0,high=len(points),size=N)
-        points_test = points[idx,:]
+        np.random.shuffle(points)
+        points_data = points[:n_points//2:]
+        points_test = points[n_points//2::]
     else:
-        points_data = points[:N:]
+        points_data = points
         points_test = None
-    
-    
-#    data = h5features.Reader('/fhgfs/bootphon/scratch/ethibeau/mfcc_delta_cmn.features').read()
-#    points = np.concatenate(data.features(),axis=0)
-#    n_points,dim = points.shape
-#    
-#    if early_stop:
-#        np.random.shuffle(points)
-#        points_data = points[:n_points//2:]
-#        points_test = points[n_points//2::]
-#    else:
-#        points_data = points
-#        points_test = None
-    
-    lower_bound = np.arange(n_iter)
     
     if method == 'GMM':
         GM = GMM.GaussianMixture(k,init=init,type_init=type_init)
@@ -103,15 +86,22 @@ if __name__ == '__main__':
     #GMM
     directory = '/home/ethibeau-sutre/Results/' + method + '/' + init
     
-    for i in range(n_iter):
-        print(i)
-        print(">>predicting")
-        GM.fit(points_data,points_test,saving='log',directory=directory,legend=legend)
-        lower_bound[i] = GM.convergence_criterion_data[-1]
-        print()
+    print(">>predicting")
+    GM.fit(points_data,points_test,saving='log',directory=directory,legend=legend)
+    print()
         
     if GM.early_stopping:
         print('you used early stopping')
     print('early stop : ', early_stop)
     print(directory)
-    utils.write(directory + '/lower_bounds_early_stop_' + str(early_stop) + '.csv',lower_bound)
+    
+    # Writing posteriorgrams
+    features_w = []
+    for feat in features:
+        log_resp = GM.predict_log_resp(feat)
+        features_w.append(np.exp(log_resp))
+    
+    data_w = h5features.Data(items,labels,features_w)
+    writer = h5features.Writer(directory + '/' + type_init + '_assignements.h5')
+    writer.write(data)
+    writer.close()

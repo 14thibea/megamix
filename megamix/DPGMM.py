@@ -10,7 +10,6 @@ import initializations as initial
 from base import _log_normal_matrix
 from base import BaseMixture
 from base import _log_B
-import graphics
 
 import pickle
 import os
@@ -57,19 +56,29 @@ class DPVariationalGaussianMixture(BaseMixture):
         A high value of _alpha_0 will lead to equal weights, while a low value
         will allow some clusters to shrink and disappear. Must be greater than 0.
     
-        If it is None, the value is set to 1/n_components                         
+        If None, the value is set to 1/n_components                         
     
     beta_0 : float, Optional | defaults to None.
         The precision prior on the mean distribution (Gaussian).
         Must be greater than 0.
     
-        If it is None, the value is set to 1.0                         
+        If None, the value is set to 1.0                         
     
     nu_0 : float, Optional | defaults to None.
         The prior of the number of degrees of freedom on the covariance
         distributions (Wishart). Must be greater or equal to dim.
     
-        If it is None, the value is set to dim
+        If None, the value is set to dim
+        
+    means_prior : array (dim,), Optional | defaults to None
+        The prior value to compute the value of the means.
+        
+        If None, the value is set to the mean of points_data
+        
+    cov_wishart_prior : type depends on covariance_type, Optional | defaults to None
+        If covariance_type is 'full' type must be array (dim,dim)
+        If covariance_type is 'spherical' type must be float
+        The prior value to compute the value of the precisions.
 
     Attributes
     ----------
@@ -124,8 +133,7 @@ class DPVariationalGaussianMixture(BaseMixture):
     
     Raises
     ------
-    ValueError: if the parameters are inconsistent, for example if the
-    cluster number is negative, init_type is not in ['resp','mcw']...
+    ValueError : if the parameters are inconsistent, for example if the cluster number is negative, init_type is not in ['resp','mcw']...
     
     References
     ----------
@@ -172,7 +180,7 @@ class DPVariationalGaussianMixture(BaseMixture):
                              "['random','plus','kmeans','AF_KMC','GMM','VBGMM']"
                              % self.init)
           
-    def _initialize(self,points_data,points_test):
+    def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other specific parameters (alpha, beta, nu)
@@ -459,6 +467,20 @@ class DPVariationalGaussianMixture(BaseMixture):
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
+
+    
+    def _get_parameters(self):
+        return (self.log_weights, self.means, self.cov,
+                self._alpha, self._beta, self._nu)
+    
+
+    def _set_parameters(self, params):
+        (self.log_weights, self.means, self.cov,
+        self._alpha, self._beta, self._nu )= params
+         
+        # Matrix W
+        self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
+        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
         
         
 if __name__ == '__main__':
@@ -471,11 +493,12 @@ if __name__ == '__main__':
 #    
         
     k=100
-    N=15000
-    n_iter = 2
+    N=1500
+    n_iter = 1
     early_stop = False
     
     path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
+#    path = '/home/ethibeau-sutre/data/data.pickle'
     with open(path, 'rb') as fh:
         data = pickle.load(fh)
         
@@ -500,15 +523,16 @@ if __name__ == '__main__':
     
     init = "kmeans"
     directory = os.getcwd() + '/../../Results/DPGMM/' + init
+#    directory = '/home/ethibeau-sutre/Results/DPGMM/' + init
     
     lower_bound = []
-    DPGMM = DPVariationalGaussianMixture(k,init,type_init='mcw')
+    DPGMM = DPVariationalGaussianMixture(k,init,type_init='resp')
     
     for i in range(n_iter):
         print(i)
         print(">>predicting")
-        DPGMM.fit(points_data,points_test=points_test,saving='log',directory=directory)
-        lower_bound.append(DPGMM.convergence_criterion_data[-1])
+        DPGMM.fit(points_data,points_test=points_test,directory=directory,saving='log')
+        lower_bound.append(DPGMM.score(points_data))
         print(">>writing")
         utils.write(directory + '/lower_bounds_' + DPGMM.type_init + '.csv',np.asarray(lower_bound))
 #    print(">>creating graphs")
