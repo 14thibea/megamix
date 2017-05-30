@@ -5,16 +5,12 @@ Created on Fri Apr 14 13:37:08 2017
 :author: Elina Thibeau-Sutre
 """
 
-import utils
-import initializations as initial
-from base import _log_B,_log_C
-from base import BaseMixture
-from base import _log_normal_matrix
-from base import _full_covariance_matrix,_spherical_covariance_matrix
-import graphics
+from .initializations import initialize_log_assignements,initialize_mcw
+from .base import _log_B,_log_C
+from .base import BaseMixture
+from .base import _log_normal_matrix
+from .base import _full_covariance_matrix,_spherical_covariance_matrix
 
-import pickle
-import os
 import numpy as np
 import scipy.special
 from scipy.misc import logsumexp
@@ -201,7 +197,7 @@ class VariationalGaussianMixture(BaseMixture):
         self._check_prior_parameters(points_data)
         
         if self.type_init=='resp':
-            log_assignements = initial.initialize_log_assignements(self.init,self.n_components,points_data,points_test)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test)
             
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
@@ -210,7 +206,7 @@ class VariationalGaussianMixture(BaseMixture):
             
         elif self.type_init=='mcw':
             # Means, covariances and weights
-            means,cov,log_weights = initial.initialize_mcw(self.init,self.n_components,points_data)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -500,38 +496,3 @@ class VariationalGaussianMixture(BaseMixture):
         # Matrix W
         self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
-        
-        
-if __name__ == '__main__':
-    
-    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
-    
-    initializations = ["random","plus","kmeans","GMM"]
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-    
-    k=100
-    N=15000
-        
-    points = data['BUC']
-    n_points,dim = points.shape
-    idx = np.random.randint(0,high=n_points,size=N)
-    points_data = points[idx,:]
-    idx = np.random.randint(0,high=n_points,size=N)
-    points_test = points[idx,:]
-#    points_data = points[:N:]
-    
-    init="GMM"
-    directory = os.getcwd() + '/../../Results/VBGMM/' + init
-    
-    print(">>predicting")
-    VBGMM = VariationalGaussianMixture(k,init,type_init='mcw')
-    VBGMM.fit(points_data,points_test,patience=0,directory=directory,saving='log')
-    print(">>creating graphs")
-    graphics.create_graph_convergence_criterion(VBGMM,directory,VBGMM.type_init)
-    graphics.create_graph_weights(VBGMM,directory,VBGMM.type_init)
-    graphics.create_graph_entropy(VBGMM,directory,VBGMM.type_init)
-#    print()

@@ -4,15 +4,10 @@ Created on Mon Apr 10 14:20:27 2017
 
 :author: Elina Thibeau-Sutre
 """
-
-import initializations as initial
-import utils
-
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sklearn.metrics.pairwise import euclidean_distances
-import pickle
 
 
 def dist_matrix(points,means):
@@ -159,6 +154,9 @@ class Kmeans():
         @param initialization: a string in ['random','plus']
         @return: the means of the clusters (n_components,dim)
         """
+        from .initializations import initialization_random
+        from .initializations import initialization_plus_plus
+        from .initializations import initialization_AF_KMC
         
         n_points,dim = points.shape
         
@@ -167,18 +165,17 @@ class Kmeans():
         
         #K-means++ initialization
         if (self.init == "random"):
-            _,assignements = initial.initialization_random(self.n_components,points)
+            means = initialization_random(self.n_components,points)
         elif (self.init == "plus"):
-            _,assignements = initial.initialization_plus_plus(self.n_components,points)
+            means = initialization_plus_plus(self.n_components,points)
         elif (self.init == "AF_KMC"):
-            _,assignements = initial.initialization_AF_KMC(self.n_components,points)
+            means = initialization_AF_KMC(self.n_components,points)
         else:
             raise ValueError("Invalid value for 'initialization': %s "
                                  "'initialization' should be in "
                                  "['random', 'plus','AF_KMC']"
                                   % self.init)
-        self.means = np.empty((self.n_components,dim))
-        self._step_M(points,assignements)
+        self.means = means
         self._is_initialized = True
         
         first_iter = True
@@ -218,24 +215,3 @@ class Kmeans():
 
         else:
             raise Exception("The model is not initialized")
-            
-            
-if __name__ == '__main__':
-    
-    #Lecture du fichier
-    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
-    
-    initializations = ['random','plus','AF_KMC']
-    m = [10,20,50,100,200]
-    
-    k=4
-    
-    directory = os.getcwd() + '/../Results/kmeans/'
-        
-    #k-means
-    kmeans = Kmeans(k,init='AF_KMC')
-    kmeans.fit(points_data)
-    kmeans.predict_assignements(points_test)
-    kmeans.create_graph(points_data,directory,'data')
-    

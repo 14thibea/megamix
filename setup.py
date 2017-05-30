@@ -14,7 +14,7 @@ VERSION = '0.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 setup(
-    name='h5features',
+    name='megamix',
     version=VERSION,
     packages=find_packages(exclude=['test']),
     include_package_data=True,

@@ -5,12 +5,9 @@ Created on Mon Apr  3 15:14:34 2017
 :author: Elina Thibeau-Sutre
 """
 
-import GMM
-import VBGMM
-import kmeans
-
 import numpy as np
 import random
+
 
 def initialization_random(n_components,points):
     """
@@ -32,18 +29,13 @@ def initialization_random(n_components,points):
     assignements : an array (n_points,n_components)
         The hard assignements according to kmeans
         
-    """
-
+    """    
     n_points,_ = points.shape
     idx = np.random.randint(n_points,size = n_components)
     
     means = points[idx,:]
     
-    km = kmeans.Kmeans(n_components)
-    km.means = means
-    assignements = km._step_E(points)
-    
-    return means,assignements
+    return means
 
 def initialization_plus_plus(n_components,points):
     """
@@ -66,6 +58,8 @@ def initialization_plus_plus(n_components,points):
         The hard assignements according to kmeans
         
     """
+    from .kmeans import dist_matrix
+    
     n_points,dim = points.shape
     probability_vector = np.arange(n_points)/n_points #All points have the same probability to be chosen the first time
          
@@ -88,18 +82,14 @@ def initialization_plus_plus(n_components,points):
             M = np.linalg.norm(points-means[0],axis=1)
             M = M.reshape((n_points,1))
         else:
-            M = kmeans.dist_matrix(points,means[:i+1:])
+            M = dist_matrix(points,means[:i+1:])
             
         dst_min = np.amin(M, axis=1)
         dst_min = dst_min**2
         total_dst = np.cumsum(dst_min)
         probability_vector = total_dst/total_dst[-1]
-        
-    km = kmeans.Kmeans(n_components)
-    km.means = means
-    assignements = km._step_E(points)
 
-    return means,assignements
+    return means
 
 def initialization_AF_KMC(n_components,points,m=20):
     """
@@ -122,13 +112,15 @@ def initialization_AF_KMC(n_components,points,m=20):
         The hard assignements according to kmeans
         
     """
+    from .kmeans import dist_matrix
+    
     n_points,dim = points.shape
     means = np.empty((n_components,dim))
     
     #Preprocessing step
     idx_c = np.random.choice(n_points)
     c = points[idx_c]
-    M = np.square(kmeans.dist_matrix(points,c.reshape(1,-1)))
+    M = np.square(dist_matrix(points,c.reshape(1,-1)))
     q = 0.5 * M / np.sum(M) + 0.5 / n_points
     q = q.reshape(n_points)
     
@@ -155,12 +147,8 @@ def initialization_AF_KMC(n_components,points,m=20):
                 x = y
                 dist_x = dist_y
         means[i+1] = x
-        
-    km = kmeans.Kmeans(n_components)
-    km.means = means
-    assignements = km._step_E(points)
     
-    return means,assignements
+    return means
 
 def initialization_k_means(n_components,points):
     """
@@ -183,7 +171,9 @@ def initialization_k_means(n_components,points):
         The hard assignements according to kmeans
         
     """
-    km = kmeans.Kmeans(n_components)
+    from .kmeans import Kmeans
+    
+    km = Kmeans(n_components)
     km.fit(points)
     assignements = km.predict_assignements(points)
     
@@ -216,8 +206,9 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
         The log of the soft assignements according to GMM
         
     """
+    from .GMM import GaussianMixture
     
-    GM = GMM.GaussianMixture(n_components,covariance_type=covariance_type)
+    GM = GaussianMixture(n_components,covariance_type=covariance_type)
     GM.fit(points_data,points_test,patience=0)
     log_assignements = GM.predict_log_resp(points_data)
     
@@ -250,8 +241,9 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
         The log of the soft assignements according to VBGMM
         
     """
+    from .VBGMM import VariationalGaussianMixture
     
-    GM = VBGMM.VariationalGaussianMixture(n_components)
+    GM = VariationalGaussianMixture(n_components)
     GM.fit(points_data,points_test,patience=0)
     log_assignements = GM.predict_log_resp(points_data)
     
@@ -287,15 +279,24 @@ def initialize_log_assignements(init,n_components,points_data,points_test=None,c
         The log of the soft assignements according to VBGMM
         
     """
-    
+    from .kmeans import Kmeans
     log_assignements = None
     
     if (init == "random"):
-        _,assignements = initialization_random(n_components,points_data)
+        means = initialization_random(n_components,points_data)
+        km = Kmeans(n_components)
+        km.means = means
+        assignements = km._step_E(points_data)
     elif(init == "plus"):
-        _,assignements = initialization_plus_plus(n_components,points_data)
+        means = initialization_plus_plus(n_components,points_data)
+        km = Kmeans(n_components)
+        km.means = means
+        assignements = km._step_E(points_data)
     elif(init == "AF_KMC"):
-        _,assignements = initialization_AF_KMC(n_components,points_data)
+        means = initialization_AF_KMC(n_components,points_data)
+        km = Kmeans(n_components)
+        km.means = means
+        assignements = km._step_E(points_data)
     elif(init == "kmeans"):
         _,assignements = initialization_k_means(n_components,points_data)
     elif(init == "GMM"):
@@ -361,11 +362,11 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
         cov = cov_init * np.ones(n_components)
     
     if (init == "random"):
-        means,_ = initialization_random(n_components,points_data)
+        means = initialization_random(n_components,points_data)
     elif(init == "plus"):
-        means,_ = initialization_plus_plus(n_components,points_data)
+        means = initialization_plus_plus(n_components,points_data)
     elif(init == "AF_KMC"):
-        means,_ = initialization_AF_KMC(n_components,points_data)
+        means = initialization_AF_KMC(n_components,points_data)
     elif(init == "kmeans"):
         means,_ = initialization_k_means(n_components,points_data)
     elif(init == "GMM"):

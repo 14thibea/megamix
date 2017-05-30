@@ -5,19 +5,15 @@ Created on Fri Apr 14 15:21:17 2017
 :author: Elina Thibeau-Sutre
 """
 
-import utils
-import initializations as initial
-from base import _log_normal_matrix
-from base import BaseMixture
-from base import _log_B
+from .initializations import initialize_log_assignements,initialize_mcw
+from .base import _log_normal_matrix
+from .base import BaseMixture
+from .base import _log_B
 
-import pickle
-import os
 import numpy as np
 import scipy.stats
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
-import h5features
 
 class DPVariationalGaussianMixture(BaseMixture):
 
@@ -197,9 +193,9 @@ class DPVariationalGaussianMixture(BaseMixture):
         n_points,dim = points_data.shape
 
         self._check_prior_parameters(points_data)
-        
+		
         if self.type_init == 'resp':
-            log_assignements = initial.initialize_log_assignements(self.init,self.n_components,points_data,points_test)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test)
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
             self.cov = np.empty((self.n_components,dim,dim))
@@ -208,7 +204,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         elif self.type_init == 'mcw':
             #Means, covariances and weights
-            means,cov,log_weights = initial.initialize_mcw(self.init,self.n_components,points_data,points_test)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -481,65 +477,3 @@ class DPVariationalGaussianMixture(BaseMixture):
         # Matrix W
         self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
-        
-        
-if __name__ == '__main__':
-    
-#    points_data = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.data")
-#    points_test = utils.read("D:/Mines/Cours/Stages/Stage_ENS/Code/data/EMGaussienne.test")
-#    
-#    initializations = ["random","plus","kmeans","GMM"]
-#    
-#    
-        
-    k=100
-    N=1500
-    n_iter = 1
-    early_stop = False
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-#    path = '/home/ethibeau-sutre/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-        
-    points = data['BUC']
-    if early_stop:
-        n_points,_ = points.shape
-        idx1 = np.random.randint(0,high=n_points,size=N)
-        points_data = points[idx1,:]
-        idx2 = np.random.randint(0,high=n_points,size=N)
-        points_test = points[idx2,:]
-    else:
-        points_data = points[:N:]
-        points_test = None
-    
-#    data = h5features.Reader('D:/Mines/Cours/Stages/Stage_ENS/Code/data/mfcc_delta_cmn.features').read()
-#    points = np.concatenate(data.features(),axis=0)
-#    np.random.shuffle(points)
-#    n_points,dim = points.shape
-#    
-#    points_data = points[:N:]
-#    points_test = points[N:2*N:]
-    
-    init = "kmeans"
-    directory = os.getcwd() + '/../../Results/DPGMM/' + init
-#    directory = '/home/ethibeau-sutre/Results/DPGMM/' + init
-    
-    lower_bound = []
-    DPGMM = DPVariationalGaussianMixture(k,init,type_init='resp')
-    
-    for i in range(n_iter):
-        print(i)
-        print(">>predicting")
-        DPGMM.fit(points_data,points_test=points_test,directory=directory,saving='log')
-        lower_bound.append(DPGMM.score(points_data))
-        print(">>writing")
-        utils.write(directory + '/lower_bounds_' + DPGMM.type_init + '.csv',np.asarray(lower_bound))
-#    print(">>creating graphs")
-#    graphics.create_graph(DPGMM,points_data,directory,'data')
-#    if early_stop:
-#        graphics.create_graph(DPGMM,points_test,directory,'test')
-#    graphics.create_graph_convergence_criterion(DPGMM,directory,DPGMM.type_init)
-#    graphics.create_graph_weights(DPGMM,directory,DPGMM.type_init)
-#    graphics.create_graph_entropy(DPGMM,directory,DPGMM.type_init)
-        print()

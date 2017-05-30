@@ -5,17 +5,14 @@ Created on Mon Apr 10 11:34:50 2017
 :author: Elina Thibeau-Sutre
 """
 
-from base import BaseMixture
-from base import _log_normal_matrix
-from base import _full_covariance_matrix
-from base import _spherical_covariance_matrix
-import initializations as initial
-import graphics
+from .base import BaseMixture
+from .base import _log_normal_matrix
+from .base import _full_covariance_matrix
+from .base import _spherical_covariance_matrix
+from .initializations import initialize_log_assignements,initialize_mcw
 
 import numpy as np
-import os
 from scipy.misc import logsumexp
-import pickle
 
 class GaussianMixture(BaseMixture):
     """
@@ -135,10 +132,10 @@ class GaussianMixture(BaseMixture):
         """
         
         if self.type_init=='resp':
-            log_assignements = initial.initialize_log_assignements(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,self.covariance_type)
             self._step_M(points_data,log_assignements)
         elif self.type_init=='mcw':
-            means,cov,log_weights = initial.initialize_mcw(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,self.covariance_type)
             self.means = means
             self.cov = cov
             self.log_weights = log_weights
@@ -248,44 +245,3 @@ class GaussianMixture(BaseMixture):
 
     def _set_parameters(self, params):
         self.log_weights, self.means, self.cov = params
-
-
-if __name__ == '__main__':
-    
-    path = 'D:/Mines/Cours/Stages/Stage_ENS/Code/data/data.pickle'
-    with open(path, 'rb') as fh:
-        data = pickle.load(fh)
-        
-    N=1500
-    k=100
-    early_stop = True
-    
-    points = data['BUC']
-    
-    if early_stop:
-        n_points,_ = points.shape
-        idx1 = np.random.randint(0,high=n_points,size=N)
-        points_data = points[idx1,:]
-        idx2 = np.random.randint(0,high=n_points,size=N)
-        points_test = points[idx2,:]
-    else:
-        points_data = points[:N:]
-        points_test = None
-
-    init = 'kmeans'
-    directory = os.getcwd() + '/../../Results/GMM/' + init
-
-    #GMM
-#    for i in range(10):
-    i=0
-    print(i)
-    GM = GaussianMixture(k,covariance_type="full",type_init='resp')
-    
-    print(">>predicting")
-    GM.fit(points_data,points_test,patience=0,directory=directory,saving='log')
-    print(">>creating graphs")
-    graphics.create_graph_convergence_criterion(GM,directory,GM.type_init)
-    graphics.create_graph_weights(GM,directory,GM.type_init)
-    graphics.create_graph_entropy(GM,directory,GM.type_init)
-    print()
-        
