@@ -14,8 +14,8 @@ VERSION = '0.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-#ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
-REQUIREMENTS = [
+ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
+REQUIREMENTS = ['h5py >= 2.6.0'] if ON_RTD else [
     'numpy >= 1.11.3',
     'h5py >= 2.6.0',
     'scipy >= 0.18.1'
