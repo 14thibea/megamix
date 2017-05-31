@@ -19,7 +19,7 @@ REQUIREMENTS = [] if ON_RTD else [
     'numpy >= 1.11.3',
     'h5py >= 2.6.0',
     'scipy >= 0.18.1'
-    'sklearn >= 0.18.1'
+    'scikit-learn >= 0.18.0'
 ]
 
 setup(
