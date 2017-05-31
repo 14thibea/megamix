@@ -14,10 +14,11 @@ VERSION = '0.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-REQUIREMENTS = [
-    'numpy >= 1.8.0',
-    'h5py >= 2.3.0',
-    'scipy >= 0.13.0',
+ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
+REQUIREMENTS = [] if ON_RTD else [
+    'numpy >= 1.11.3',
+    'h5py >= 2.6.0',
+    'scipy >= 0.18.1'
 ]
 
 setup(
