@@ -13,6 +13,13 @@ from setuptools import setup, find_packages
 VERSION = '0.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+
+REQUIREMENTS = [
+    'numpy >= 1.8.0',
+    'h5py >= 2.3.0',
+    'scipy >= 0.13.0',
+]
+
 setup(
     name='megamix',
     version=VERSION,
