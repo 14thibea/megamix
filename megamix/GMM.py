@@ -58,9 +58,6 @@ class GaussianMixture(BaseMixture):
     iter : int
         The number of iterations computed with the method fit()
     
-    _early_stopping : bool
-        A boolean to deal with test data (case of the early stopping)
-    
     convergence_criterion_data : array of floats (iter,)
         Stores the value of the convergence criterion computed with data
         on which the model is fitted.

@@ -22,7 +22,7 @@ class VariationalGaussianMixture(BaseMixture):
     This class allows to infer an approximate posterior distribution over the
     parameters of a Gaussian mixture distribution.
     
-    The weights distribution is a Dirichlet distribution with parameter _alpha
+    The weights distribution is a Dirichlet distribution with parameter alpha
     (see Bishop's book p474-486)
     
     Parameters
@@ -48,7 +48,7 @@ class VariationalGaussianMixture(BaseMixture):
     
     alpha_0 : float, Optional | defaults to None.
         The prior parameter on the weight distribution (Dirichlet).
-        A high value of _alpha_0 will lead to equal weights, while a low value
+        A high value of alpha_0 will lead to equal weights, while a low value
         will allow some clusters to shrink and disappear. Must be greater than 0.
     
         If None, the value is set to 1/n_components                         
@@ -83,14 +83,14 @@ class VariationalGaussianMixture(BaseMixture):
     name : str
         The name of the method : 'VBGMM'
     
-    _alpha : array of floats (n_components,)
+    alpha : array of floats (n_components,)
         Contains the parameters of the weight distribution (Dirichlet)
     
-    _beta : array of floats (n_components,)
+    beta : array of floats (n_components,)
         Contains coefficients which are multipied with the precision matrices
         to form the precision matrix on the Gaussian distribution of the means.    
     
-    _nu : array of floats (n_components,)
+    nu : array of floats (n_components,)
         Contains the number of degrees of freedom on the distribution of
         covariance matrices.
     
@@ -112,9 +112,6 @@ class VariationalGaussianMixture(BaseMixture):
     
     iter : int
         The number of iterations computed with the method fit()
-    
-    _early_stopping : bool
-        A boolean to deal with test data (case of the early stopping)
     
     convergence_criterion_data : array of floats (iter,)
         Stores the value of the convergence criterion computed with data
@@ -151,9 +148,9 @@ class VariationalGaussianMixture(BaseMixture):
         self.type_init = type_init
         self.reg_covar = reg_covar
         
-        self._alpha_0 = alpha_0
-        self._beta_0 = beta_0
-        self._nu_0 = nu_0
+        self.alpha_0 = alpha_0
+        self.beta_0 = beta_0
+        self.nu_0 = nu_0
         self._means_prior = means_prior
         self._inv_prec_prior = cov_wishart_prior
         
@@ -213,23 +210,23 @@ class VariationalGaussianMixture(BaseMixture):
             
             # Hyperparametres
             N = np.exp(log_weights) * n_points
-            self._alpha = self._alpha_0 + N
-            self._beta = self._beta_0 + N
-            self._nu = self._nu_0 + N
+            self.alpha = self.alpha_0 + N
+            self.beta = self.beta_0 + N
+            self.nu = self.nu_0 + N
             
             # Matrix W
-            self._inv_prec = cov * self._nu[:,np.newaxis,np.newaxis]
+            self._inv_prec = cov * self.nu[:,np.newaxis,np.newaxis]
             self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
             
         elif self.type_init=='user':
             # Hyperparametres
             N = np.exp(self.log_weights) * n_points
-            self._alpha = self._alpha_0 + N
-            self._beta = self._beta_0 + N
-            self._nu = self._nu_0 + N
+            self.alpha = self.alpha_0 + N
+            self.beta = self.beta_0 + N
+            self.nu = self.nu_0 + N
             
             # Matrix W
-            self._inv_prec = cov * self._nu[:,np.newaxis,np.newaxis]
+            self._inv_prec = cov * self.nu[:,np.newaxis,np.newaxis]
             self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
     
         self._is_initialized = True
@@ -255,10 +252,10 @@ class VariationalGaussianMixture(BaseMixture):
         log_prob = np.zeros((n_points,self.n_components))
           
         log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full')
-        digamma_sum = np.sum(scipy.special.psi(.5 * (self._nu - np.arange(0, dim)[:,np.newaxis])),0)
-        log_lambda = digamma_sum + dim * np.log(2) + dim/self._beta
+        digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
+        log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
-        log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self._nu))
+        log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self.nu))
         
         log_prob_norm = logsumexp(log_prob, axis=1)
         log_resp = log_prob - log_prob_norm[:,np.newaxis]
@@ -282,7 +279,7 @@ class VariationalGaussianMixture(BaseMixture):
         """
         for i in range(self.n_components):
             diff = X_barre[i] - self._means_prior
-            product = self._beta_0 * N[i]/self._beta[i] * np.outer(diff,diff)
+            product = self.beta_0 * N[i]/self.beta[i] * np.outer(diff,diff)
             self._inv_prec[i] = self._inv_prec_prior + N[i] * S[i] + product
             
     def _estimate_wishart_spherical(self,N,X_barre,S):
@@ -302,7 +299,7 @@ class VariationalGaussianMixture(BaseMixture):
         """
         for i in range(self.n_components):
             diff = X_barre[i] - self._means_prior
-            product = self._beta_0 * N[i] / self._beta[i] * np.mean(np.square(diff), 1)
+            product = self.beta_0 * N[i] / self.beta[i] * np.mean(np.square(diff), 1)
             self._inv_prec[i] = self._inv_prec_prior + N[i] * S[i] + product
         # To test
                 
@@ -333,28 +330,28 @@ class VariationalGaussianMixture(BaseMixture):
             S = _spherical_covariance_matrix(points,X_barre,N,resp,self.reg_covar) #Array (n_components,)
         
         #Parameters update
-        self._alpha = self._alpha_0 + N
-        self._beta = self._beta_0 + N
-        self._nu = self._nu_0 + N
+        self.alpha = self.alpha_0 + N
+        self.beta = self.beta_0 + N
+        self.nu = self.nu_0 + N
         
         # Weights update
-        self.log_weights = scipy.special.psi(self._alpha) - scipy.special.psi(np.sum(self._alpha))
+        self.log_weights = scipy.special.psi(self.alpha) - scipy.special.psi(np.sum(self.alpha))
         
         # Means update
-        self.means = (self._beta_0 * self._means_prior + N[:, np.newaxis] * X_barre) / self._beta[:, np.newaxis]
+        self.means = (self.beta_0 * self._means_prior + N[:, np.newaxis] * X_barre) / self.beta[:, np.newaxis]
         
         # Covariance update
         if self.covariance_type=="full":
             self._estimate_wishart_full(N,X_barre,S)
             det_inv_prec = np.linalg.det(self._inv_prec)
             self._log_det_inv_prec = np.log(det_inv_prec)
-            self.cov = self._inv_prec / self._nu[:,np.newaxis,np.newaxis]
+            self.cov = self._inv_prec / self.nu[:,np.newaxis,np.newaxis]
             
         elif self.covariance_type=="spherical":
             self._estimate_wishart_spherical(N,X_barre,S)
             det_inv_prec = self._inv_prec**dim
             self._log_det_inv_prec = np.log(det_inv_prec)
-            self.cov = self._inv_prec / self._nu     
+            self.cov = self._inv_prec / self.nu     
             
                 
     def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
@@ -390,16 +387,16 @@ class VariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            lower_bound[i] = _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
+            lower_bound[i] = _log_B(prec_prior,self.nu_0) - _log_B(prec[i],self.nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
             
             lower_bound[i] -= np.sum(resp_i*log_resp_i)
-            lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
+            lower_bound[i] += dim*0.5*(np.log(self.beta_0) - np.log(self.beta[i]))
         
         result = np.sum(lower_bound)
-        result += _log_C(self._alpha_0 * np.ones(self.n_components))- _log_C(self._alpha)
+        result += _log_C(self.alpha_0 * np.ones(self.n_components)) - _log_C(self.alpha)
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
@@ -449,37 +446,35 @@ class VariationalGaussianMixture(BaseMixture):
         lower_bound = np.zeros(self.n_components)
         
         for i in range(self.n_components):
-            
-            log_weights_i = scipy.special.psi(self._alpha[i]) - scipy.special.psi(np.sum(self._alpha))
-            
-            digamma_sum = np.sum(scipy.special.psi(.5 * (self._nu - np.arange(0, dim)[:,np.newaxis])),0)
+        
+            digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
             log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line
-            lower_bound[i] = log_det_prec_i - dim/self._beta[i] - self._nu[i]*np.trace(np.dot(S[i],prec[i]))
+            lower_bound[i] = log_det_prec_i - dim/self.beta[i] - self.nu[i]*np.trace(np.dot(S[i],prec[i]))
             diff = X_barre[i] - self.means[i]
-            lower_bound[i] += -self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
+            lower_bound[i] += -self.nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
             lower_bound[i] *= 0.5 * N[i]
             
             #Second line
-            lower_bound[i] += (self._alpha_0 - self._alpha[i]) * log_weights_i
-            lower_bound[i] += _log_B(prec_prior,self._nu_0) - _log_B(prec[i],self._nu[i])
+            lower_bound[i] += (self.alpha_0 - self.alpha[i]) * self.log_weights[i]
+            lower_bound[i] += _log_B(prec_prior,self.nu_0) - _log_B(prec[i],self.nu[i])
             
             resp_i = resp[:,i:i+1]
             log_resp_i = log_resp[:,i:i+1]
             
-            lower_bound[i] += np.sum(resp_i) * log_weights_i - np.sum(resp_i*log_resp_i)
-            lower_bound[i] += 0.5 * (self._nu_0 - self._nu[i]) * log_det_prec_i
-            lower_bound[i] += dim*0.5*(np.log(self._beta_0) - np.log(self._beta[i]))
-            lower_bound[i] += dim*0.5*(1 - self._beta_0/self._beta[i] + self._nu[i])
+            lower_bound[i] += np.sum(resp_i) * self.log_weights[i] - np.sum(resp_i*log_resp_i)
+            lower_bound[i] += 0.5 * (self.nu_0 - self.nu[i]) * log_det_prec_i
+            lower_bound[i] += dim*0.5*(np.log(self.beta_0) - np.log(self.beta[i]))
+            lower_bound[i] += dim*0.5*(1 - self.beta_0/self.beta[i] + self.nu[i])
             
             #Third line without the last term which is not summed
             diff = self.means[i] - self._means_prior
-            lower_bound[i] += -0.5*self._beta_0*self._nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
-            lower_bound[i] += -0.5*self._nu[i]*np.trace(np.dot(self._inv_prec_prior,prec[i]))
+            lower_bound[i] += -0.5*self.beta_0*self.nu[i]*np.dot(diff,np.dot(prec[i],diff.T))
+            lower_bound[i] += -0.5*self.nu[i]*np.trace(np.dot(self._inv_prec_prior,prec[i]))
                 
         result = np.sum(lower_bound)
-        result += _log_C(self._alpha_0 * np.ones(self.n_components))- _log_C(self._alpha)
+        result += _log_C(self.alpha_0 * np.ones(self.n_components))- _log_C(self.alpha)
         result -= n_points * dim * 0.5 * np.log(2*np.pi)
         
         return result
@@ -487,13 +482,13 @@ class VariationalGaussianMixture(BaseMixture):
     
     def _get_parameters(self):
         return (self.log_weights, self.means, self.cov,
-                self._alpha, self._beta, self._nu)
+                self.alpha, self.beta, self.nu)
     
 
     def _set_parameters(self, params):
         (self.log_weights, self.means, self.cov,
-        self._alpha, self._beta, self._nu )= params
+        self.alpha, self.beta, self.nu )= params
          
         # Matrix W
-        self._inv_prec = self.cov * self._nu[:,np.newaxis,np.newaxis]
+        self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))

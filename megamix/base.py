@@ -177,20 +177,20 @@ class BaseMixture():
         n_points,dim = points.shape
         
         #Checking alpha_0
-        if self._alpha_0 is None:
-            self._alpha_0 = 1/self.n_components
-        elif self._alpha_0 < 0:
+        if self.alpha_0 is None:
+            self.alpha_0 = 1/self.n_components
+        elif self.alpha_0 < 0:
             raise ValueError("alpha_0 must be positive")
         
         #Checking beta_0
-        if self._beta_0 is None:
-            self._beta_0 = 1.0
+        if self.beta_0 is None:
+            self.beta_0 = 1.0
         
         #Checking nu_0
-        if self._nu_0 is None:
-            self._nu_0 = dim
+        if self.nu_0 is None:
+            self.nu_0 = dim
         
-        elif self._nu_0 < dim:
+        elif self.nu_0 < dim:
             raise ValueError("nu_0 must be more than the dimension of the"
                              "problem or the gamma function won't be defined")
         
@@ -314,7 +314,7 @@ class BaseMixture():
         if directory==None:
             directory = os.getcwd()
         
-        self.early_stopping = points_test is not None
+        early_stopping = points_test is not None
             
         resume_iter = True
         first_iter = True
@@ -323,7 +323,7 @@ class BaseMixture():
         best_criterion = -np.Inf
         
         if patience is None:
-            if self.early_stopping:
+            if early_stopping:
                 warnings.warn('You are using early stopping with no patience. '
                               'Set the patience parameter to 0 to not see this '
                               'message again')
@@ -348,17 +348,17 @@ class BaseMixture():
         while resume_iter:
             #EM algorithm
             log_prob_norm_data,log_resp_data = self._step_E(points_data)
-            if self.early_stopping:
+            if early_stopping:
                 log_prob_norm_test,log_resp_test = self._step_E(points_test)
                 
             self._step_M(points_data,log_resp_data)
             
             #Computation of the convergence criterion(s)
             self.convergence_criterion_data.append(self._convergence_criterion_simplified(points_data,log_resp_data,log_prob_norm_data))
-            if self.early_stopping:
+            if early_stopping:
                 self.convergence_criterion_test.append(self._convergence_criterion(points_test,log_resp_test,log_prob_norm_test))
             
-            if self.early_stopping:
+            if early_stopping:
                 criterion = self.convergence_criterion_test
                 norm = len(points_test)
             else:
@@ -476,7 +476,7 @@ class BaseMixture():
         group['log_weights'][...] = self.log_weights
         
         if self.name in ['VBGMM','DPGMM']:
-            initial_parameters = np.asarray([self._alpha_0,self._beta_0,self._nu_0])
+            initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
             group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
             group['initial parameters'][...] = initial_parameters
             group.create_dataset('means prior',self._means_prior.shape,dtype='float64')
@@ -520,9 +520,9 @@ class BaseMixture():
         if self.name in ['VBGMM','DPGMM']:
             try:
                 initial_parameters = group['initial parameters'].value
-                self._alpha_0 = initial_parameters[0]
-                self._beta_0 = initial_parameters[1]
-                self._nu_0 = initial_parameters[2]
+                self.alpha_0 = initial_parameters[0]
+                self.beta_0 = initial_parameters[1]
+                self.nu_0 = initial_parameters[2]
                 self._means_prior = np.asarray(group['means prior'].value)
                 self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
             except KeyError:

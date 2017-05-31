@@ -1,8 +1,8 @@
-megamix package
-===============
+API Reference
+=============
 
-Submodules
-----------
+Modules
+-------
 
 megamix\.DPGMM module
 ---------------------
