@@ -1,8 +1,9 @@
+=============
 API Reference
 =============
 
 Modules
--------
+=======
 
 megamix\.DPGMM module
 ---------------------
