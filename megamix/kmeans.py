@@ -109,7 +109,7 @@ class Kmeans():
         dist = self.distortion(points,assignements)
         
         fig = plt.figure()
-        plt.title("distortion = " + str(dist) + "n_iter = " + str(self.iter))
+        plt.title("distortion = " + str(dist) + " n_iter = " + str(self.iter))
         ax = fig.add_subplot(111)
         
         for i in range(self.n_components):
@@ -143,7 +143,8 @@ class Kmeans():
         return distortion
         
         
-    def fit(self,points,n_iter_max=100,n_iter_fix=None,draw_graphs=False,directory=None):
+    def fit(self,points_data,points_test=None,n_iter_max=100,n_iter_fix=None,
+            tol=1e-3,draw_graphs=False,directory=None):
         """
         This method returns an array of k points which will be used in order to
         initialize a k_means algorithm
@@ -158,40 +159,54 @@ class Kmeans():
         from .initializations import initialization_plus_plus
         from .initializations import initialization_AF_KMC
         
-        n_points,dim = points.shape
+        n_points,dim = points_data.shape
         
         if directory is None:
             directory = os.getcwd()
         
         #K-means++ initialization
         if (self.init == "random"):
-            means = initialization_random(self.n_components,points)
+            means = initialization_random(self.n_components,points_data)
         elif (self.init == "plus"):
-            means = initialization_plus_plus(self.n_components,points)
+            means = initialization_plus_plus(self.n_components,points_data)
         elif (self.init == "AF_KMC"):
-            means = initialization_AF_KMC(self.n_components,points)
+            means = initialization_AF_KMC(self.n_components,points_data)
         else:
             raise ValueError("Invalid value for 'initialization': %s "
                                  "'initialization' should be in "
                                  "['random', 'plus','AF_KMC']"
                                   % self.init)
         self.means = means
+        self.iter = 0
         self._is_initialized = True
         
+        test_exists = points_test is not None
         first_iter = True
-        resume_iter = True      
+        resume_iter = True
+        
+        dist_data, dist_test = 0,0
         
         #K-means beginning
         while resume_iter:
             
-            assignements = self._step_E(points)
-            means_pre = self.means.copy()
-            self._step_M(points,assignements)
+            assignements_data = self._step_E(points_data)
+            dist_data_pre = dist_data
+            if test_exists:
+                assignements_test = self._step_E(points_test)
+                dist_test_pre = dist_test
+            
+            self._step_M(points_data,assignements_data)
+            dist_data = self.distortion(points_data,assignements_data)
+            if test_exists:
+                dist_test = self.distortion(points_test,assignements_test)
             
             #Graphic part
             if draw_graphs:
-                self.create_graph(points,directory,"iter" + str(self.iter))
+                self.create_graph(points_data,directory,"data_iter" + str(self.iter))
+                if test_exists:
+                    self.create_graph(points_test,directory,"test_iter" + str(self.iter))
             
+            # Computation of resume_iter
             if first_iter:
                 first_iter = False
                 
@@ -202,7 +217,11 @@ class Kmeans():
                 resume_iter = False
                 
             else:
-                resume_iter = not np.array_equal(self.means,means_pre)
+                if test_exists:
+                    criterion = (dist_test_pre - dist_test)/len(points_test)
+                else:
+                    criterion = (dist_data_pre - dist_data)/n_points
+                resume_iter = (criterion >= tol)
                 
             self.iter+=1
             

@@ -253,13 +253,12 @@ class VariationalGaussianMixture(BaseMixture):
         
         n_points,dim = points.shape
         log_prob = np.zeros((n_points,self.n_components))
-        
-        log_weights = scipy.special.psi(self._alpha) - scipy.special.psi(np.sum(self._alpha))       
+          
         log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full')
         digamma_sum = np.sum(scipy.special.psi(.5 * (self._nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self._beta
         
-        log_prob = log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self._nu))
+        log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self._nu))
         
         log_prob_norm = logsumexp(log_prob, axis=1)
         log_resp = log_prob - log_prob_norm[:,np.newaxis]
@@ -338,8 +337,13 @@ class VariationalGaussianMixture(BaseMixture):
         self._beta = self._beta_0 + N
         self._nu = self._nu_0 + N
         
+        # Weights update
+        self.log_weights = scipy.special.psi(self._alpha) - scipy.special.psi(np.sum(self._alpha))
+        
+        # Means update
         self.means = (self._beta_0 * self._means_prior + N[:, np.newaxis] * X_barre) / self._beta[:, np.newaxis]
         
+        # Covariance update
         if self.covariance_type=="full":
             self._estimate_wishart_full(N,X_barre,S)
             det_inv_prec = np.linalg.det(self._inv_prec)
@@ -350,9 +354,8 @@ class VariationalGaussianMixture(BaseMixture):
             self._estimate_wishart_spherical(N,X_barre,S)
             det_inv_prec = self._inv_prec**dim
             self._log_det_inv_prec = np.log(det_inv_prec)
-            self.cov = self._inv_prec / self._nu
-        
-        self.log_weights = logsumexp(log_resp, axis=0) - np.log(n_points)
+            self.cov = self._inv_prec / self._nu     
+            
                 
     def _convergence_criterion_simplified(self,points,log_resp,log_prob_norm):
         """
@@ -449,9 +452,7 @@ class VariationalGaussianMixture(BaseMixture):
             
             log_weights_i = scipy.special.psi(self._alpha[i]) - scipy.special.psi(np.sum(self._alpha))
             
-            digamma_sum = 0
-            for j in range(dim):
-                digamma_sum += scipy.special.psi((self._nu[i] - j)/2)
+            digamma_sum = np.sum(scipy.special.psi(.5 * (self._nu - np.arange(0, dim)[:,np.newaxis])),0)
             log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line

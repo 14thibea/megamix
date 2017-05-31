@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # MeGaMix documentation build configuration file, created by
-# sphinx-quickstart on Mon May 29 14:19:17 2017.
+# sphinx-quickstart on Wed May 31 15:20:30 2017.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -17,9 +17,9 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
-sys.path.insert(0, os.path.abspath('/home/ethibeau-sutre/Scripts'))
+# import os
+# import sys
+# sys.path.insert(0, os.path.abspath('.'))
 
 
 # -- General configuration ------------------------------------------------
@@ -31,8 +31,8 @@ sys.path.insert(0, os.path.abspath('/home/ethibeau-sutre/Scripts'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc','sphinx.ext.napoleon',
-    'sphinx.ext.ifconfig','sphinx.ext.autosummary']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon',
+    'sphinx.ext.ifconfig']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

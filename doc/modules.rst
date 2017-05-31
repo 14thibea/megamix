@@ -1,13 +1,8 @@
-Scripts
+megamix
 =======
 
 .. toctree::
    :maxdepth: 4
 
-   DPGMM
-   GMM
-   VBGMM
-   base
-   graphics
-   initializations
-   kmeans
+   megamix
+   setup
