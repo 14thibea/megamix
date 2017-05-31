@@ -11,8 +11,7 @@ Welcome to MeGaMix's documentation!
 .. toctree::
    :maxdepth: 2
    
-   
-   modules
+   megamix
 
 
 Indices and tables
