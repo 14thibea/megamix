@@ -6,12 +6,13 @@
 Welcome to MeGaMix's documentation!
 ===================================
 
+**Table of contents**
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   
    
    modules
-
 
 
 Indices and tables
