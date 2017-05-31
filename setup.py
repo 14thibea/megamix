@@ -26,7 +26,7 @@ setup(
     packages=find_packages(exclude=['test']),
     include_package_data=True,
     zip_safe=False,
-#    install_requires=REQUIREMENTS,
+    install_requires=REQUIREMENTS,
 
     # metadata for upload to PyPI
     author='Elina Thibeau-Sutre',
