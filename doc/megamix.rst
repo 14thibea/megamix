@@ -2,37 +2,34 @@
 API Reference
 =============
 
-Modules
-=======
-
 Kmeans
-------
+======
 
-.. automodule:: megamix.Kmeans
+.. automodule:: megamix.kmeans.Kmeans
     :members:
     :undoc-members:
     :show-inheritance:
 
 Gaussian Mixture Model (GMM)
-----------------------------
+============================
 
-.. automodule:: megamix.GaussianMixture
+.. automodule:: megamix.GMM.GaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
 
 Variational Gaussian Mixture Model (VBGMM)
-------------------------------------------
+==========================================
 
-.. automodule:: megamix.VariationalGaussianMixture
+.. automodule:: megamix.VBGMM.VariationalGaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
 
 Dirichlet Process Gaussian Mixture Model (DPGMM)
-------------------------------------------------
+================================================
 
-.. automodule:: megamix.DPVariationalGaussianMixture
+.. automodule:: megamix.DPGMM.DPVariationalGaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
