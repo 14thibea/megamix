@@ -5,59 +5,34 @@ API Reference
 Modules
 =======
 
-megamix\.DPGMM module
----------------------
+Kmeans
+------
 
-.. automodule:: megamix.DPGMM
+.. automodule:: megamix.Kmeans
     :members:
     :undoc-members:
     :show-inheritance:
 
-megamix\.GMM module
--------------------
+Gaussian Mixture Model (GMM)
+----------------------------
 
-.. automodule:: megamix.GMM
+.. automodule:: megamix.GaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
 
-megamix\.VBGMM module
----------------------
+Variational Gaussian Mixture Model (VBGMM)
+------------------------------------------
 
-.. automodule:: megamix.VBGMM
+.. automodule:: megamix.VariationalGaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
 
-megamix\.base module
---------------------
+Dirichlet Process Gaussian Mixture Model (DPGMM)
+------------------------------------------------
 
-.. automodule:: megamix.base
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-megamix\.initializations module
--------------------------------
-
-.. automodule:: megamix.initializations
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-megamix\.kmeans module
-----------------------
-
-.. automodule:: megamix.kmeans
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: megamix
+.. automodule:: megamix.DPVariationalGaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
