@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 10 14:20:27 2017
+#
+#Created on Mon Apr 10 14:20:27 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
-:author: Elina Thibeau-Sutre
-"""
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 from sklearn.metrics.pairwise import euclidean_distances
@@ -89,40 +89,6 @@ class Kmeans():
             sets = points * sets
             if n_sets > 0:
                 self.means[i] = np.asarray(np.sum(sets, axis=0)/n_sets)
-        
-    def create_graph(self,points,directory,legend):
-        """
-        This method draws a 2D graph displaying the clusters and their means and saves it as a PNG file.
-        If points have more than two coordinates, then it will be a projection including only the first coordinates.
-        
-        @param points: an array (n_points,dim)
-        @param means: an array containing the means of the clusters (n_components,dim)
-        @param t: the figure number
-        """
-        n_points,_ = points.shape
-        
-        assignements = self._step_E(points)
-        
-        x_points = [[] for i in range(self.n_components)]
-        y_points = [[] for i in range(self.n_components)]
-        
-        dist = self.distortion(points,assignements)
-        
-        fig = plt.figure()
-        plt.title("distortion = " + str(dist) + " n_iter = " + str(self.iter))
-        ax = fig.add_subplot(111)
-        
-        for i in range(self.n_components):
-            x_points[i] = [points[j][0] for j in range(n_points) if (assignements[j][i] == 1)]        
-            y_points[i] = [points[j][1] for j in range(n_points) if (assignements[j][i] == 1)]
-            
-            if len(x_points[i]) != 0:
-                ax.plot(x_points[i],y_points[i],'o')
-                ax.plot(self.means[i][0],self.means[i][1],'kx')
-        
-        titre = directory + '/figure_' + str(legend) + ".png"
-        plt.savefig(titre)
-        plt.close("all")
     
     def distortion(self,points,assignements):
         """

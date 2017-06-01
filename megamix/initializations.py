@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Apr  3 15:14:34 2017
-
-:author: Elina Thibeau-Sutre
-"""
+#
+#Created on Mon Apr  3 15:14:34 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
 import numpy as np
 import random

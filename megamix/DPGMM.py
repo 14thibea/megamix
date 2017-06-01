@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 14 15:21:17 2017
-
-:author: Elina Thibeau-Sutre
-"""
+#
+#Created on Fri Apr 14 15:21:17 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
 from .initializations import initialize_log_assignements,initialize_mcw
 from .base import _log_normal_matrix
@@ -197,6 +197,7 @@ class DPVariationalGaussianMixture(BaseMixture):
             self._log_det_inv_prec = np.empty(self.n_components)
             self.cov = np.empty((self.n_components,dim,dim))
             self.alpha = np.empty((self.n_components,2))
+            self.log_weights = np.empty(self.n_components)
             self._step_M(points_data,log_assignements)
         
         elif self.type_init == 'mcw':

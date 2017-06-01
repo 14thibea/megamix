@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 10 11:34:50 2017
-
-:author: Elina Thibeau-Sutre
-"""
+#
+#Created on Mon Apr 10 11:34:50 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
 from .base import BaseMixture
 from .base import _log_normal_matrix

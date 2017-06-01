@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 21 11:13:09 2017
+#
+#Created on Fri Apr 21 11:13:09 2017
+#
+#author: Elina THIBEAU-SUTRE
+#
 
-:author: Elina THIBEAU-SUTRE
-"""
 from abc import abstractmethod
 import numpy as np
 import scipy.linalg

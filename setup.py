@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri May 19 19:10:50 2017
-
-@author: Elina Thibeau-Sutre
-"""
+#
+#Created on Fri May 19 19:10:50 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
 """Setup script for the package"""
 

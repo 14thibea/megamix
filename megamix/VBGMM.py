@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 14 13:37:08 2017
-
-:author: Elina Thibeau-Sutre
-"""
+#
+#Created on Fri Apr 14 13:37:08 2017
+#
+#author: Elina Thibeau-Sutre
+#
 
 from .initializations import initialize_log_assignements,initialize_mcw
 from .base import _log_B,_log_C

@@ -5,7 +5,7 @@ API Reference
 Kmeans
 ======
 
-.. automodule:: megamix.kmeans.Kmeans
+.. automodule:: megamix.kmeans
     :members:
     :undoc-members:
     :show-inheritance:
@@ -13,7 +13,7 @@ Kmeans
 Gaussian Mixture Model (GMM)
 ============================
 
-.. automodule:: megamix.GMM.GaussianMixture
+.. automodule:: megamix.GMM
     :members:
     :undoc-members:
     :show-inheritance:
@@ -21,7 +21,7 @@ Gaussian Mixture Model (GMM)
 Variational Gaussian Mixture Model (VBGMM)
 ==========================================
 
-.. automodule:: megamix.VBGMM.VariationalGaussianMixture
+.. automodule:: megamix.VBGMM
     :members:
     :undoc-members:
     :show-inheritance:
@@ -29,7 +29,7 @@ Variational Gaussian Mixture Model (VBGMM)
 Dirichlet Process Gaussian Mixture Model (DPGMM)
 ================================================
 
-.. automodule:: megamix.DPGMM.DPVariationalGaussianMixture
+.. automodule:: megamix.DPGMM
     :members:
     :undoc-members:
     :show-inheritance:
