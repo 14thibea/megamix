@@ -73,7 +73,7 @@ def _compute_precisions_chol(cov,covariance_type):
                 raise ValueError(str(k) + "-th covariance matrix non positive definite")
             precisions_chol[k] = scipy.linalg.solve_triangular(cov_chol,
                                                                np.eye(n_features),
-                                                               lower=True).T
+                                                               lower=True,check_finite=False).T
      return precisions_chol
 
 def _log_normal_matrix(points,means,cov,covariance_type):

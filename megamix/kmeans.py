@@ -15,9 +15,9 @@ def dist_matrix(points,means):
     This method computes all the distances between the points and the actual means
     of the clusters, taking in account that the last coordinate is the cluster number
     
-    @param points: an array (n_points,dim)
-    @param means: an array containing the means of the clusters (n_components,dim)
-    @return: a matrix which contains the distances between the ith point and the jth center
+    :param points: an array (n_points,dim)
+    :param means: an array containing the means of the clusters (n_components,dim)
+    :return: a matrix which contains the distances between the ith point and the jth center
     (n_points,n_components)
     """
 
@@ -84,11 +84,13 @@ class Kmeans():
         n_points,dim = points.shape
         
         for i in range(self.n_components):
-            sets = assignements[:,i:i+1]
-            n_sets = np.sum(sets)
-            sets = points * sets
-            if n_sets > 0:
-                self.means[i] = np.asarray(np.sum(sets, axis=0)/n_sets)
+            assignements_i = assignements[:,i:i+1]
+            n_set = np.sum(assignements_i)
+            idx_set,_ = np.where(assignements_i==1)
+            sets = points[idx_set]
+            if n_set > 0:
+                self.means[i] = np.asarray(np.sum(sets, axis=0)/n_set)
+                
     
     def distortion(self,points,assignements):
         """
@@ -101,11 +103,14 @@ class Kmeans():
         n_points,_ = points.shape
         distortion = 0
         for i in range(self.n_components):
-            sets = [points[j] for j in range(n_points) if (assignements[j][i]==1)]
-            sets = np.asarray(sets)
-            if len(sets) != 0:
+            assignements_i = assignements[:,i:i+1]
+            n_set = np.sum(assignements_i)
+            idx_set,_ = np.where(assignements_i==1)
+            sets = points[idx_set]
+            if n_set != 0:
                 M = dist_matrix(sets,self.means[i].reshape(1,-1))
                 distortion += np.sum(M)
+                
         return distortion
         
         
@@ -145,10 +150,13 @@ class Kmeans():
         self.means = means
         self.iter = 0
         self._is_initialized = True
+        self.means_mem = [means]
         
         test_exists = points_test is not None
         first_iter = True
         resume_iter = True
+        n_experiment = 1
+        self.experiment = []
         
         dist_data, dist_test = 0,0
         
@@ -166,6 +174,8 @@ class Kmeans():
             if test_exists:
                 dist_test = self.distortion(points_test,assignements_test)
             
+            means = np.copy(self.means)
+            self.means_mem.append(means)
             #Graphic part
             if draw_graphs:
                 self.create_graph(points_data,directory,"data_iter" + str(self.iter))
@@ -187,9 +197,13 @@ class Kmeans():
                     criterion = (dist_test_pre - dist_test)/len(points_test)
                 else:
                     criterion = (dist_data_pre - dist_data)/n_points
-                resume_iter = (criterion >= tol)
+                resume_iter = (criterion > tol)
                 
-            self.iter+=1
+                if criterion < 10**-n_experiment:
+                    self.experiment.append(self.iter)
+                    n_experiment += 1
+                    
+                self.iter+=1
             
             
     def predict_assignements(self,points):
