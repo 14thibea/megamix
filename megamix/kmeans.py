@@ -15,10 +15,16 @@ def dist_matrix(points,means):
     This method computes all the distances between the points and the actual means
     of the clusters, taking in account that the last coordinate is the cluster number
     
-    :param points: an array (n_points,dim)
-    :param means: an array containing the means of the clusters (n_components,dim)
-    :return: a matrix which contains the distances between the ith point and the jth center
-    (n_points,n_components)
+    Parameters:
+    -----------
+    points : an array (n_points,dim)
+    means : an array (n_components,dim)
+        an array containing the means of the clusters
+    Returns
+    -------
+    dist_matrix : an array (n_points,n_components)
+        an array which contains the distances between the ith point and the jth center
+    
     """
 
     dist_matrix = euclidean_distances(points,means)
@@ -27,6 +33,46 @@ def dist_matrix(points,means):
 
 class Kmeans():
 
+    """
+    Kmeans model.
+    
+    Parameters
+    ----------
+    
+    n_components : int, defaults to 1.
+        Number of clusters used.
+    
+    init : str, defaults to 'kmeans'.
+        Method used in order to perform the initialization,
+        must be in ['random','plus','AF_KMC'].
+
+    Attributes
+    ----------
+    
+    name : str
+        The name of the method : 'Kmeans'
+        
+    means : array of floats (n_components,dim)
+        Contains the computed means of the model.
+    
+    iter : int
+        The number of iterations computed with the method fit()
+    
+    _is_initialized : bool
+        Ensures that the model has been initialized before using other
+        methods such as distortion() or predict_assignements().
+    
+    Raises
+    ------
+    ValueError : if the parameters are inconsistent, for example if the cluster number is negative, init_type is not in ['resp','mcw']...
+    
+    References
+    ----------
+    'Fast and Provably Good Seedings for k-Means', O. Bachem, M. Lucic, S. Hassani, A.Krause
+    'Lloyd's algorithm <https://en.wikipedia.org/wiki/Lloyd's_algorithm>'_
+    'The remarkable k-means++ <https://normaldeviate.wordpress.com/2012/09/30/the-remarkable-k-means/>'_
+ 
+    """
     def __init__(self,n_components=1,init="plus"):
         
         super(Kmeans, self).__init__()
@@ -58,8 +104,9 @@ class Kmeans():
         This method assign a cluster number to each point by changing its last coordinate
         Ex : if P belongs to the first cluster, then P[-1] = 0.
         
-        @param points: an array (n_points,dim)
-        @param means: an array containing the means of the clusters (n_components,dim)
+        :param points: an array (n_points,dim)
+        :return assignments: an array (n_components,dim)
+        
         """
         n_points,_ = points.shape
         assignements = np.zeros((n_points,self.n_components))
@@ -78,8 +125,12 @@ class Kmeans():
         """
         This method computes the new position of each means by minimizing the distortion
         
-        @param points: an array (n_points,dim)
-        @param means: an array containing the means of the clusters (n_components,dim)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        assignements : an array (n_components,dim)
+            an array containing the responsibilities of the clusters
+            
         """
         n_points,dim = points.shape
         
@@ -96,44 +147,70 @@ class Kmeans():
         """
         This method returns the distortion measurement at the end of the k_means.
         
-        @param points: an array (n_points,dim)
-        @param means: an array containing the means of the clusters (n_components,dim)
-        @return: distortion measurement (float)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        assignements : an array (n_components,dim)
+            an array containing the responsibilities of the clusters
+        Returns
+        -------
+        distortion : (float)
+        
         """
-        n_points,_ = points.shape
-        distortion = 0
-        for i in range(self.n_components):
-            assignements_i = assignements[:,i:i+1]
-            n_set = np.sum(assignements_i)
-            idx_set,_ = np.where(assignements_i==1)
-            sets = points[idx_set]
-            if n_set != 0:
-                M = dist_matrix(sets,self.means[i].reshape(1,-1))
-                distortion += np.sum(M)
+        
+        if self._is_initialized:
+            n_points,_ = points.shape
+            distortion = 0
+            for i in range(self.n_components):
+                assignements_i = assignements[:,i:i+1]
+                n_set = np.sum(assignements_i)
+                idx_set,_ = np.where(assignements_i==1)
+                sets = points[idx_set]
+                if n_set != 0:
+                    M = dist_matrix(sets,self.means[i].reshape(1,-1))
+                    distortion += np.sum(M)
                 
-        return distortion
+            return distortion
+
+        else:
+            raise Exception("The model is not initialized")
+
         
+    def fit(self,points_data,points_test=None,n_iter_max=100,
+            n_iter_fix=None,tol=0):
+        """The k-means algorithm
         
-    def fit(self,points_data,points_test=None,n_iter_max=100,n_iter_fix=None,
-            tol=1e-3,draw_graphs=False,directory=None):
-        """
-        This method returns an array of k points which will be used in order to
-        initialize a k_means algorithm
+        Parameters
+        ----------
+        points_data : array (n_points,dim)
+            A 2D array of points on which the model will be trained
+            
+        tol : float, defaults to 0
+            The EM algorithm will stop when the difference between two steps 
+            regarding the distortion is less or equal to tol.
+            
+        n_iter_max : int, defaults to 100
+            number of iterations maximum that can be done
         
-        @param points: an array (n_points,dim)
-        @param k: the number of clusters
-        @param draw_graphs: a boolean to allow the algorithm to draw graphs if True
-        @param initialization: a string in ['random','plus']
-        @return: the means of the clusters (n_components,dim)
+        Other Parameters
+        ----------------
+        points_test : array (n_points_bis,dim) | Optional
+            A 2D array of points on which the model will be tested.
+        
+        n_iter_fix : int | Optional
+            If not None, the algorithm will exactly do the number of iterations
+            of n_iter_fix and stop.
+            
+        Returns
+        -------
+        None
+        
         """
         from .initializations import initialization_random
         from .initializations import initialization_plus_plus
         from .initializations import initialization_AF_KMC
         
         n_points,dim = points_data.shape
-        
-        if directory is None:
-            directory = os.getcwd()
         
         #K-means++ initialization
         if (self.init == "random"):
@@ -150,13 +227,10 @@ class Kmeans():
         self.means = means
         self.iter = 0
         self._is_initialized = True
-        self.means_mem = [means]
         
         test_exists = points_test is not None
         first_iter = True
         resume_iter = True
-        n_experiment = 1
-        self.experiment = []
         
         dist_data, dist_test = 0,0
         
@@ -174,14 +248,6 @@ class Kmeans():
             if test_exists:
                 dist_test = self.distortion(points_test,assignements_test)
             
-            means = np.copy(self.means)
-            self.means_mem.append(means)
-            #Graphic part
-            if draw_graphs:
-                self.create_graph(points_data,directory,"data_iter" + str(self.iter))
-                if test_exists:
-                    self.create_graph(points_test,directory,"test_iter" + str(self.iter))
-            
             # Computation of resume_iter
             if first_iter:
                 first_iter = False
@@ -198,15 +264,16 @@ class Kmeans():
                 else:
                     criterion = (dist_data_pre - dist_data)/n_points
                 resume_iter = (criterion > tol)
-                
-                if criterion < 10**-n_experiment:
-                    self.experiment.append(self.iter)
-                    n_experiment += 1
                     
-                self.iter+=1
+            self.iter+=1
             
             
     def predict_assignements(self,points):
+        """
+        This function return the hard assignements of points once the model is
+        fitted.
+        
+        """
     
         if self._is_initialized:
             assignements = self._step_E(points)
