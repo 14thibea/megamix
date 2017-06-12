@@ -10,7 +10,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION = '0.1'
+VERSION = '0.2'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -20,6 +20,7 @@ REQUIREMENTS = [] if ON_RTD else [
     'h5py >= 2.6.0',
     'scipy >= 0.18.1',
     'scikit-learn >= 0.18.0'
+    'joblib >= 0.11'
 ]
 
 setup(

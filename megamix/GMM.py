@@ -7,8 +7,8 @@
 
 from .base import BaseMixture
 from .base import _log_normal_matrix
-from .base import _full_covariance_matrix
-from .base import _spherical_covariance_matrix
+from .base import _full_covariance_matrices
+from .base import _spherical_covariance_matrices
 from .initializations import initialize_log_assignements,initialize_mcw
 
 import numpy as np
@@ -81,7 +81,7 @@ class GaussianMixture(BaseMixture):
     """
 
     def __init__(self, n_components=1,covariance_type="full",init="kmeans",
-                 reg_covar=1e-6,type_init='resp'):
+                 reg_covar=1e-6,type_init='resp',n_jobs=1):
         
         super(GaussianMixture, self).__init__()
 
@@ -91,6 +91,7 @@ class GaussianMixture(BaseMixture):
         self.init = init
         self.type_init = type_init
         self.reg_covar = reg_covar
+        self.n_jobs = n_jobs
         
         self._is_initialized = False
         self.iter = 0
@@ -155,7 +156,7 @@ class GaussianMixture(BaseMixture):
             logarithm of the probability of each sample in points
             
         """
-        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type)
+        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs)
         log_product = log_normal_matrix + self.log_weights[:,np.newaxis].T
         log_prob_norm = logsumexp(log_product,axis=1)
         
@@ -188,9 +189,9 @@ class GaussianMixture(BaseMixture):
         
         #Phase 2:
         if self.covariance_type=="full":
-            self.cov = _full_covariance_matrix(points,self.means,weights,log_assignements,self.reg_covar)
+            self.cov = _full_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
         elif self.covariance_type=="spherical":
-            self.cov = _spherical_covariance_matrix(points,self.means,weights,assignements,self.reg_covar)
+            self.cov = _spherical_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
                         
         #Phase 3:
         self.log_weights = logsumexp(log_assignements, axis=0) - np.log(n_points)

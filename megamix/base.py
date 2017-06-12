@@ -4,7 +4,7 @@
 #
 #author: Elina THIBEAU-SUTRE
 #
-
+from joblib import Parallel,delayed
 from abc import abstractmethod
 import numpy as np
 import scipy.linalg
@@ -13,32 +13,34 @@ import os
 import warnings
 import h5py
 
-def _full_covariance_matrix(points,means,weights,log_assignements,reg_covar):
+def _full_covariance_matrix(points,mean,weight,resp,reg_covar):
+    """
+    Compute the correspondong covariance matrix
+    """
+    _,dim = points.shape
+
+    diff = points - mean
+    diff_weighted = diff * resp
+    cov = 1/weight * np.dot(diff_weighted.T,diff)
+    cov.flat[::dim + 1] += reg_covar
+    return cov
+
+def _full_covariance_matrices(points,means,weights,resp,reg_covar,n_jobs=1):
     """
     Compute the full covariance matrices
     """
     nb_points,dim = points.shape
     n_components = len(means)
     
-    covariance = np.zeros((n_components,dim,dim))
+    covariance = Parallel(n_jobs=n_jobs,backend='threading')(
+            delayed(_full_covariance_matrix)(points,means[i],weights[i],resp[:,i:i+1],
+                   reg_covar) for i in range(n_components))
     
-    for i in range(n_components):
-        log_assignements_i = log_assignements[:,i]
-        
-        # We use the square root of the assignement values because values are very
-        # small : this ensure that the matrix will be symmetric
-        sqrt_assignements_i = np.exp(0.5*log_assignements_i)
-        
-        points_centered = points - means[i]
-        points_centered_weighted = points_centered * sqrt_assignements_i[:,np.newaxis]
-        covariance[i] = np.dot(points_centered_weighted.T,points_centered_weighted)
-        covariance[i] = covariance[i] / weights[i]
-        
-        covariance[i] += reg_covar * np.eye(dim)
+    covariance = np.asarray(covariance)
     
     return covariance
 
-def _spherical_covariance_matrix(points,means,weights,assignements,reg_covar):
+def _spherical_covariance_matrices(points,means,weights,assignements,reg_covar):
     """
     Compute the coefficients for the spherical covariances matrices
     """
@@ -56,7 +58,6 @@ def _spherical_covariance_matrix(points,means,weights,assignements,reg_covar):
         points_centered_weighted = points_centered * assignements_i
         product = points_centered * points_centered_weighted
         covariance[i] = np.sum(product)/sum_assignement
-        
         covariance[i] += reg_covar
     
     return covariance / dim
@@ -76,29 +77,31 @@ def _compute_precisions_chol(cov,covariance_type):
                                                                lower=True,check_finite=False).T
      return precisions_chol
 
-def _log_normal_matrix(points,means,cov,covariance_type):
+def _log_normal_matrix_core(points,mu,prec_chol):
+    y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
+    return np.sum(np.square(y),axis=1)
+
+def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1):
     """
     This method computes the log of the density of probability of a normal law centered. Each line
     corresponds to a point from points.
     
-    @param points: an array of points (n_points,dim)
-    @param means: an array of k points which are the means of the clusters (n_components,dim)
-    @param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
-    @return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
+    :param points: an array of points (n_points,dim)
+    :param means: an array of k points which are the means of the clusters (n_components,dim)
+    :param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
+    :return: an array containing the log of density of probability of a normal law centered (n_points,n_components)
     """
     n_points,dim = points.shape
     n_components,_ = means.shape
-    
     
     if covariance_type == "full":
         precisions_chol = _compute_precisions_chol(cov,covariance_type)
         log_det_chol = np.log(np.linalg.det(precisions_chol))
         
-        log_prob = np.empty((n_points,n_components))
-        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
-            y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
-            log_prob[:,k] = np.sum(np.square(y), axis=1)
-            
+        log_prob = Parallel(n_jobs=n_jobs,backend='threading')(
+           delayed(_log_normal_matrix_core)(points,means[k],precisions_chol[k]) for k in range(n_components))
+        log_prob = np.asarray(log_prob).T
+        
     elif covariance_type == "spherical":
         precisions_chol = np.sqrt(np.reciprocal(cov))
         log_det_chol = dim * np.log(precisions_chol)

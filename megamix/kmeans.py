@@ -6,9 +6,8 @@
 #
 
 import numpy as np
-import os
 from sklearn.metrics.pairwise import euclidean_distances
-
+from joblib import Parallel,delayed
 
 def dist_matrix(points,means):
     """
@@ -73,13 +72,14 @@ class Kmeans():
     'The remarkable k-means++ <https://normaldeviate.wordpress.com/2012/09/30/the-remarkable-k-means/>'_
  
     """
-    def __init__(self,n_components=1,init="plus"):
+    def __init__(self,n_components=1,init="plus",n_jobs=1):
         
         super(Kmeans, self).__init__()
 
         self.name = 'Kmeans'
         self.n_components = n_components
         self.init = init
+        self.n_jobs = n_jobs
         
         self._is_initialized = False
         self.iter = 0
@@ -98,7 +98,7 @@ class Kmeans():
                              "'init' should be in "
                              "['random', 'plus', 'kmeans', 'AF_KMC']"
                              % self.init)
-
+    
     def _step_E(self,points):
         """
         This method assign a cluster number to each point by changing its last coordinate
@@ -120,7 +120,7 @@ class Kmeans():
                 assignements[i][index_min[0]] = 1
                 
         return assignements
-      
+        
     def _step_M(self,points,assignements):
         """
         This method computes the new position of each means by minimizing the distortion
@@ -141,7 +141,6 @@ class Kmeans():
             sets = points[idx_set]
             if n_set > 0:
                 self.means[i] = np.asarray(np.sum(sets, axis=0)/n_set)
-                
     
     def distortion(self,points,assignements):
         """

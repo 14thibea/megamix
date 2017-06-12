@@ -6,12 +6,12 @@
 #
 
 from .initializations import initialize_log_assignements,initialize_mcw
+from .base import _full_covariance_matrices
 from .base import _log_normal_matrix
 from .base import BaseMixture
 from .base import _log_B
 
 import numpy as np
-import scipy.stats
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
 
@@ -136,7 +136,7 @@ class DPVariationalGaussianMixture(BaseMixture):
     
     def __init__(self, n_components=1,init="VBGMM",alpha_0=None,reg_covar=1e-6,\
                  beta_0=None,nu_0=None,means_prior=None,cov_wishart_prior=None,
-                 patience=0,type_init='resp'):
+                 patience=0,type_init='resp',n_jobs=1):
         
         super(DPVariationalGaussianMixture, self).__init__()
         
@@ -152,6 +152,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         self.nu_0 = nu_0
         self._means_prior = means_prior
         self._inv_prec_prior = cov_wishart_prior
+        self.n_jobs = n_jobs
         
         self._is_initialized = False
         self.iter = 0
@@ -255,8 +256,8 @@ class DPVariationalGaussianMixture(BaseMixture):
         n_points,dim = points.shape
         log_resp = np.zeros((n_points,self.n_components))
         
-        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full')
-        digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs)
+        digamma_sum = np.sum(psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
         log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self.nu))
@@ -287,13 +288,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         # Convenient statistics
         N = np.sum(resp,axis=0) + 10*np.finfo(resp.dtype).eps            #Array (n_components,)
         X_barre = 1/N[:,np.newaxis] * np.dot(resp.T,points)              #Array (n_components,dim)
-        S = np.zeros((self.n_components,dim,dim))                        #Array (n_components,dim,dim)
-        for i in range(self.n_components):
-            diff = points - X_barre[i]
-            diff_weighted = diff * resp[:,i:i+1]
-            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff)
-            
-            S[i] += self.reg_covar * np.eye(dim)
+        S = _full_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs)
         
         #Parameters update
         self.alpha = np.asarray([1 + N,
@@ -404,14 +399,8 @@ class DPVariationalGaussianMixture(BaseMixture):
         # Convenient statistics
         N = np.sum(resp,axis=0) + 10*np.finfo(resp.dtype).eps               #Array (n_components,)
         X_barre = 1/N[:,np.newaxis] * np.dot(resp.T,points)                 #Array (n_components,dim)
-        S = np.zeros((self.n_components,dim,dim))                           #Array (n_components,dim,dim)
-        for i in range(self.n_components):
-            diff = points - X_barre[i]
-            diff_weighted = diff * np.sqrt(resp[:,i:i+1])
-            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff_weighted)
-            
-            S[i] += self.reg_covar * np.eye(dim)
-        
+        S = _full_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs)
+             
         prec = np.linalg.inv(self._inv_prec)
         prec_prior = np.linalg.inv(self._inv_prec_prior)
         
@@ -419,7 +408,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
+            digamma_sum = np.sum(psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
             log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line

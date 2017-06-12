@@ -9,7 +9,7 @@ from .initializations import initialize_log_assignements,initialize_mcw
 from .base import _log_B,_log_C
 from .base import BaseMixture
 from .base import _log_normal_matrix
-from .base import _full_covariance_matrix,_spherical_covariance_matrix
+from .base import _full_covariance_matrices,_spherical_covariance_matrices
 
 import numpy as np
 import scipy.special
@@ -137,7 +137,7 @@ class VariationalGaussianMixture(BaseMixture):
 
     def __init__(self, n_components=1,init="GMM",alpha_0=None,beta_0=None,
                  nu_0=None,means_prior=None,cov_wishart_prior=None,
-                 reg_covar=1e-6,type_init='resp'):
+                 reg_covar=1e-6,type_init='resp',n_jobs=1):
         
         super(VariationalGaussianMixture, self).__init__()
 
@@ -153,6 +153,7 @@ class VariationalGaussianMixture(BaseMixture):
         self.nu_0 = nu_0
         self._means_prior = means_prior
         self._inv_prec_prior = cov_wishart_prior
+        self.n_jobs = n_jobs
         
         self._is_initialized = False
         self.iter = 0
@@ -251,7 +252,7 @@ class VariationalGaussianMixture(BaseMixture):
         n_points,dim = points.shape
         log_prob = np.zeros((n_points,self.n_components))
           
-        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full')
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs)
         digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
@@ -325,9 +326,9 @@ class VariationalGaussianMixture(BaseMixture):
         N = np.sum(resp,axis=0) + 10 * np.finfo(resp.dtype).eps                    #Array (n_components,)
         X_barre = np.dot(resp.T,points) / N[:,np.newaxis]                          #Array (n_components,dim)
         if self.covariance_type=='full':
-            S = _full_covariance_matrix(points,X_barre,N,log_resp,self.reg_covar)  #Array (n_components,dim,dim)
+            S = _full_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs)      #Array (n_components,dim,dim)
         elif self.covariance_type=='spherical':
-            S = _spherical_covariance_matrix(points,X_barre,N,resp,self.reg_covar) #Array (n_components,)
+            S = _spherical_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs) #Array (n_components,)
         
         #Parameters update
         self.alpha = self.alpha_0 + N
