@@ -7,7 +7,6 @@
 
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
-from joblib import Parallel,delayed
 
 def dist_matrix(points,means):
     """
@@ -19,6 +18,7 @@ def dist_matrix(points,means):
     points : an array (n_points,dim)
     means : an array (n_components,dim)
         an array containing the means of the clusters
+        
     Returns
     -------
     dist_matrix : an array (n_points,n_components)
