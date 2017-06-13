@@ -493,3 +493,41 @@ class VariationalGaussianMixture(BaseMixture):
         # Matrix W
         self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
+        
+            
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+        existing_clusters = int(np.sum(exist))
+        log_weights = np.zeros(existing_clusters)
+        means = np.zeros((existing_clusters,dim))
+        cov = np.zeros((existing_clusters,dim,dim))
+        alpha = np.zeros(existing_clusters)
+        beta = np.zeros(existing_clusters)
+        nu = np.zeros(existing_clusters)
+        
+        idx_result = 0
+        for i in range(n_components):
+            if exist[i] == 1:
+                log_weights[idx_result] = self.log_weights[i]
+                means[idx_result] = self.means[i]
+                cov[idx_result] = self.cov[i]
+                alpha[idx_result] = self.alpha[i]
+                beta[idx_result] = self.beta[i]
+                nu[idx_result] = self.nu[i]
+                idx_result += 1
+                
+        params = (log_weights, means, cov,
+                  alpha, beta, nu)
+        
+        return params

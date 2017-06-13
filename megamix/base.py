@@ -487,8 +487,7 @@ class BaseMixture():
             group['means prior'][...] = self._means_prior
             group.create_dataset('inv prec prior',self._inv_prec_prior.shape,dtype='float64')
             group['inv prec prior'][...] = self._inv_prec_prior
-        
-    
+
     
     def read_and_init(self,group,points):
         """
@@ -499,14 +498,6 @@ class BaseMixture():
         group : HDF5 group
             A group of a hdf5 file in reading mode
             
-        """
-        """
-        A method reading a group of an hdf5 file to initialize VBGMM
-        
-        Parameters
-        ----------
-        group : HDF5 group
-
         """
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
@@ -535,3 +526,25 @@ class BaseMixture():
                               'if not already given during __init__')
             
         self._initialize(points)
+        
+        
+    def simplified_model(self,points):
+        """
+        A method creating a new model with simplified parameters: clusters unused
+        are removed
+        
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        Returns
+        -------
+        GM : an instance of the same type of self: GMM,VBGMM or DPGMM
+
+        """
+        import copy
+        
+        GM = copy.copy(self)
+        params = self._limiting_model(points)
+        GM._set_parameters(params)
+        return GM

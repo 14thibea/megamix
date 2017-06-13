@@ -243,3 +243,34 @@ class GaussianMixture(BaseMixture):
 
     def _set_parameters(self, params):
         self.log_weights, self.means, self.cov = params
+        
+            
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+        existing_clusters = int(np.sum(exist))
+        log_weights = np.zeros(existing_clusters)
+        means = np.zeros((existing_clusters,dim))
+        cov = np.zeros((existing_clusters,dim,dim))
+        
+        idx_result = 0
+        for i in range(n_components):
+            if exist[i] == 1:
+                log_weights[idx_result] = self.log_weights[i]
+                means[idx_result] = self.means[i]
+                cov[idx_result] = self.cov[i]
+                idx_result += 1
+                
+        params = (log_weights, means, cov)
+        
+        return params
