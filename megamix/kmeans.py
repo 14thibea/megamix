@@ -9,22 +9,6 @@ import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 
 def dist_matrix(points,means):
-    """
-    This method computes all the distances between the points and the actual means
-    of the clusters, taking in account that the last coordinate is the cluster number
-    
-    Parameters:
-    -----------
-    points : an array (n_points,dim)
-    means : an array (n_components,dim)
-        an array containing the means of the clusters
-        
-    Returns
-    -------
-    dist_matrix : an array (n_points,n_components)
-        an array which contains the distances between the ith point and the jth center
-    
-    """
 
     dist_matrix = euclidean_distances(points,means)
 
