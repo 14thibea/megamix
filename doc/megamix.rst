@@ -13,11 +13,11 @@ Kmeans
 Gaussian Mixture Model (GMM)
 ============================
 
-.. automodule:: megamix.GaussianMixture
-    :members:
+.. automodule:: megamix.GMM
+    :members: fit
     :undoc-members:
     :show-inheritance:
-
+	
 Variational Gaussian Mixture Model (VBGMM)
 ==========================================
 
