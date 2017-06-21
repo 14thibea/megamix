@@ -39,7 +39,7 @@ if __name__ == '__main__':
 #    
     log_weights = np.empty(k)
 #    
-    GM = DPVariationalGaussianMixture(k,init='kmeans',type_init='mcw',n_jobs=3)
+    GM = DPVariationalGaussianMixture(k,init='kmeans',type_init='mcw',n_jobs=2)
     t_ant = time.time()
     GM._initialize(data)
     
@@ -50,79 +50,106 @@ if __name__ == '__main__':
     t2 = time.time()
     X_barre = 1/N[:,np.newaxis] * np.dot(resp.T,data)
     t3 = time.time()
-    S = np.zeros((k,dim,dim))
-    for i in range(k):
-        S[i] = empirical_covariances(data,X_barre[i],N[i],resp[:,i:i+1],GM.reg_covar)
+    S = base._full_covariance_matrices(data,X_barre,N,resp,GM.reg_covar,GM.n_jobs)
     t4 = time.time()
-    1/N[0]*np.dot(data.T,data)
-    t5 = time.time()
-    for i in range(k):
-        if i==0:
-            log_weights[i] = psi(GM.alpha[i][0]) - psi(np.sum(GM.alpha[i]))
-        else:
-            log_weights[i] = psi(GM.alpha[i][0]) - psi(np.sum(GM.alpha[i]))
-            log_weights[i] += log_weights[i-1] + psi(GM.alpha[i-1][1]) - psi(GM.alpha[i-1][0])
-    t6 = time.time()
-    diff = data - X_barre[0]
-    t7 = time.time()
-    diff_weighted = diff * resp[:,i:i+1]
-    t8 = time.time()
-    log_resp = np.zeros((n_points,k))
-    
-        
-    log_gaussian = base._log_normal_matrix(data,GM.means,GM.cov,'full')
-    digamma_sum = np.sum(psi(.5 * (GM.nu - np.arange(0, dim)[:,np.newaxis])),0)
-    log_lambda = digamma_sum + dim * np.log(2) + dim/GM.beta
-    
-    log_prob = GM.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(GM.nu))
-    
-    log_prob_norm = logsumexp(log_prob, axis=1)
-    log_resp = log_prob - log_prob_norm[:,np.newaxis]
-    t9 = time.time()
-    S[0].flat[::dim + 1] += GM.reg_covar
-    t10 = time.time()
-    base._log_normal_matrix(data,GM.means,GM.cov,'full')
-    t11 = time.time()
-    precisions_chol = base._compute_precisions_chol(GM.cov,'full')
-    t12 = time.time()
-    for k, (mu, prec_chol) in enumerate(zip(GM.means,precisions_chol)):
-        y = np.dot(data,prec_chol) - np.dot(mu,prec_chol)
-        log_prob[:,k] = np.sum(np.square(y), axis=1)
-    t13 = time.time()
-    covariances = Parallel(n_jobs=3,backend='threading')(delayed(empirical_covariances)(data,X_barre[i],N[i],resp[:,i:i+1],GM.reg_covar)
-    for i in range(k))
+#    1/N[0]*np.dot(data.T,data)
+#    t5 = time.time()
+#    for i in range(k):
+#        if i==0:
+#            log_weights[i] = psi(GM.alpha[i][0]) - psi(np.sum(GM.alpha[i]))
+#        else:
+#            log_weights[i] = psi(GM.alpha[i][0]) - psi(np.sum(GM.alpha[i]))
+#            log_weights[i] += log_weights[i-1] + psi(GM.alpha[i-1][1]) - psi(GM.alpha[i-1][0])
+#    t6 = time.time()
+#    diff = data - X_barre[0]
+#    t7 = time.time()
+#    diff_weighted = diff * resp[:,i:i+1]
+#    t8 = time.time()
+#    log_resp = np.zeros((n_points,k))
+#    
+#        
+#    log_gaussian = base._log_normal_matrix(data,GM.means,GM.cov,'full')
+#    digamma_sum = np.sum(psi(.5 * (GM.nu - np.arange(0, dim)[:,np.newaxis])),0)
+#    log_lambda = digamma_sum + dim * np.log(2) + dim/GM.beta
+#    
+#    log_prob = GM.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(GM.nu))
+#    
+#    log_prob_norm = logsumexp(log_prob, axis=1)
+#    log_resp = log_prob - log_prob_norm[:,np.newaxis]
+#    t9 = time.time()
+#    S[0].flat[::dim + 1] += GM.reg_covar
+#    t10 = time.time()
+#    base._log_normal_matrix(data,GM.means,GM.cov,'full')
+#    t11 = time.time()
+#    precisions_chol = base._compute_precisions_chol(GM.cov,'full')
+#    t12 = time.time()
+#    for k, (mu, prec_chol) in enumerate(zip(GM.means,precisions_chol)):
+#        y = np.dot(data,prec_chol) - np.dot(mu,prec_chol)
+#        log_prob[:,k] = np.sum(np.square(y), axis=1)
+#    t13 = time.time()
+#    covariances = Parallel(n_jobs=3,backend='threading')(delayed(empirical_covariances)(data,X_barre[i],N[i],resp[:,i:i+1],GM.reg_covar)
+#    for i in range(k))
     t14 = time.time()
     res = GM._step_E(data)
     t15 = time.time()
-    log_prob_norm = logsumexp(log_prob, axis=1)
-    t16 = time.time()
-    base._log_normal_matrix(data,GM.means,GM.cov,'full',3)
-    t17 = time.time()
-    log_det_chol = np.log(np.linalg.det(precisions_chol))
-    t18 = time.time()
-    result = -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
+#    log_prob_norm = logsumexp(log_prob, axis=1)
+#    t16 = time.time()
+#    base._log_normal_matrix(data,GM.means,GM.cov,'full',3)
+#    t17 = time.time()
+#    log_det_chol = np.log(np.linalg.det(precisions_chol))
+#    t18 = time.time()
+#    result = -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
     t19 = time.time()
-                   
+    cc = GM._convergence_criterion(data,res[1],res[0])
+    t20 = time.time()
+    cc2 = GM._convergence_criterion_simplified(data,res[1],res[0])
+    t21 = time.time()
+    resp = np.exp(res[1])
+    N = np.sum(resp,axis=0) + 10*np.finfo(resp.dtype).eps
+    X_barre = 1/N[:,np.newaxis] * np.dot(resp.T,data)
+    S = base._full_covariance_matrices(data,X_barre,N,resp,GM.reg_covar,GM.n_jobs)
+    t22 = time.time()
+    prec = np.linalg.inv(GM._inv_prec)
+    prec_prior = np.linalg.inv(GM._inv_prec_prior)
+    t23 = time.time()
+    for i in range(GM.n_components):
+        digamma_sum = np.sum(psi(.5 * (GM.nu[i] - np.arange(0, dim)[:,np.newaxis])),0)
+        log_det_prec_i = digamma_sum + dim * np.log(2) - GM._log_det_inv_prec[i] #/!\ Inverse
+    t24 = time.time()
+    digamma_sum = np.sum(psi(.5 * (GM.nu - np.arange(0, dim)[:,np.newaxis])),0)
+    log_det_prec = digamma_sum + dim * np.log(2) - GM._log_det_inv_prec #/!\ Inverse
+    t25 = time.time()
+    S = base._full_covariance_matrices(data,X_barre,N,resp,GM.reg_covar,GM.n_jobs)
+    t26 = time.time()
+    
+        
     print('initialization :',t0-t_ant)
     print('step M :', t1-t0)
     print('N : ', t2-t1)
     print('X_barre :', t3-t2)
     print('S :', t4-t3)
-    print('S parallel :',t14-t13)
-    print('simple dot :', (t5-t4)*k)
-    print('poids :',t6-t5)
-    print('soustract :',(t7-t6)*k)
-    print('multiply :', (t8-t7)*k)
-    print('flat :',(t10-t9)*k)
+#    print('S parallel :',t14-t13)
+#    print('simple dot :', (t5-t4)*k)
+#    print('poids :',t6-t5)
+#    print('soustract :',(t7-t6)*k)
+#    print('multiply :', (t8-t7)*k)
+#    print('flat :',(t10-t9)*k)
     print('step E :',t15-t14)
-    print('step E original :',(t9-t8))
-    print('boucle for :',(t13-t12))
-    print('log normal matrix',(t11-t10))
-    print('log normal matrix 3',(t17-t16))
-    print('compute precisions chol :',(t12-t11))
-    print('log det chol :',(t18-t17))
-    print('logsumexp :',(t16-t15))
-    print('result log_normal_matrix :',(t19-t18))
+#    print('step E original :',(t9-t8))
+#    print('boucle for :',(t13-t12))
+#    print('log normal matrix',(t11-t10))
+#    print('log normal matrix 3',(t17-t16))
+#    print('compute precisions chol :',(t12-t11))
+#    print('log det chol :',(t18-t17))
+#    print('logsumexp :',(t16-t15))
+#    print('result log_normal_matrix :',(t19-t18))
+    print('convergence criterion :',(t20-t19))
+    print('statistics computation :',(t22-t21))
+    print('only full covariance matrices :',(t26-t25))
+    print('inversion :',(t23-t22))
+    print('log_det_prec (for) :',(t24-t23))
+    print('log_det_prec (sans for) :',(t25-t24))
+    print('convergence criterion simplified :',(t21-t20))
     
 ##    t0 = time.time()
 #    res = base._log_normal_matrix(data,GM.means,GM.cov,'full')

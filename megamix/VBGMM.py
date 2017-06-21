@@ -232,7 +232,7 @@ class VariationalGaussianMixture(BaseMixture):
     
         self._is_initialized = True
         
-    def _step_E(self, points):
+    def _step_E(self, points, points_normed=None, distances='euclidean'):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -252,7 +252,7 @@ class VariationalGaussianMixture(BaseMixture):
         n_points,dim = points.shape
         log_prob = np.zeros((n_points,self.n_components))
           
-        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs)
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs,points_normed,distances)
         digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
@@ -433,13 +433,7 @@ class VariationalGaussianMixture(BaseMixture):
         # Convenient statistics
         N = np.exp(logsumexp(log_resp,axis=0)) + 10*np.finfo(resp.dtype).eps    #Array (n_components,)
         X_barre = np.tile(1/N, (dim,1)).T * np.dot(resp.T,points)               #Array (n_components,dim)
-        S = np.zeros((self.n_components,dim,dim))                               #Array (n_components,dim,dim)
-        for i in range(self.n_components):
-            diff = points - X_barre[i]
-            diff_weighted = diff * np.tile(np.sqrt(resp[:,i:i+1]), (1,dim))
-            S[i] = 1/N[i] * np.dot(diff_weighted.T,diff_weighted)
-            
-            S[i] += self.reg_covar * np.eye(dim)
+        S = _full_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs)
         
         prec = np.linalg.inv(self._inv_prec)
         prec_prior = np.linalg.inv(self._inv_prec_prior)
@@ -448,7 +442,7 @@ class VariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
         
-            digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
+            digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu[i] - np.arange(0, dim)[:,np.newaxis])),0)
             log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line
@@ -486,13 +480,16 @@ class VariationalGaussianMixture(BaseMixture):
                 self.alpha, self.beta, self.nu)
     
 
-    def _set_parameters(self, params):
+    def _set_parameters(self, params,verbose=True):
         (self.log_weights, self.means, self.cov,
         self.alpha, self.beta, self.nu )= params
          
         # Matrix W
         self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
         self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
+        if self.n_components != len(self.means) and verbose:
+            print('The number of components changed')
+        self.n_components = len(self.means)
         
             
     def _limiting_model(self,points):
@@ -508,24 +505,14 @@ class VariationalGaussianMixture(BaseMixture):
                 if np.argmax(log_resp[i])==j:
                     exist[j] = 1
         
-        existing_clusters = int(np.sum(exist))
-        log_weights = np.zeros(existing_clusters)
-        means = np.zeros((existing_clusters,dim))
-        cov = np.zeros((existing_clusters,dim,dim))
-        alpha = np.zeros(existing_clusters)
-        beta = np.zeros(existing_clusters)
-        nu = np.zeros(existing_clusters)
+        idx_existing = np.where(exist==1)
         
-        idx_result = 0
-        for i in range(n_components):
-            if exist[i] == 1:
-                log_weights[idx_result] = self.log_weights[i]
-                means[idx_result] = self.means[i]
-                cov[idx_result] = self.cov[i]
-                alpha[idx_result] = self.alpha[i]
-                beta[idx_result] = self.beta[i]
-                nu[idx_result] = self.nu[i]
-                idx_result += 1
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+        cov = self.cov[idx_existing]
+        alpha = self.alpha[idx_existing]
+        beta = self.beta[idx_existing]
+        nu = self.nu[idx_existing]
                 
         params = (log_weights, means, cov,
                   alpha, beta, nu)

@@ -140,7 +140,7 @@ class GaussianMixture(BaseMixture):
             
         self._is_initialized = True
     
-    def _step_E(self,points):
+    def _step_E(self, points, points_normed=None, distances='euclidean'):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -156,7 +156,7 @@ class GaussianMixture(BaseMixture):
             logarithm of the probability of each sample in points
             
         """
-        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs)
+        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs,points_normed,distances)
         log_product = log_normal_matrix + self.log_weights[:,np.newaxis].T
         log_prob_norm = logsumexp(log_product,axis=1)
         
@@ -241,8 +241,12 @@ class GaussianMixture(BaseMixture):
         return (self.log_weights, self.means, self.cov)
     
 
-    def _set_parameters(self, params):
+    def _set_parameters(self, params,verbose=True):
         self.log_weights, self.means, self.cov = params
+        
+        if self.n_components != len(self.means) and verbose:
+            print('The number of components changed')
+        self.n_components = len(self.means)
         
             
     def _limiting_model(self,points):
@@ -258,18 +262,12 @@ class GaussianMixture(BaseMixture):
                 if np.argmax(log_resp[i])==j:
                     exist[j] = 1
         
-        existing_clusters = int(np.sum(exist))
-        log_weights = np.zeros(existing_clusters)
-        means = np.zeros((existing_clusters,dim))
-        cov = np.zeros((existing_clusters,dim,dim))
+
+        idx_existing = np.where(exist==1)
         
-        idx_result = 0
-        for i in range(n_components):
-            if exist[i] == 1:
-                log_weights[idx_result] = self.log_weights[i]
-                means[idx_result] = self.means[i]
-                cov[idx_result] = self.cov[i]
-                idx_result += 1
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+        cov = self.cov[idx_existing]
                 
         params = (log_weights, means, cov)
         

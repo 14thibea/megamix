@@ -81,7 +81,7 @@ def _log_normal_matrix_core(points,mu,prec_chol):
     y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
     return np.sum(np.square(y),axis=1)
 
-def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1):
+def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1,points_normed=None,distances='euclidean'):
     """
     This method computes the log of the density of probability of a normal law centered. Each line
     corresponds to a point from points.
@@ -94,12 +94,22 @@ def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1):
     n_points,dim = points.shape
     n_components,_ = means.shape
     
+    if distances == 'euclidean':
+        points_ = points
+        means_ = means
+    elif distances == 'cosine':
+        if points_normed is None:
+            points_ = points/ np.linalg.norm(points,axis=1)[:,np.newaxis]
+        else:
+            points_ = points_normed
+        means_ = means / np.linalg.norm(means,axis=1)[:,np.newaxis]
+    
     if covariance_type == "full":
         precisions_chol = _compute_precisions_chol(cov,covariance_type)
         log_det_chol = np.log(np.linalg.det(precisions_chol))
         
         log_prob = Parallel(n_jobs=n_jobs,backend='threading')(
-           delayed(_log_normal_matrix_core)(points,means[k],precisions_chol[k]) for k in range(n_components))
+           delayed(_log_normal_matrix_core)(points_,means_[k],precisions_chol[k]) for k in range(n_components))
         log_prob = np.asarray(log_prob).T
         
     elif covariance_type == "spherical":
@@ -107,8 +117,8 @@ def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1):
         log_det_chol = dim * np.log(precisions_chol)
         
         log_prob = np.empty((n_points,n_components))
-        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
-            y = prec_chol * (points - mu)
+        for k, (mu, prec_chol) in enumerate(zip(means_,precisions_chol)):
+            y = prec_chol * (points_ - mu)
             log_prob[:,k] = np.sum(np.square(y), axis=1)
             
     return -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
@@ -270,7 +280,7 @@ class BaseMixture():
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            legend=''):
+            legend='',distances='euclidean'):
         """The EM algorithm
         
         Parameters
@@ -315,6 +325,7 @@ class BaseMixture():
         
         """
         
+        
         if directory==None:
             directory = os.getcwd()
         
@@ -322,9 +333,17 @@ class BaseMixture():
             
         resume_iter = True
         first_iter = True
-        log_iter = 0
         iter_patience = 0
+        iter_algo = 0
         best_criterion = -np.Inf
+        
+        if distances == 'cosine':
+            points_data_normed = points_data/np.linalg.norm(points_data,axis=1)[:,np.newaxis]
+            if points_test is not None:
+                points_test_normed = points_test/np.linalg.norm(points_test,axis=1)[:,np.newaxis]
+        else:
+            points_data_normed = None
+            points_test_normed = None
         
         if patience is None:
             if early_stopping:
@@ -332,15 +351,19 @@ class BaseMixture():
                               'Set the patience parameter to 0 to not see this '
                               'message again')
             patience = 0
-            iter_patience = 0
 
         #Initialization
         if self.init=='user' and self._is_initialized == False:
             warnings.warn('The system is going to be initialized')
         
         if self.init !='user' or self._is_initialized==False:
-            self._initialize(points_data,points_test)
+            self._initialize(points_data,points_test,distances)
             self.iter = 0
+        
+        if self.iter!=0:
+            log_iter = int(np.log(self.iter)/np.log(2)) + 1
+        else:
+            log_iter = 0
         
         #Saving the initialization
         if saving is not None:
@@ -351,9 +374,9 @@ class BaseMixture():
         
         while resume_iter:
             #EM algorithm
-            log_prob_norm_data,log_resp_data = self._step_E(points_data)
+            log_prob_norm_data,log_resp_data = self._step_E(points_data,points_data_normed,distances)
             if early_stopping:
-                log_prob_norm_test,log_resp_test = self._step_E(points_test)
+                log_prob_norm_test,log_resp_test = self._step_E(points_test,points_test_normed,distances)
                 
             self._step_M(points_data,log_resp_data)
             
@@ -369,6 +392,8 @@ class BaseMixture():
                 criterion = self.convergence_criterion_data
                 norm = len(points_data)
                 
+            self.iter+=1
+                
             #Computation of resume_iter
             if first_iter:
                 resume_iter = True
@@ -381,14 +406,14 @@ class BaseMixture():
                 resume_iter = False
             
             else:
-                diff = criterion[self.iter] - criterion[self.iter-1]
+                diff = criterion[iter_algo] - criterion[iter_algo-1]
                 diff /= norm
                 if diff < tol:
                     resume_iter = iter_patience < patience
                     iter_patience += 1
             
             # Keep the best parameters
-            if criterion[self.iter] > best_criterion:
+            if criterion[iter_algo] > best_criterion:
                 best_params = self._get_parameters()
                 
             #Saving the model
@@ -399,14 +424,14 @@ class BaseMixture():
                 self.write(grp)
                 file.close()
                 
-            elif saving=='log' and self.iter == 2**log_iter:
+            elif saving=='log' and self.iter >= 2**log_iter:
                 file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
                 grp = file.create_group('log_iter' + str(log_iter))
                 self.write(grp)
                 file.close()
                 log_iter +=1
-            
-            self.iter+=1
+        
+            iter_algo += 1
         
         print("Number of iterations :", self.iter)
     
@@ -478,6 +503,7 @@ class BaseMixture():
         group['cov'][...] = self.cov
         group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
         group['log_weights'][...] = self.log_weights
+        group.attrs['iter'] = self.iter
         
         if self.name in ['VBGMM','DPGMM']:
             initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
@@ -502,6 +528,7 @@ class BaseMixture():
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
         self.log_weights = np.asarray(group['log_weights'].value)
+        self.iter = 4
         
         n_components = len(self.means)
         if n_components != self.n_components:

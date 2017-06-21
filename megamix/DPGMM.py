@@ -148,6 +148,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         self.reg_covar = reg_covar
         
         self.alpha_0 = alpha_0
+        self.alpha_1 = 1.0
         self.beta_0 = beta_0
         self.nu_0 = nu_0
         self._means_prior = means_prior
@@ -174,7 +175,7 @@ class DPVariationalGaussianMixture(BaseMixture):
                              "['random','plus','kmeans','AF_KMC','GMM','VBGMM']"
                              % self.init)
           
-    def _initialize(self,points_data,points_test=None):
+    def _initialize(self,points_data,points_test=None,distances='euclidean'):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other specific parameters (alpha, beta, nu)
@@ -193,7 +194,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._check_prior_parameters(points_data)
 		
         if self.type_init == 'resp':
-            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,distances)
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
             self.cov = np.empty((self.n_components,dim,dim))
@@ -203,7 +204,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         elif self.type_init == 'mcw':
             #Means, covariances and weights
-            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,distances)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -211,7 +212,7 @@ class DPVariationalGaussianMixture(BaseMixture):
             # Hyper parameters
             N = np.exp(log_weights) * n_points
             self.alpha = np.asarray([1 + N,
-                          self.alpha_0 + np.hstack((np.cumsum(N[::-1])[-2::-1], 0))])
+                          self.alpha_0 + np.hstack((np.cumsum(N[::-1])[-2::-1], 0))]).T
             self.beta = self.beta_0 + N
             self.nu = self.nu_0 + N
             
@@ -236,7 +237,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._is_initialized = True
 
         
-    def _step_E(self, points):
+    def _step_E(self, points, points_normed=None,distances='euclidean'):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -256,7 +257,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         n_points,dim = points.shape
         log_resp = np.zeros((n_points,self.n_components))
         
-        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs)
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs,points_normed,distances)
         digamma_sum = np.sum(psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
@@ -291,7 +292,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         S = _full_covariance_matrices(points,X_barre,N,resp,self.reg_covar,self.n_jobs)
         
         #Parameters update
-        self.alpha = np.asarray([1 + N,
+        self.alpha = np.asarray([self.alpha_1 + N,
                                   self.alpha_0 + np.hstack((np.cumsum(N[::-1])[-2::-1], 0))]).T
         self.beta = self.beta_0 + N
         self.nu = self.nu_0 + N
@@ -408,7 +409,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         for i in range(self.n_components):
             
-            digamma_sum = np.sum(psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
+            digamma_sum = np.sum(psi(.5 * (self.nu[i] - np.arange(0, dim)[:,np.newaxis])),0)
             log_det_prec_i = digamma_sum + dim * np.log(2) - self._log_det_inv_prec[i] #/!\ Inverse
             
             #First line
@@ -434,7 +435,7 @@ class DPVariationalGaussianMixture(BaseMixture):
             lower_bound[i] += -0.5*self.nu[i]*np.trace(np.dot(self._inv_prec_prior,prec[i]))
             
             #Terms with alpha
-            lower_bound[i] += (N[i] + 1 - self.alpha[i,0]) * (psi(self.alpha[i,0]) - psi(np.sum(self.alpha[i])))
+            lower_bound[i] += (N[i] + self.alpha_1 - self.alpha[i,0]) * (psi(self.alpha[i,0]) - psi(np.sum(self.alpha[i])))
             lower_bound[i] += (np.sum(N[i+1::]) + self.alpha_0 - self.alpha[i,1]) * (psi(self.alpha[i,1]) - psi(np.sum(self.alpha[i])))
         
         result = np.sum(lower_bound)
@@ -474,25 +475,15 @@ class DPVariationalGaussianMixture(BaseMixture):
                 if np.argmax(log_resp[i])==j:
                     exist[j] = 1
         
-        existing_clusters = int(np.sum(exist))
-        log_weights = np.zeros(existing_clusters)
-        means = np.zeros((existing_clusters,dim))
-        cov = np.zeros((existing_clusters,dim,dim))
-        alpha = np.zeros((existing_clusters,2))
-        beta = np.zeros(existing_clusters)
-        nu = np.zeros(existing_clusters)
+        idx_existing = np.where(exist==1)
         
-        idx_result = 0
-        for i in range(n_components):
-            if exist[i] == 1:
-                log_weights[idx_result] = self.log_weights[i]
-                means[idx_result] = self.means[i]
-                cov[idx_result] = self.cov[i]
-                alpha[idx_result] = self.alpha[i]
-                beta[idx_result] = self.beta[i]
-                nu[idx_result] = self.nu[i]
-                idx_result += 1
-                
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+        cov = self.cov[idx_existing]
+        alpha = self.alpha[idx_existing]
+        beta = self.beta[idx_existing]
+        nu = self.nu[idx_existing]
+        
         params = (log_weights, means, cov,
                   alpha, beta, nu)
         
