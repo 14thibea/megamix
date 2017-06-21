@@ -13,7 +13,7 @@ Kmeans
 Gaussian Mixture Model (GMM)
 ============================
 
-.. automodule:: megamix.GMM
+.. automodule:: megamix.GaussianMixture
     :members:
     :undoc-members:
     :show-inheritance:
