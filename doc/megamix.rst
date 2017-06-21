@@ -24,6 +24,7 @@ Variational Gaussian Mixture Model (VBGMM)
 
 .. automodule:: megamix.VBGMM
     :members:
+	:inherited-members:
     :undoc-members:
     :show-inheritance:
 
@@ -32,5 +33,6 @@ Dirichlet Process Gaussian Mixture Model (DPGMM)
 
 .. automodule:: megamix.DPGMM
     :members:
+	:inherited-members:
     :undoc-members:
     :show-inheritance:
