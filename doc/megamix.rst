@@ -14,7 +14,8 @@ Gaussian Mixture Model (GMM)
 ============================
 
 .. autoclass:: megamix.GaussianMixture
-    :members: fit
+    :members:
+	:inherited-members:
     :undoc-members:
     :show-inheritance:
 	
