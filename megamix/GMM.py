@@ -115,7 +115,7 @@ class GaussianMixture(BaseMixture):
                              "['full', 'spherical']"
                              % self.covariance_type)
             
-    def _initialize(self,points_data,points_test=None):
+    def _initialize(self,points_data,points_test=None,distances='euclidean'):
         """
         This method initializes the Gaussian Mixture by setting the values of
         the means, covariances and weights.
@@ -130,10 +130,12 @@ class GaussianMixture(BaseMixture):
         """
         
         if self.type_init=='resp':
-            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,
+                                                           self.covariance_type,distances=distances)
             self._step_M(points_data,log_assignements)
         elif self.type_init=='mcw':
-            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,self.covariance_type)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,
+                                                   self.covariance_type,distances=distances)
             self.means = means
             self.cov = cov
             self.log_weights = log_weights

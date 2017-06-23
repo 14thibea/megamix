@@ -176,7 +176,7 @@ class VariationalGaussianMixture(BaseMixture):
                              "['random', 'plus', 'kmeans','AF_KMC','GMM']"
                              % self.init)
             
-    def _initialize(self,points_data,points_test=None):
+    def _initialize(self,points_data,points_test=None,distances='euclidean'):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other specific parameters (alpha, beta, nu)
@@ -195,7 +195,8 @@ class VariationalGaussianMixture(BaseMixture):
         self._check_prior_parameters(points_data)
         
         if self.type_init=='resp':
-            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,
+                                                           points_test,distances=distances)
             
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
@@ -204,7 +205,8 @@ class VariationalGaussianMixture(BaseMixture):
             
         elif self.type_init=='mcw':
             # Means, covariances and weights
-            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,
+                                                   points_test,distances=distances)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights

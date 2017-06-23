@@ -12,6 +12,7 @@ from scipy.special import gammaln
 import os
 import warnings
 import h5py
+import time
 
 def _full_covariance_matrix(points,mean,weight,resp,reg_covar):
     """
@@ -280,7 +281,7 @@ class BaseMixture():
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            legend='',distances='euclidean'):
+            legend="",distances='euclidean'):
         """The EM algorithm
         
         Parameters
@@ -324,7 +325,6 @@ class BaseMixture():
         None
         
         """
-        
         
         if directory==None:
             directory = os.getcwd()
@@ -415,6 +415,7 @@ class BaseMixture():
             # Keep the best parameters
             if criterion[iter_algo] > best_criterion:
                 best_params = self._get_parameters()
+                best_criterion = criterion[iter_algo]
                 
             #Saving the model
             if saving is not None and resume_iter == False:
@@ -504,6 +505,7 @@ class BaseMixture():
         group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
         group['log_weights'][...] = self.log_weights
         group.attrs['iter'] = self.iter
+        group.attrs['time'] = time.time()
         
         if self.name in ['VBGMM','DPGMM']:
             initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
@@ -528,7 +530,7 @@ class BaseMixture():
         self.means = np.asarray(group['means'].value)
         self.cov = np.asarray(group['cov'].value)
         self.log_weights = np.asarray(group['log_weights'].value)
-        self.iter = 4
+        self.iter = group.attrs['iter']
         
         n_components = len(self.means)
         if n_components != self.n_components:

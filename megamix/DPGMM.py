@@ -134,9 +134,9 @@ class DPVariationalGaussianMixture(BaseMixture):
  
     """
     
-    def __init__(self, n_components=1,init="VBGMM",alpha_0=None,reg_covar=1e-6,\
-                 beta_0=None,nu_0=None,means_prior=None,cov_wishart_prior=None,
-                 patience=0,type_init='resp',n_jobs=1):
+    def __init__(self, n_components=1,init="VBGMM",alpha_0=None,beta_0=None,
+                 nu_0=None,means_prior=None,cov_wishart_prior=None,
+                 reg_covar=1e-6,type_init='resp',n_jobs=1):
         
         super(DPVariationalGaussianMixture, self).__init__()
         
@@ -194,7 +194,8 @@ class DPVariationalGaussianMixture(BaseMixture):
         self._check_prior_parameters(points_data)
 		
         if self.type_init == 'resp':
-            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,distances)
+            log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,
+                                                           points_test,distances=distances)
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
             self.cov = np.empty((self.n_components,dim,dim))
@@ -204,7 +205,8 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         elif self.type_init == 'mcw':
             #Means, covariances and weights
-            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,distances)
+            means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,
+                                                   points_test,distances=distances)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -225,7 +227,7 @@ class DPVariationalGaussianMixture(BaseMixture):
             # Hyper parameters
             N = np.exp(self.log_weights) * n_points
             self.alpha = np.asarray([1 + N,
-                          self.alpha_0 + np.hstack((np.cumsum(N[::-1])[-2::-1], 0))])
+                          self.alpha_0 + np.hstack((np.cumsum(N[::-1])[-2::-1], 0))]).T
             self.beta = self.beta_0 + N
             self.nu = self.nu_0 + N
             
