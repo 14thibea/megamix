@@ -38,8 +38,7 @@ What will you be able to do ?
 -----------------------------
 
 The main idea of clustering algorithms is to create groups by gathering points that are close to each other.
-
-A cluster (a group) will have three main parameters:
+A cluster will have three main parameters:
 
 * A mean : the mean of all the points that belong to the cluster
 * A weight : the number of points that belong to the cluster
@@ -50,17 +49,30 @@ A cluster (a group) will have three main parameters:
     :align: center
     :height: 200px
     :alt: a GMM fit on a set of points
-	A graphical example of a gaussian mixture model
+    A graphical example of a gaussian mixture model
 
 How do the algorithms work ?
 ----------------------------
 
-The algorithms alternate between two steps, the E step (Expectation) and the M step (Maximisation).
-During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'.
+After the initialisation, the algorithms alternate between two steps, the E step (Expectation) and the M step (Maximisation).
+During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column corresponds the probability of the ith point to belong to the jth cluster.
 
 .. note::
 
     This is not the case with K-means where we are not working with probabilities but with labels. A point belongs completely to a cluster or doesn't belong to it (this is called hard assignement).
+
+Then during the M step, the algorithm will re-estimate the parameters of the model in order to maximize a convergence criterion.
+Finally the algorithm will stop if the difference between the value of the convergence criterion of the current and the previous is less than a threshold fixed by the user.
+
+This is summarized in the following pseudo-code:
+
+    initialize(points)
+    while(cc-cc_previous > tol):
+        cc_previous = cc
+        responsabilities = E_step(points,parameters)
+        parameters = M_step(responsabilities,points)
+        cc = convergence_criterion(points,responsabilities,parameters)
+		
 
 Basic usage
 ===========
