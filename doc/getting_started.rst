@@ -69,8 +69,8 @@ of this array corresponds the probability of the ith point to belong to the jth 
 
 Here is an example that could be obtained with 6 points and 2 clusters :
 
-            +-----------+-----------+
-            | Cluster 1 | Cluster 2 |
++-----------+-----------+-----------+
+|           | Cluster 1 | Cluster 2 |
 +===========+===========+===========+
 |  point 1  |   0.54    |   0.46    |
 +-----------+-----------+-----------+
