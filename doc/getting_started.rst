@@ -26,8 +26,10 @@ MeGaMix relies on external dependencies. The setup script should install them au
 Description
 ===========
 
-The MeGaMix package (Methods for Gaussian Mixtures) allows Python developpers to fit different kind of models on their data.
-The different models are clustering methods of unsupervised machine learning. Four models have been implemented, from the most simple to the most complex:
+The MeGaMix package (Methods for Gaussian Mixtures) allows Python developpers to fit different kind
+of models on their data.
+The different models are clustering methods of unsupervised machine learning. Four models have
+been implemented, from the most simple to the most complex:
 
 * K-means
 * GMM (Gaussian Mixture Model)
@@ -37,7 +39,9 @@ The different models are clustering methods of unsupervised machine learning. Fo
 What will you be able to do ?
 -----------------------------
 
-The main idea of clustering algorithms is to create groups by gathering points that are close to each other.
+The main idea of clustering algorithms is to create groups by gathering points that are close
+to each other.
+
 A cluster will have three main parameters:
 
 * A mean : the mean of all the points that belong to the cluster
@@ -56,8 +60,13 @@ A cluster will have three main parameters:
 How do the algorithms work ?
 ----------------------------
 
-After the initialisation, the algorithms alternate between two steps, the E step (Expectation) and the M step (Maximisation).
-During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column of this array corresponds the probability of the ith point to belong to the jth cluster.
+After the initialisation, the algorithms alternate between two steps, the E step (Expectation)
+and the M step (Maximisation).
+
+During the *E step*, the algorithm will compute the probability for each point to belong to
+each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column
+of this array corresponds the probability of the ith point to belong to the jth cluster.
+
 Here is an example that could be obtained with 6 points and 2 clusters :
 
             +-----------+-----------+
@@ -78,12 +87,19 @@ Here is an example that could be obtained with 6 points and 2 clusters :
 
 .. note::
 
-    This is not the case with K-means where we are not working with probabilities but with labels. A point belongs completely to a cluster or doesn't belong to it (this is called hard assignement).
+    This is not the case with K-means where we are not working with probabilities but
+    with labels. A point belongs completely to a cluster or doesn't belong to it (this
+    is called hard assignement).
 
-Then during the M step, the algorithm will re-estimate the parameters of the model in order to maximize a convergence criterion.
-Finally the algorithm will stop if the difference between the value of the convergence criterion of the current and the previous is less than a threshold fixed by the user.
+Then during the *M step*, the algorithm will re-estimate the parameters of the model
+in order to maximize a convergence criterion.
+
+Finally the algorithm will stop if the difference between the value of the convergence
+criterion of the current and the previous is less than a threshold fixed by the user.
 
 This is summarized in the following pseudo-code:
+
+.. code-block::python
 
     initialize(points)
     while(cc-cc_previous > tol):
