@@ -355,10 +355,10 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
     
     # Warning : the algorithm is very sensitive to these first covariances given
     if covariance_type == "full":
-        cov_init = np.cov(points_data.T) / n_components**2
+        cov_init = np.cov(points_data.T)
         cov = np.tile(cov_init, (n_components,1,1))
     elif covariance_type == "spherical":
-        cov_init = np.var(points_data, axis=0, ddof=1).mean() / n_components**2
+        cov_init = np.var(points_data, axis=0, ddof=1).mean()
         cov = cov_init * np.ones(n_components)
     
     if (init == "random"):
