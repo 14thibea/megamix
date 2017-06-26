@@ -49,13 +49,32 @@ A cluster will have three main parameters:
     :align: center
     :height: 200px
     :alt: a GMM fit on a set of points
+    :figclass: align-center
+
     A graphical example of a gaussian mixture model
 
 How do the algorithms work ?
 ----------------------------
 
 After the initialisation, the algorithms alternate between two steps, the E step (Expectation) and the M step (Maximisation).
-During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column corresponds the probability of the ith point to belong to the jth cluster.
+During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column of this array corresponds the probability of the ith point to belong to the jth cluster.
+Here is an example that could be obtained with 6 points and 2 clusters :
+
++-----------+-----------+-----------+
+|           | Cluster 1 | Cluster 2 |
++===========+===========+===========+
+|  point 1  |   0.54    |   0.46    |
++-----------+-----------+-----------+
+|  point 2  |   0.89    |   0.11    |
++-----------+-----------+-----------+
+|  point 3  |   0.27    |   0.73    |
++-----------+-----------+-----------+
+|  point 4  |   0.01    |   0.99    |
++-----------+-----------+-----------+
+|  point 5  |   0.42    |   0.58    |
++-----------+-----------+-----------+
+|  point 6  |   0.84    |   0.16    |
++-----------+-----------+-----------+
 
 .. note::
 
