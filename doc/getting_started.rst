@@ -12,6 +12,7 @@ The package is registered on PyPI. It can be installed with the following comman
 If you want to install it manually, you can find the source code at https://github.com/14thibea/Stage_ENS.
 
 MeGaMix relies on external dependencies. The setup script should install them automatically, but you may want to install them manually. The required packages are:
+
 * NumPy 1.11.3 or newer
 * scipy 0.18.1 or newer
 * h5py 2.6.0 or newer
@@ -26,7 +27,8 @@ Description
 ===========
 
 The MeGaMix package (Methods for Gaussian Mixtures) allows Python developpers to fit different kind of models on their data.
-The different models are clustering methods of unsupervised machine learning. Four models have been implemented, from the most simple to the most complex :
+The different models are clustering methods of unsupervised machine learning. Four models have been implemented, from the most simple to the most complex:
+
 * K-means
 * GMM (Gaussian Mixture Model)
 * VBGMM (Variational Bayesian Gaussian Mixture Model)
@@ -37,12 +39,17 @@ Fundamentals about the theory
 
 The main idea of clustering algorithms is to create groups by gathering points that are close to each other.
 
-A cluster (a group) will have three main parameters :
+A cluster (a group) will have three main parameters:
+
 * A mean : the mean of all the points that belong to the cluster
 * A weight : the number of points that belong to the cluster
 * A covariance (except for K-means) : an matrix which specifies the form of the cluster
 
-
+.. image:: example_theory.png
+    :width: 400px
+    :align: center
+    :height: 200px
+    :alt: a GMM fit on a set of points
 
 
 Basic usage
