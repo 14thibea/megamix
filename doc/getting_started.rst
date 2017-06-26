@@ -60,8 +60,8 @@ After the initialisation, the algorithms alternate between two steps, the E step
 During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column of this array corresponds the probability of the ith point to belong to the jth cluster.
 Here is an example that could be obtained with 6 points and 2 clusters :
 
-+-----------+-----------+-----------+
-|           | Cluster 1 | Cluster 2 |
+            +-----------+-----------+
+            | Cluster 1 | Cluster 2 |
 +===========+===========+===========+
 |  point 1  |   0.54    |   0.46    |
 +-----------+-----------+-----------+
