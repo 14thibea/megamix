@@ -34,7 +34,7 @@ The different models are clustering methods of unsupervised machine learning. Fo
 * VBGMM (Variational Bayesian Gaussian Mixture Model)
 * DP-VBGMM (Dirichlet Process on Variational Bayesian Gaussian Mixture Model)
 
-Fundamentals about the theory
+What will you be able to do ?
 -----------------------------
 
 The main idea of clustering algorithms is to create groups by gathering points that are close to each other.
@@ -45,12 +45,22 @@ A cluster (a group) will have three main parameters:
 * A weight : the number of points that belong to the cluster
 * A covariance (except for K-means) : an matrix which specifies the form of the cluster
 
-.. image:: example_theory.png
+.. figure:: example_theory.png
     :width: 400px
     :align: center
     :height: 200px
     :alt: a GMM fit on a set of points
+	A graphical example of a gaussian mixture model
 
+How do the algorithms work ?
+----------------------------
+
+The algorithms alternate between two steps, the E step (Expectation) and the M step (Maximisation).
+During the E step, the algorithm will compute the probability for each point to belong to each cluster. It will produce an array of 'responsibilities'.
+
+.. note::
+
+    This is not the case with K-means where we are not working with probabilities but with labels. A point belongs completely to a cluster or doesn't belong to it (this is called hard assignement).
 
 Basic usage
 ===========
