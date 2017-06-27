@@ -28,8 +28,7 @@ Or you can install it with pip::
 Documentation
 -------------
 
-See the complete documentation `online
-  <http://stage-ens.readthedocs.io/en/latest/index.html>`_
+See the complete documentation `online <http://stage-ens.readthedocs.io/en/latest/index.html>`_
 
 
 Test
