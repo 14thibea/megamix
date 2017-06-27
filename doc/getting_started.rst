@@ -99,8 +99,7 @@ Finally the algorithm will stop if the difference between the value of the conve
 criterion of the current and the previous is less than a threshold fixed by the user.
 
 This is summarized in the following pseudo-code:
-
-.. code-block::python
+::
     
     initialize(points)
     while(cc-cc_previous > tol):
