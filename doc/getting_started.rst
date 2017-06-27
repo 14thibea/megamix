@@ -114,5 +114,4 @@ Basic usage
 ===========
 
 .. literalinclude:: example.py
-    :linenos:
     :language: python
