@@ -21,8 +21,7 @@ MeGaMix relies on external dependencies. The setup script should install them au
 
 .. note::
     
-	Scikit-learn is being used for only one function in the K-means algorithm and this
-    latter will be replaced soon to avoid this dependency.
+	Scikit-learn is being used for only one function in the K-means algorithm and this latter will be replaced soon to avoid this dependency.
 
 Description
 ===========

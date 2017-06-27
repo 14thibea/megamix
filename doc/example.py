@@ -34,9 +34,10 @@ n_components = 100
 # The model is created
 GM = DPVariationalGaussianMixture(n_components)
 
+# The model
 
 ##########################
-# Analyse of the model
+# Analysis of the model
 ##########################
 
 
