@@ -113,5 +113,6 @@ This is summarized in the following pseudo-code:
 Basic usage
 ===========
 
-.. include:: example.py
-    :code: python
+.. literalinclude:: example.py
+    :linenos:
+    :language: python
