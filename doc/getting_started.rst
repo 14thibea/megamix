@@ -85,6 +85,7 @@ Here is an example of responsibilities that could be obtained with 6 points and 
 +-----------+-----------+-----------+
 |  point 6  |   0.84    |   0.16    |
 +-----------+-----------+-----------+
+*In this example, the first point has a 54% chance to belong to the first cluster and 46% chance to belong to the second cluster.*
 
 .. note::
 
