@@ -135,7 +135,7 @@ class VariationalGaussianMixture(BaseMixture):
  
     """
 
-    def __init__(self, n_components=1,init="GMM",alpha_0=None,beta_0=None,
+    def __init__(self, n_components=1,init="kmeans",alpha_0=None,beta_0=None,
                  nu_0=None,means_prior=None,cov_wishart_prior=None,
                  reg_covar=1e-6,type_init='resp',n_jobs=1):
         
