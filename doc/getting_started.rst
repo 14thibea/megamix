@@ -21,7 +21,8 @@ MeGaMix relies on external dependencies. The setup script should install them au
 
 .. note::
     
-	Scikit-learn is being used for only one function in the K-means algorithm which will be replaced soon to avoid this dependency.
+	Scikit-learn is being used for only one function in the K-means algorithm and this latter
+    will be replaced soon to avoid this dependency.
 	
 Description
 ===========
@@ -55,7 +56,7 @@ A cluster will have three main parameters:
     :alt: a GMM fit on a set of points
     :figclass: align-center
 
-    A graphical example of a gaussian mixture model
+    A graphical example of a gaussian mixture model fit on a set of points
 
 How do the algorithms work ?
 ----------------------------
@@ -63,11 +64,11 @@ How do the algorithms work ?
 After the initialisation, the algorithms alternate between two steps, the E step (Expectation)
 and the M step (Maximisation).
 
-During the *E step*, the algorithm will compute the probability for each point to belong to
-each cluster. It will produce an array of 'responsibilities'. At the ith row and the jth column
+During the **E step**, the algorithm will compute the probability for each point to belong to
+each cluster. It will produce an array of *responsibilities*. At the ith row and the jth column
 of this array corresponds the probability of the ith point to belong to the jth cluster.
 
-Here is an example that could be obtained with 6 points and 2 clusters :
+Here is an example of responsibilities that could be obtained with 6 points and 2 clusters :
 
 +-----------+-----------+-----------+
 |           | Cluster 1 | Cluster 2 |
@@ -91,7 +92,7 @@ Here is an example that could be obtained with 6 points and 2 clusters :
     with labels. A point belongs completely to a cluster or doesn't belong to it (this
     is called hard assignement).
 
-Then during the *M step*, the algorithm will re-estimate the parameters of the model
+Then during the **M step**, the algorithm will re-estimate the parameters of the model
 in order to maximize a convergence criterion.
 
 Finally the algorithm will stop if the difference between the value of the convergence
@@ -100,7 +101,7 @@ criterion of the current and the previous is less than a threshold fixed by the 
 This is summarized in the following pseudo-code:
 
 .. code-block::python
-
+    
     initialize(points)
     while(cc-cc_previous > tol):
         cc_previous = cc
