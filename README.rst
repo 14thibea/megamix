@@ -29,7 +29,7 @@ Documentation
 -------------
 
 See the complete documentation `online
-  <https://readthedocs.org/projects/stage-ens/>`_
+  <http://stage-ens.readthedocs.io/en/latest/index.html>`_
 
 
 Test
