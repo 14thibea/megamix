@@ -22,7 +22,7 @@ installed by the setup script). Install it with::
 
 Or you can install it with pip::
 
-  $ pip install h5features
+  $ pip install megamix
 
 
 Documentation
