@@ -115,4 +115,4 @@ Basic usage
 ===========
 
 .. include:: example.py
-   :code: python
+    :code: python
