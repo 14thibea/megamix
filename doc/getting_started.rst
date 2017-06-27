@@ -21,9 +21,9 @@ MeGaMix relies on external dependencies. The setup script should install them au
 
 .. note::
     
-	Scikit-learn is being used for only one function in the K-means algorithm and this latter
-    will be replaced soon to avoid this dependency.
-	
+	Scikit-learn is being used for only one function in the K-means algorithm and this
+    latter will be replaced soon to avoid this dependency.
+
 Description
 ===========
 
@@ -85,6 +85,7 @@ Here is an example of responsibilities that could be obtained with 6 points and 
 +-----------+-----------+-----------+
 |  point 6  |   0.84    |   0.16    |
 +-----------+-----------+-----------+
+
 *In this example, the first point has a 54% chance to belong to the first cluster and 46% chance to belong to the second cluster.*
 
 .. note::
@@ -113,5 +114,5 @@ This is summarized in the following pseudo-code:
 Basic usage
 ===========
 
-.. include:: exemple.py
+.. include:: example.py
    :code: python
