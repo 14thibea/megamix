@@ -359,6 +359,9 @@ class BaseMixture():
         if self.init !='user' or self._is_initialized==False:
             self._initialize(points_data,points_test,distances)
             self.iter = 0
+            
+        self.convergence_criterion_data = []
+        self.convergence_criterion_test = []
         
         if self.iter!=0:
             log_iter = int(np.log(self.iter)/np.log(2)) + 1
