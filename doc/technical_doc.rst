@@ -30,7 +30,7 @@ The algorithm produces a matrix of responsibilities according to the following e
   r_{nk} =
   \left\{
     \begin{split}
-    1 \\ 
+    1\\ 
     0 \otherwise
     \end{split}
   \right.
