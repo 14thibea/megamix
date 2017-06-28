@@ -29,15 +29,27 @@ The algorithm produces a matrix of responsibilities according to the following e
 
   r_{nk} = \left\{
     \begin{split}
-    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}||x_i-c_j||_2^2 \\
+    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}||x_i-c_j||^2 \\
     & 0 \text{ otherwise}
     \end{split}
   \right.
 
-The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point belong to the :math:`j^{th}` cluster and 0 otherwise
+The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point belongs to the :math:`j^{th}` cluster and 0 otherwise
 
 M step
 ******
+
+The mean of a cluster is simply the mean of all the points belonging to this latter:
+
+.. math::
+
+  \mu_{k} = \frac{\sum^N_{n=1}r_{nk}x_n}{\sum^N_{n=1}r_{nk}}
+  
+The weight of the cluster k can be expressed as:
+
+.. math::
+
+  \pi_{k} = \sum^N_{n=1}r_{nk}
 
 Convergence criterion
 *********************
