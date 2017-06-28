@@ -23,6 +23,14 @@ An iteration of K-means includes:
 E step
 ******
 
+..math::
+  \left\{
+    \begin{split}
+    gnagna\\ 
+    gnogno
+    \end{split}
+  \right.
+
 M step
 ******
 
