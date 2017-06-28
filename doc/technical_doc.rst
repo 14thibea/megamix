@@ -1,7 +1,7 @@
 Theory of Gaussian Mixture models
 =================================
 
-In this part are detailed the equation used each algorithm.
+In this part are detailed the equation used in each algorithm.
 
 K-means
 -------
