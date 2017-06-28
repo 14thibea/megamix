@@ -23,7 +23,7 @@ An iteration of K-means includes:
 E step
 ******
 
-..math::
+.. math::
   \left\{
     \begin{split}
     gnagna\\ 
