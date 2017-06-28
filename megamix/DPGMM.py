@@ -34,7 +34,7 @@ class DPVariationalGaussianMixture(BaseMixture):
     
     init : str, defaults to 'kmeans'.
         Method used in order to perform the initialization,
-        must be in ['random','plus','AF_KMC','kmeans','GMM'].
+        must be in ['random', 'plus', 'AF_KMC', 'kmeans', 'GMM', 'VBGMM'].
 
     reg_covar : float, defaults to 1e-6
         In order to avoid null covariances this float is added to the diagonal

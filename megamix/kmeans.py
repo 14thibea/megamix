@@ -37,7 +37,7 @@ class Kmeans():
     
     init : str, defaults to 'kmeans'.
         Method used in order to perform the initialization,
-        must be in ['random','plus','AF_KMC'].
+        must be in ['random', 'plus', 'AF_KMC'].
 
     Attributes
     ----------
