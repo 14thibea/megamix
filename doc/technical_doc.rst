@@ -27,11 +27,7 @@ The algorithm produces a matrix of responsibilities according to the following e
 
 .. math::
 
-  \usepackage{amsmath}
-  \DeclareMathOperator{\otherwise}{otherwise}
-  
-  r_{nk} =
-  \left\{
+  r_{nk} = \left\{
     \begin{split}
     1 if k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||_2^2 \\
     0
