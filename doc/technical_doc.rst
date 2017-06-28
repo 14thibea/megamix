@@ -5,9 +5,9 @@ In this part are detailed the equations used in each algorithm.
 We use the same notations as Bishop's *Pattern Recognition and Machine Learning* :
 
 * :math:`\{x_1,x_2,...,x_N\}` is the set of points
-* :math:`\mu_k` is the center of the :math:`k^th` cluster
-* :math:`\pi_k` is the weight of the :math:`k^th` cluster
-* :math:`\Sigma_k` is the covariance matrix of the :math:`k^th` cluster
+* :math:`\mu_k` is the center of the :math:`k^{th}` cluster
+* :math:`\pi_k` is the weight of the :math:`k^{th}` cluster
+* :math:`\Sigma_k` is the covariance matrix of the :math:`k^{th}` cluster
 
 Other notations specific to the methods will be introduced later.
 
@@ -30,12 +30,12 @@ The algorithm produces a matrix of responsibilities according to the following e
   r_{nk} =
   \left\{
     \begin{split}
-    1 if k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||^2 \\ 
-    0 otherwise
+    1 \if k = \arg\min_{1<=j<=k}||x_i-c_j||^2 \\ 
+    0 \otherwise
     \end{split}
   \right.
 
-The value of the case at the :math:`i^th` row and :math:`j^th` column is 1 if the :math:`i^th` point belong to the :math:`j^th` cluster and 0 otherwise
+The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point belong to the :math:`j^{th}` cluster and 0 otherwise
 
 M step
 ******
