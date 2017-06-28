@@ -25,7 +25,7 @@ K-means
 An iteration of K-means includes:
 
 * The *E step* : a label is assigned to each point (hard assignement) arcording to the means.
-* The *M step* : means are computed are computed arcording to the parameters.
+* The *M step* : means are computed according to the parameters.
 * The computation of the *convergence criterion* : the algorithm uses the distortion as described below.
 
 E step
@@ -37,7 +37,7 @@ The algorithm produces a matrix of responsibilities according to the following e
 
   r_{nk} = \left\{
     \begin{split}
-    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert{x_n-\mu_j\}rVert^2 \\
+    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVertx_n-\mu_j\rVert^2 \\
     & 0 \text{ otherwise}
     \end{split}
   \right.
@@ -80,6 +80,12 @@ the value of the convergence criterion at the previous iteration and the current
 
 Gaussian Mixture Model (GMM)
 ----------------------------
+
+An iteration of GMM includes:
+
+* The *E step* : :math:`K` probabilities of belonging to each cluster are assigned to each point
+* The *M step* : weights, means and covariances are computed  according to the parameters.
+* The computation of the *convergence criterion* : the algorithm uses the loglikelihood as described below.
 
 E step
 ******
