@@ -37,7 +37,7 @@ The algorithm produces a matrix of responsibilities according to the following e
 
   r_{nk} = \left\{
     \begin{split}
-    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVertx_n-\mu_j\rVert^2 \\
+    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
     & 0 \text{ otherwise}
     \end{split}
   \right.
