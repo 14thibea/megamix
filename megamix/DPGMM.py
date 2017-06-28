@@ -23,8 +23,7 @@ class DPVariationalGaussianMixture(BaseMixture):
     This class allows to infer an approximate posterior distribution over the
     parameters of a Gaussian mixture distribution.
     
-    The weights distribution is a Dirichlet distribution with attribute alpha
-    (see Bishop's book p474-486)
+    The weights distribution follows a Dirichlet Process with attribute alpha.
     
     Parameters
     ----------

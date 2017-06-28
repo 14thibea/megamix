@@ -13,4 +13,5 @@ Welcome to MeGaMix's documentation!
    
    getting_started
    megamix
+   technical_doc
 
