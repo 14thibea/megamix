@@ -27,11 +27,12 @@ The algorithm produces a matrix of responsibilities according to the following e
 
 .. math::
 
-  r_{nk} = \{
+  r_{nk} = \left\{
     \begin{split}
-    1 if k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||_2^2 \\
-    0
+    1 \text{if} k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||_2^2 \\
+    0 \text{otherwise}
     \end{split}
+  \right.
 
 The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point belong to the :math:`j^{th}` cluster and 0 otherwise
 
