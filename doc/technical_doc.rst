@@ -14,7 +14,7 @@ Other notations specific to the methods will be introduced later.
 K-means
 -------
 
-An iteration of K-means include:
+An iteration of K-means includes:
 
 * The *E step* : a label is assigned to each point (hard assignement) arcording to the means.
 * The *M step* : means are computed are computed arcording to the parameters.
