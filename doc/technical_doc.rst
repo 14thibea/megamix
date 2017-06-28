@@ -27,11 +27,14 @@ The algorithm produces a matrix of responsibilities according to the following e
 
 .. math::
 
+  \usepackage{amsmath}
+  \DeclareMathOperator{\otherwise}{otherwise}
+  
   r_{nk} =
   \left\{
     \begin{split}
     1\\ 
-    0 otherwise
+    0 \otherwise
     \end{split}
   \right.
 
