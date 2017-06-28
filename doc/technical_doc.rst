@@ -2,9 +2,14 @@ Theory of Gaussian Mixture models
 =================================
 
 In this part are detailed the equations used in each algorithm.
-We use the same notations as Bishop's *Pattern Recognition and Machine Learning* :
+We use the same notations as Bishop's *Pattern Recognition and Machine Learning*.
+
+Features:
 
 * :math:`\{x_1,x_2,...,x_N\}` is the set of points
+
+Parameters:
+
 * :math:`\mu_k` is the center of the :math:`k^{th}` cluster
 * :math:`\pi_k` is the weight of the :math:`k^{th}` cluster
 * :math:`\Sigma_k` is the covariance matrix of the :math:`k^{th}` cluster
@@ -64,6 +69,14 @@ and the mean of the cluster it is belonging to:
 .. math::
 
   D = \sum^N_{n=1}\sum^K_{k=1}r_{nk}||x_n-\mu_k||^2
+
+The distortion should only decrease during the execution of the algorithm. The model stops when the difference between
+the value of the convergence criterion at the previous iteration and the current iteration is less or equal to a threshold
+:math:`tol` :
+
+.. math::
+
+  D_previous - D_current \leq tol
 
 Gaussian Mixture Model (GMM)
 ----------------------------
