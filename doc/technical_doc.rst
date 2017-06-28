@@ -33,7 +33,7 @@ The algorithm produces a matrix of responsibilities according to the following e
   r_{nk} =
   \left\{
     \begin{split}
-    1 \if k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||_2^2 \\
+    1 if k = \arg\min_{j\in\{1,2,...,k\}}||x_i-c_j||_2^2 \\
     0
     \end{split}
   \right.
