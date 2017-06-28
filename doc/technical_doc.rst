@@ -15,6 +15,7 @@ K-means
 -------
 
 An iteration of K-means include:
+
 * The *E step* : a label is assigned to each point (hard assignement) arcording to the means.
 * The *M step* : means are computed are computed arcording to the parameters.
 * The computation of the *convergence criterion* : the algorithm uses the distortion as described below.
