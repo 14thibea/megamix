@@ -42,11 +42,11 @@ What will you be able to do ?
 The main idea of clustering algorithms is to create groups by gathering points that are close
 to each other.
 
-A cluster will have three main parameters:
+A cluster has three main parameters:
 
 * A mean : the mean of all the points that belong to the cluster
 * A weight : the number of points that belong to the cluster
-* A covariance (except for K-means) : an matrix which specifies the form of the cluster
+* A covariance (except for K-means) : a matrix which specifies the form of the cluster
 
 .. figure:: example_theory.png
     :width: 400px
@@ -63,8 +63,8 @@ How do the algorithms work ?
 After the initialisation, the algorithms alternate between two steps, the E step (Expectation)
 and the M step (Maximisation).
 
-During the **E step**, the algorithm will compute the probability for each point to belong to
-each cluster. It will produce an array of *responsibilities*. At the ith row and the jth column
+During the **E step**, the algorithm computes the probability for each point to belong to
+each cluster. It produces an array of *responsibilities*. At the ith row and the jth column
 of this array corresponds the probability of the ith point to belong to the jth cluster.
 
 Here is an example of responsibilities that could be obtained with 6 points and 2 clusters :
@@ -85,15 +85,15 @@ Here is an example of responsibilities that could be obtained with 6 points and 
 |  point 6  |   0.84    |   0.16    |
 +-----------+-----------+-----------+
 
-*In this example, the first point has a 54% chance to belong to the first cluster and 46% chance to belong to the second cluster.*
+*In this example, the first point has a 54% chance to belong to the first cluster and a 46% chance to belong to the second cluster.*
 
 .. note::
 
-    This is not the case with K-means where we are not working with probabilities but
+    This is not the case with K-means which is not working with probabilities but
     with labels. A point belongs completely to a cluster or doesn't belong to it (this
     is called hard assignement).
 
-Then during the **M step**, the algorithm will re-estimate the parameters of the model
+Then during the **M step**, the algorithm re-estimates the parameters of the model
 in order to maximize a convergence criterion.
 
 Finally the algorithm will stop if the difference between the value of the convergence
