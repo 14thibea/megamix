@@ -28,7 +28,7 @@ Or you can install it with pip::
 Documentation
 -------------
 
-See the complete documentation `online <https://readthedocs.org/projects/megamix/>`_
+See the complete documentation `online <http://megamix.readthedocs.io/en/latest/>`_
 
 
 Test
