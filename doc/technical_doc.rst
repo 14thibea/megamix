@@ -31,7 +31,7 @@ The algorithm produces a matrix of responsibilities according to the following e
   \left\{
     \begin{split}
     1\\ 
-    0 \otherwise
+    0 otherwise
     \end{split}
   \right.
 
