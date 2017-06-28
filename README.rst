@@ -1,5 +1,5 @@
-.. image:: https://readthedocs.org/projects/stage-ens/badge/?version=latest
-    :target: http://stage-ens.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/megamix/badge/?version=latest
+    :target: http://megamix.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
    
 =======
@@ -28,7 +28,7 @@ Or you can install it with pip::
 Documentation
 -------------
 
-See the complete documentation `online <http://stage-ens.readthedocs.io/en/latest/index.html>`_
+See the complete documentation `online <https://readthedocs.org/projects/megamix/>`_
 
 
 Test
