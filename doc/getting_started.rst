@@ -110,6 +110,14 @@ This is summarized in the following pseudo-code:
         cc = convergence_criterion(points,responsabilities,parameters)
 		
 
+What is it used for ?
+---------------------
+
+MeGaMix has been implemented in order to process natural speech `MFCC <https://en.wikipedia.org/wiki/Mel-frequency_cepstrum>`_.
+Unlike the vision field where deep learning has overtaken such clustering models, they are still efficient in speech processing.
+
+However the use of this package is more general and may serve another purpose.
+
 Basic usage
 ===========
 
