@@ -8,6 +8,9 @@ We use the same notations as Bishop's *Pattern Recognition and Machine Learning*
 * :math:`\mu_k` is the center of the :math:`k^{th}` cluster
 * :math:`\pi_k` is the weight of the :math:`k^{th}` cluster
 * :math:`\Sigma_k` is the covariance matrix of the :math:`k^{th}` cluster
+* :math:`K` is the number of clusters
+* :math:`N` is the number of points
+* :math:`d` is the dimension of the problem
 
 Other notations specific to the methods will be introduced later.
 
@@ -29,12 +32,13 @@ The algorithm produces a matrix of responsibilities according to the following e
 
   r_{nk} = \left\{
     \begin{split}
-    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}||x_i-c_j||^2 \\
+    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}||x_n-\mu_j||^2 \\
     & 0 \text{ otherwise}
     \end{split}
   \right.
 
-The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point belongs to the :math:`j^{th}` cluster and 0 otherwise
+The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point
+belongs to the :math:`j^{th}` cluster and 0 otherwise.
 
 M step
 ******
@@ -53,6 +57,13 @@ The weight of the cluster k can be expressed as:
 
 Convergence criterion
 *********************
+
+The convergence criterion is the distortion defined as the sum of the norms of the difference between each point
+and the mean of the cluster it is belonging to:
+
+.. math::
+
+  D = \sum^N_{n=1}\sum^K_{k=1}r_{nk}||x_n-\mu_k||^2
 
 Gaussian Mixture Model (GMM)
 ----------------------------
