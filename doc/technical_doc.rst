@@ -96,8 +96,8 @@ The algorithm produces a matrix of responsibilities according to the following e
 
   r_{nk} = \frac{\pi_k\mathcal{N}(x_n|\mu_k,\Sigma_k)}{\sum^K_{j=1}\pi_j\mathcal{N}(x_n|\mu_j,\Sigma_j)}
 
-The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is 1 if the :math:`i^{th}` point
-belongs to the :math:`j^{th}` cluster and 0 otherwise.
+The value of the case at the :math:`i^{th}` row and :math:`j^{th}` column is the probability that the point i belongs to
+the cluster j.
 
 M step
 ******
