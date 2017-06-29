@@ -9,7 +9,7 @@ The package is registered on PyPI. It can be installed with the following comman
 
     $ pip install megamix
 
-If you want to install it manually, you can find the source code at https://github.com/14thibea/Stage_ENS.
+If you want to install it manually, you can find the source code at https://github.com/14thibea/megamix.
 
 MeGaMix relies on external dependencies. The setup script should install them automatically, but you may want to install them manually. The required packages are:
 
