@@ -128,3 +128,6 @@ M step
 
 Convergence criterion
 *********************
+
+Pitman-Yor Process Gaussian Mixture Model (PYPGMM)
+--------------------------------------------------

@@ -35,6 +35,7 @@ been implemented, from the most simple to the most complex:
 * GMM (Gaussian Mixture Model)
 * VBGMM (Variational Bayesian Gaussian Mixture Model)
 * DP-VBGMM (Dirichlet Process on Variational Bayesian Gaussian Mixture Model)
+* PYP-VBGMM (Pitman-Yor Process on Variational Bayesian Gaussian Mixture Model)
 
 What will you be able to do ?
 -----------------------------

@@ -15,7 +15,7 @@ import numpy as np
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
 
-class DPVariationalGaussianMixture(BaseMixture):
+class XPVariationalGaussianMixture(BaseMixture):
 
     """
     Variational Bayesian Estimation of a Gaussian Mixture with Dirichlet Process
@@ -74,6 +74,11 @@ class DPVariationalGaussianMixture(BaseMixture):
         If covariance_type is 'full' type must be array (dim,dim)
         If covariance_type is 'spherical' type must be float
         The prior value to compute the value of the precisions.
+        
+    pypcoeff : float | defaults to 0
+        If 0 the weights are generated according to a Dirichlet Process
+        If >0 and <=1 the weights are generated according to a Pitman-Yor
+        Process.
 
     Attributes
     ----------
@@ -137,7 +142,7 @@ class DPVariationalGaussianMixture(BaseMixture):
                  nu_0=None,means_prior=None,cov_wishart_prior=None,
                  reg_covar=1e-6,type_init='resp',n_jobs=1,pypcoeff=0):
         
-        super(DPVariationalGaussianMixture, self).__init__()
+        super(XPVariationalGaussianMixture, self).__init__()
         
         self.name = 'DPGMM'
         self.n_components = n_components
