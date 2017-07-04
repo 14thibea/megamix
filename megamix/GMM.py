@@ -115,7 +115,7 @@ class GaussianMixture(BaseMixture):
                              "['full', 'spherical']"
                              % self.covariance_type)
             
-    def _initialize(self,points_data,points_test=None,distances='euclidean'):
+    def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Gaussian Mixture by setting the values of
         the means, covariances and weights.
@@ -131,18 +131,18 @@ class GaussianMixture(BaseMixture):
         
         if self.type_init=='resp':
             log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,
-                                                           self.covariance_type,distances=distances)
+                                                           self.covariance_type)
             self._step_M(points_data,log_assignements)
         elif self.type_init=='mcw':
             means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,
-                                                   self.covariance_type,distances=distances)
+                                                   self.covariance_type)
             self.means = means
             self.cov = cov
             self.log_weights = log_weights
             
         self._is_initialized = True
     
-    def _step_E(self, points, points_normed=None, distances='euclidean'):
+    def _step_E(self, points):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -158,7 +158,7 @@ class GaussianMixture(BaseMixture):
             logarithm of the probability of each sample in points
             
         """
-        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs,points_normed,distances)
+        log_normal_matrix = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs)
         log_product = log_normal_matrix + self.log_weights[:,np.newaxis].T
         log_prob_norm = logsumexp(log_product,axis=1)
         

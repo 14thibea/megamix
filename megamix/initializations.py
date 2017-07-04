@@ -9,7 +9,7 @@ import numpy as np
 import random
 
 
-def initialization_random(n_components,points,distances='euclidean'):
+def initialization_random(n_components,points):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -37,7 +37,7 @@ def initialization_random(n_components,points,distances='euclidean'):
     
     return means
 
-def initialization_plus_plus(n_components,points,distances='euclidean'):
+def initialization_plus_plus(n_components,points):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -82,7 +82,7 @@ def initialization_plus_plus(n_components,points,distances='euclidean'):
             M = np.linalg.norm(points-means[0],axis=1)
             M = M.reshape((n_points,1))
         else:
-            M = dist_matrix(points,means[:i+1:],distances=distances)
+            M = dist_matrix(points,means[:i+1:])
             
         dst_min = np.amin(M, axis=1)
         dst_min = dst_min**2
@@ -91,7 +91,7 @@ def initialization_plus_plus(n_components,points,distances='euclidean'):
 
     return means
 
-def initialization_AF_KMC(n_components,points,m=20,distances='euclidean'):
+def initialization_AF_KMC(n_components,points,m=20):
     """
     A method providing good seedings for kmeans inspired by MCMC
     for more information see http://papers.nips.cc/paper/6478-fast-and-provably-good-seedings-for-k-means
@@ -136,7 +136,7 @@ def initialization_AF_KMC(n_components,points,m=20,distances='euclidean'):
         for j in range(m):
             y_idx = np.random.choice(n_points,p=q)
             y = points[y_idx]
-            dist_y = np.linalg.norm(y-means[:i+1:],axis=1).min() #TODO prendre en compte les distances cosine
+            dist_y = np.linalg.norm(y-means[:i+1:],axis=1).min()
             if dist_x*q[y_idx] != 0:
                 quotient = dist_y*q[x_idx]/(dist_x*q[y_idx])
             else:
@@ -150,7 +150,7 @@ def initialization_AF_KMC(n_components,points,m=20,distances='euclidean'):
     
     return means
 
-def initialization_k_means(n_components,points,distances='euclidean'):
+def initialization_k_means(n_components,points):
     """
     This method returns an array of k means which will be used in order to
     initialize an EM algorithm
@@ -174,12 +174,12 @@ def initialization_k_means(n_components,points,distances='euclidean'):
     from .kmeans import Kmeans
     
     km = Kmeans(n_components)
-    km.fit(points,distances=distances)
+    km.fit(points)
     assignements = km.predict_assignements(points)
     
     return km.means,assignements
 
-def initialization_GMM(n_components,points_data,points_test=None,covariance_type="full",distances='euclidean'):
+def initialization_GMM(n_components,points_data,points_test=None,covariance_type="full"):
     """
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
@@ -209,12 +209,12 @@ def initialization_GMM(n_components,points_data,points_test=None,covariance_type
     from .GMM import GaussianMixture
     
     GM = GaussianMixture(n_components,covariance_type=covariance_type)
-    GM.fit(points_data,points_test,patience=0,distances=distances)
+    GM.fit(points_data,points_test,patience=0)
     log_assignements = GM.predict_log_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 
-def initialization_VBGMM(n_components,points_data,points_test=None,covariance_type="full",distances='euclidean'):
+def initialization_VBGMM(n_components,points_data,points_test=None,covariance_type="full"):
     """
     This method returns an array of k means and an array of k covariances (dim,dim)
     which will be used in order to initialize an EM algorithm
@@ -244,12 +244,12 @@ def initialization_VBGMM(n_components,points_data,points_test=None,covariance_ty
     from .VBGMM import VariationalGaussianMixture
     
     GM = VariationalGaussianMixture(n_components)
-    GM.fit(points_data,points_test,patience=0,distances=distances)
+    GM.fit(points_data,points_test,patience=0)
     log_assignements = GM.predict_log_resp(points_data)
     
     return GM.means,GM.cov,GM.log_weights,log_assignements
 
-def initialize_log_assignements(init,n_components,points_data,points_test=None,covariance_type="full",distances='euclidean'):
+def initialize_log_assignements(init,n_components,points_data,points_test=None,covariance_type="full"):
     """
     This method initializes the Variational Gaussian Mixture by giving the value
     of the responsibilities to the algorithm.
@@ -283,26 +283,26 @@ def initialize_log_assignements(init,n_components,points_data,points_test=None,c
     log_assignements = None
     
     if (init == "random"):
-        means = initialization_random(n_components,points_data,distances)
+        means = initialization_random(n_components,points_data)
         km = Kmeans(n_components)
         km.means = means
         assignements = km._step_E(points_data)
     elif(init == "plus"):
-        means = initialization_plus_plus(n_components,points_data,distances)
+        means = initialization_plus_plus(n_components,points_data)
         km = Kmeans(n_components)
         km.means = means
         assignements = km._step_E(points_data)
     elif(init == "AF_KMC"):
-        means = initialization_AF_KMC(n_components,points_data,distances)
+        means = initialization_AF_KMC(n_components,points_data)
         km = Kmeans(n_components)
         km.means = means
         assignements = km._step_E(points_data)
     elif(init == "kmeans"):
-        _,assignements = initialization_k_means(n_components,points_data,distances)
+        _,assignements = initialization_k_means(n_components,points_data)
     elif(init == "GMM"):
-        _,_,_,log_assignements = initialization_GMM(n_components,points_data,points_test,covariance_type,distances)
+        _,_,_,log_assignements = initialization_GMM(n_components,points_data,points_test,covariance_type)
     elif(init == "VBGMM"):
-        _,_,_,log_assignements = initialization_VBGMM(n_components,points_data,points_test,covariance_type,distances)
+        _,_,_,log_assignements = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
         
     if log_assignements is None:
         epsilon = np.finfo(assignements.dtype).eps
@@ -312,7 +312,7 @@ def initialize_log_assignements(init,n_components,points_data,points_test=None,c
     
     return log_assignements
 
-def initialize_mcw(init,n_components,points_data,points_test=None,covariance_type="full",distances='euclidean'):
+def initialize_mcw(init,n_components,points_data,points_test=None,covariance_type="full"):
     """
     This method initializes the Variational Gaussian Mixture by setting the values
     of the means, the covariances and the log of the weights.
@@ -362,16 +362,16 @@ def initialize_mcw(init,n_components,points_data,points_test=None,covariance_typ
         cov = cov_init * np.ones(n_components)
     
     if (init == "random"):
-        means = initialization_random(n_components,points_data,distances)
+        means = initialization_random(n_components,points_data)
     elif(init == "plus"):
-        means = initialization_plus_plus(n_components,points_data,distances)
+        means = initialization_plus_plus(n_components,points_data)
     elif(init == "AF_KMC"):
-        means = initialization_AF_KMC(n_components,points_data,distances)
+        means = initialization_AF_KMC(n_components,points_data)
     elif(init == "kmeans"):
-        means,_ = initialization_k_means(n_components,points_data,distances)
+        means,_ = initialization_k_means(n_components,points_data)
     elif(init == "GMM"):
-        means,cov,log_weights,_ = initialization_GMM(n_components,points_data,points_test,covariance_type,distances)
+        means,cov,log_weights,_ = initialization_GMM(n_components,points_data,points_test,covariance_type)
     elif(init == "VBGMM"):
-        means,cov,log_weights,_ = initialization_VBGMM(n_components,points_data,points_test,covariance_type,distances)
+        means,cov,log_weights,_ = initialization_VBGMM(n_components,points_data,points_test,covariance_type)
     
     return means,cov,log_weights

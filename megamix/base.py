@@ -8,7 +8,7 @@ from joblib import Parallel,delayed
 from abc import abstractmethod
 import numpy as np
 import scipy.linalg
-from scipy.special import gammaln
+from scipy.special import gammaln,iv
 import os
 import warnings
 import h5py
@@ -82,7 +82,7 @@ def _log_normal_matrix_core(points,mu,prec_chol):
     y = np.dot(points,prec_chol) - np.dot(mu,prec_chol)
     return np.sum(np.square(y),axis=1)
 
-def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1,points_normed=None,distances='euclidean'):
+def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1):
     """
     This method computes the log of the density of probability of a normal law centered. Each line
     corresponds to a point from points.
@@ -95,22 +95,12 @@ def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1,points_normed=N
     n_points,dim = points.shape
     n_components,_ = means.shape
     
-    if distances == 'euclidean':
-        points_ = points
-        means_ = means
-    elif distances == 'cosine':
-        if points_normed is None:
-            points_ = points/ np.linalg.norm(points,axis=1)[:,np.newaxis]
-        else:
-            points_ = points_normed
-        means_ = means / np.linalg.norm(means,axis=1)[:,np.newaxis]
-    
     if covariance_type == "full":
         precisions_chol = _compute_precisions_chol(cov,covariance_type)
         log_det_chol = np.log(np.linalg.det(precisions_chol))
         
         log_prob = Parallel(n_jobs=n_jobs,backend='threading')(
-           delayed(_log_normal_matrix_core)(points_,means_[k],precisions_chol[k]) for k in range(n_components))
+           delayed(_log_normal_matrix_core)(points,means[k],precisions_chol[k]) for k in range(n_components))
         log_prob = np.asarray(log_prob).T
         
     elif covariance_type == "spherical":
@@ -118,11 +108,35 @@ def _log_normal_matrix(points,means,cov,covariance_type,n_jobs=1,points_normed=N
         log_det_chol = dim * np.log(precisions_chol)
         
         log_prob = np.empty((n_points,n_components))
-        for k, (mu, prec_chol) in enumerate(zip(means_,precisions_chol)):
-            y = prec_chol * (points_ - mu)
+        for k, (mu, prec_chol) in enumerate(zip(means,precisions_chol)):
+            y = prec_chol * (points - mu)
             log_prob[:,k] = np.sum(np.square(y), axis=1)
             
     return -.5 * (dim * np.log(2*np.pi) + log_prob) + log_det_chol
+
+def _log_vMF_matrix(points,means,K,n_jobs=1):
+    """
+    This method computes the log of the density of probability of a von Mises Fischer law. Each line
+    corresponds to a point from points.
+    
+    :param points: an array of points (n_points,dim)
+    :param means: an array of k points which are the means of the clusters (n_components,dim)
+    :param cov: an array of k arrays which are the covariance matrices (n_components,dim,dim)
+    :return: an array containing the log of density of probability of a von Mises Fischer law (n_points,n_components)
+    """
+    n_points,dim = points.shape
+    n_components,_ = means.shape
+    dim = float(dim)
+    
+    log_prob = K * np.dot(points,means.T)
+    # Regularisation to avoid infinte terms
+    bessel_term = iv(dim*0.5-1,K)
+    idx = np.where(bessel_term==np.inf)[0]
+    bessel_term[idx] = np.finfo(K.dtype).max
+               
+    log_C = -.5 * dim * np.log(2*np.pi) - np.log(bessel_term) + (dim/2-1) * np.log(K)
+            
+    return log_C + log_prob
 
 
 def _log_B(W,nu):
@@ -281,7 +295,7 @@ class BaseMixture():
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            legend="",distances='euclidean'):
+            legend=""):
         """The EM algorithm
         
         Parameters
@@ -337,14 +351,6 @@ class BaseMixture():
         iter_algo = 0
         best_criterion = -np.Inf
         
-        if distances == 'cosine':
-            points_data_normed = points_data/np.linalg.norm(points_data,axis=1)[:,np.newaxis]
-            if points_test is not None:
-                points_test_normed = points_test/np.linalg.norm(points_test,axis=1)[:,np.newaxis]
-        else:
-            points_data_normed = None
-            points_test_normed = None
-        
         if patience is None:
             if early_stopping:
                 warnings.warn('You are using early stopping with no patience. '
@@ -357,7 +363,7 @@ class BaseMixture():
             warnings.warn('The system is going to be initialized')
         
         if self.init !='user' or self._is_initialized==False:
-            self._initialize(points_data,points_test,distances)
+            self._initialize(points_data,points_test)
             self.iter = 0
             
         self.convergence_criterion_data = []
@@ -377,9 +383,9 @@ class BaseMixture():
         
         while resume_iter:
             #EM algorithm
-            log_prob_norm_data,log_resp_data = self._step_E(points_data,points_data_normed,distances)
+            log_prob_norm_data,log_resp_data = self._step_E(points_data)
             if early_stopping:
-                log_prob_norm_test,log_resp_test = self._step_E(points_test,points_test_normed,distances)
+                log_prob_norm_test,log_resp_test = self._step_E(points_test)
                 
             self._step_M(points_data,log_resp_data)
             

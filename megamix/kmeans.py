@@ -8,19 +8,9 @@
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 
-def dist_matrix(points,means,points_normed=None,distances='euclidean'):
-    
-    if distances == 'euclidean':
-        points_ = points
-        means_ = means
-    elif distances == 'cosine':
-        if points_normed is None:
-            points_ = points/ np.linalg.norm(points,axis=1)[:,np.newaxis]
-        else:
-            points_ = points_normed
-        means_ = means / np.linalg.norm(means,axis=1)[:,np.newaxis]
+def dist_matrix(points,means):
         
-    dist_matrix = euclidean_distances(points_,means_)
+    dist_matrix = euclidean_distances(points,means)
 
     return dist_matrix
 
@@ -93,7 +83,7 @@ class Kmeans():
                              "['random', 'plus', 'kmeans', 'AF_KMC']"
                              % self.init)
     
-    def _step_E(self,points,points_normed=None):
+    def _step_E(self,points):
         """
         This method assign a cluster number to each point by changing its last coordinate
         Ex : if P belongs to the first cluster, then P[-1] = 0.
@@ -105,7 +95,7 @@ class Kmeans():
         n_points,_ = points.shape
         assignements = np.zeros((n_points,self.n_components))
         
-        M = dist_matrix(points,self.means,points_normed)
+        M = dist_matrix(points,self.means)
         for i in range(n_points):
             index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
             if (isinstance(index_min,np.int64)):
@@ -136,7 +126,7 @@ class Kmeans():
             if n_set > 0:
                 self.means[i] = np.asarray(np.sum(sets, axis=0)/n_set)
     
-    def distortion(self,points,assignements,points_normed=None):
+    def distortion(self,points,assignements):
         """
         This method returns the distortion measurement at the end of the k_means.
         
@@ -159,12 +149,8 @@ class Kmeans():
                 n_set = np.sum(assignements_i)
                 idx_set,_ = np.where(assignements_i==1)
                 sets = points[idx_set]
-                if points_normed is not None:
-                    sets_normed = points_normed[idx_set]
-                else:
-                    sets_normed = None
                 if n_set != 0:
-                    M = dist_matrix(sets,self.means[i].reshape(1,-1),sets_normed)
+                    M = dist_matrix(sets,self.means[i].reshape(1,-1))
                     distortion += np.sum(M)
                 
             return distortion
@@ -209,14 +195,6 @@ class Kmeans():
         
         n_points,dim = points_data.shape
         
-        if distances == 'cosine':
-            points_data_normed = points_data/np.linalg.norm(points_data,axis=1)[:,np.newaxis]
-            if points_test is not None:
-                points_test_normed = points_test/np.linalg.norm(points_test,axis=1)[:,np.newaxis]
-        else:
-            points_data_normed = None
-            points_test_normed = None
-        
         #K-means++ initialization
         if (self.init == "random"):
             means = initialization_random(self.n_components,points_data)
@@ -242,16 +220,16 @@ class Kmeans():
         #K-means beginning
         while resume_iter:
             
-            assignements_data = self._step_E(points_data,points_data_normed)
+            assignements_data = self._step_E(points_data)
             dist_data_pre = dist_data
             if test_exists:
-                assignements_test = self._step_E(points_test,points_test_normed)
+                assignements_test = self._step_E(points_test)
                 dist_test_pre = dist_test
             
             self._step_M(points_data,assignements_data)
-            dist_data = self.distortion(points_data,assignements_data,points_data_normed)
+            dist_data = self.distortion(points_data,assignements_data)
             if test_exists:
-                dist_test = self.distortion(points_test,assignements_test,points_test_normed)
+                dist_test = self.distortion(points_test,assignements_test)
             
             # Computation of resume_iter
             if first_iter:

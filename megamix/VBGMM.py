@@ -176,7 +176,7 @@ class VariationalGaussianMixture(BaseMixture):
                              "['random', 'plus', 'kmeans','AF_KMC','GMM']"
                              % self.init)
             
-    def _initialize(self,points_data,points_test=None,distances='euclidean'):
+    def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Variational Gaussian Mixture by setting the values
         of the means, the covariances and other specific parameters (alpha, beta, nu)
@@ -196,7 +196,7 @@ class VariationalGaussianMixture(BaseMixture):
         
         if self.type_init=='resp':
             log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,
-                                                           points_test,distances=distances)
+                                                           points_test)
             
             self._inv_prec = np.empty((self.n_components,dim,dim))
             self._log_det_inv_prec = np.empty(self.n_components)
@@ -206,7 +206,7 @@ class VariationalGaussianMixture(BaseMixture):
         elif self.type_init=='mcw':
             # Means, covariances and weights
             means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,
-                                                   points_test,distances=distances)
+                                                   points_test)
             self.cov = cov
             self.means = means
             self.log_weights = log_weights
@@ -234,7 +234,7 @@ class VariationalGaussianMixture(BaseMixture):
     
         self._is_initialized = True
         
-    def _step_E(self, points, points_normed=None, distances='euclidean'):
+    def _step_E(self, points):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster
         
@@ -252,9 +252,8 @@ class VariationalGaussianMixture(BaseMixture):
         """
         
         n_points,dim = points.shape
-        log_prob = np.zeros((n_points,self.n_components))
           
-        log_gaussian = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs,points_normed,distances)
+        log_gaussian = _log_normal_matrix(points,self.means,self.cov,self.covariance_type,self.n_jobs)
         digamma_sum = np.sum(scipy.special.psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
         log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
         
