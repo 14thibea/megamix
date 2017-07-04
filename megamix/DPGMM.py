@@ -144,7 +144,6 @@ class XPVariationalGaussianMixture(BaseMixture):
         
         super(XPVariationalGaussianMixture, self).__init__()
         
-        self.name = 'DPGMM'
         self.n_components = n_components
         self.covariance_type = "full"
         self.init = init
@@ -166,6 +165,11 @@ class XPVariationalGaussianMixture(BaseMixture):
         
         self._check_common_parameters()
         self._check_parameters()
+        
+        if pypcoeff==0:
+            self.name = 'DPGMM'
+        else:
+            self.name = 'PYPGMM'
 
     def _check_parameters(self):
         """
