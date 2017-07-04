@@ -229,7 +229,7 @@ class VariationalGaussianMixture(BaseMixture):
             self.nu = self.nu_0 + N
             
             # Matrix W
-            self._inv_prec = cov * self.nu[:,np.newaxis,np.newaxis]
+            self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
             self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
     
         self._is_initialized = True
