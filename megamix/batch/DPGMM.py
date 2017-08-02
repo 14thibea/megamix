@@ -15,7 +15,7 @@ import numpy as np
 from scipy.special import psi,betaln
 from scipy.misc import logsumexp
 
-class XPVariationalGaussianMixture(BaseMixture):
+class DPVariationalGaussianMixture(BaseMixture):
 
     """
     Variational Bayesian Estimation of a Gaussian Mixture with Dirichlet Process
@@ -142,7 +142,7 @@ class XPVariationalGaussianMixture(BaseMixture):
                  nu_0=None,means_prior=None,cov_wishart_prior=None,
                  reg_covar=1e-6,type_init='resp',n_jobs=1,pypcoeff=0):
         
-        super(XPVariationalGaussianMixture, self).__init__()
+        super(DPVariationalGaussianMixture, self).__init__()
         
         self.n_components = n_components
         self.covariance_type = "full"

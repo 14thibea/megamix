@@ -31,7 +31,7 @@ def _full_covariance_matrices(points,means,weights,resp,reg_covar,n_jobs=1):
     Compute the full covariance matrices
     """
     nb_points,dim = points.shape
-    n_components = len(means)
+    n_components,_ = means.shape
     
     covariance = Parallel(n_jobs=n_jobs,backend='threading')(
             delayed(_full_covariance_matrix)(points,means[i],weights[i],resp[:,i:i+1],
@@ -46,19 +46,17 @@ def _spherical_covariance_matrices(points,means,weights,assignements,reg_covar):
     Compute the coefficients for the spherical covariances matrices
     """
     n_points,dim = points.shape
-    n_components = len(means)
+    n_components,_ = means.shape
     
     covariance = np.zeros(n_components)
 
     for i in range(n_components):
         assignements_i = assignements[:,i:i+1]
-        sum_assignement = np.sum(assignements_i)
-        sum_assignement += 10 * np.finfo(assignements.dtype).eps
         
         points_centered = points - means[i]
         points_centered_weighted = points_centered * assignements_i
         product = points_centered * points_centered_weighted
-        covariance[i] = np.sum(product)/sum_assignement
+        covariance[i] = np.sum(product)/weights[i]
         covariance[i] += reg_covar
     
     return covariance / dim
