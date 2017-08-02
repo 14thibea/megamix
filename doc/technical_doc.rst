@@ -102,11 +102,67 @@ the cluster j.
 M step
 ******
 
+The weight of the cluster k, which is the number of points belonging to this latter, can be expressed as:
+
+.. math::
+
+  \N_{k} = \sum^N_{n=1}r_{nk}
+  
+The mixing coefficients, which represent the proportion of points in a cluster, can be expressed as:
+
+.. math::
+    
+	\pi_k = \frac{N_k}{N}
+  
+As in the Kmeans algorithm, the mean of a cluster is the mean of all the points belonging to this latter:
+
+.. math::
+
+  \mu_{k} = \frac{\sum^N_{n=1}r_{nk}x_n}{N_k}
+  
+  
+The covariance of the cluster k can be expressed as:
+
+.. math::
+    
+	\Sigma_k = \frac{1}{N_k}\sum^N_{n=1}r_{nk}(x_n-\mu_k)(x_n-\mu_k)^T
+	
+These results have been obtained by derivating the maximum loglikelihood described in the following
+section.
+
 Convergence criterion
 *********************
 
+The convergence criterion used in the Gaussian Mixture Model algorithm is the maximum log likelihood:
+
+.. math::
+    
+	\sum^N_{n=1}\ln{\sum^K_{k=1}\pi_k\mathcal{N}(x_n|\mu_k,\Sigma_k)}
+	
+Setting its derivatives to 0 gives the empirical terms described in the M step.
+
 Variational Gaussian Mixture Model (VBGMM)
 ------------------------------------------
+
+In this model, we introduce three new hyperparameters and two distributions which governs the three
+essential parameters of the model: the mixing coefficients, the means and the covariances.
+
+The mixing coefficients are generated with a Dirichlet Distribution:
+
+.. math::
+   
+   q(\pi_k) = \text{Dir}(\pi|\alpha_k) = \text{C}(\alpha_k)\pi_k^{\alpha_k-1}
+
+The computation of :math:`\alpha_k` is described in the M step.
+
+Then we introduce an independant Gaussian-Wishart law governing the mean and precision of each gaussian component:
+
+.. math::
+   
+   q(\mu_k,\Gamma_k) & = q(\mu_k|\Gamma_k)q(\Gamma_k)
+                 & = \mathcal{N}(\u_k|m_k,(\beta_k\Gamma_k)^{-1})\mathcal{W}(\Gamma_k|W_k,\nu_k)
+
+The computation of the terms involved in this equation are described in the M step.
 
 E step
 ******
