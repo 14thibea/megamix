@@ -159,19 +159,10 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 
 .. math::
    
-   f(x) =
     \begin{split}
-        &= x^2 + 8x + 16 \\
-        &= (x+4)^2
-    \end{split}
-   
-   
-  r_{nk} = \left\{
-    \begin{split}
-    & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
+    r_{nk} = & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
     & 0 \text{ otherwise}
     \end{split}
-  \right.
    
 The computation of the terms involved in this equation are described in the M step.
 
