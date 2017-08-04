@@ -160,7 +160,7 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 .. math::
    
     \begin{split}
-    r_{nk} = & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
+    q(\mu_k,\Gamma_k) = & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
     & 0 \text{ otherwise}
     \end{split}
    
