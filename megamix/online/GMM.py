@@ -8,13 +8,13 @@
 
 from .base import BaseMixture
 from .base import _log_normal_matrix
+from .cython_version import cholupdate
 from megamix.batch.initializations import initialization_plus_plus
 from .kmeans import dist_matrix
 
 import numpy as np
 from scipy.misc import logsumexp
 import scipy
-from choldate import cholupdate
 
 
 class GaussianMixture(BaseMixture):
