@@ -106,7 +106,7 @@ The weight of the cluster k, which is the number of points belonging to this lat
 
 .. math::
 
-  \N_{k} = \sum^N_{n=1}r_{nk}
+  N_{k} = \sum^N_{n=1}r_{nk}
   
 The mixing coefficients, which represent the proportion of points in a cluster, can be expressed as:
 
