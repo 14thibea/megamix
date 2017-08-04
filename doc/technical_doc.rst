@@ -160,8 +160,8 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 .. math::
    
     \begin{split}
-    q(\mu_k,\Sigma_k) = & q(\mu_k|\Sigma_k)q(\Sigma_k) \\
-    & 0 \text{ otherwise}
+    q(\mu_k,\Sigma_k) & = q(\mu_k|\Sigma_k)q(\Sigma_k) \\
+    & = 0 \text{ otherwise}
     \end{split}
    
 The computation of the terms involved in this equation are described in the M step.
