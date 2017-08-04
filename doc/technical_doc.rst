@@ -160,8 +160,8 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 .. math::
    
    \begin{align}
-      q(\mu_k,\Gamma_k) & = & q(\mu_k|\Gamma_k)q(\Gamma_k) \\
-	  & = & \mathcal{N}(\u_k|m_k,(\beta_k\Gamma_k)^{-1})\mathcal{W}(\Gamma_k|W_k,\nu_k)
+      f(x) & = & x^2 + 8x + 16 \\
+      & = & (x+4)^2
    \end{align}
    
 The computation of the terms involved in this equation are described in the M step.
