@@ -8,7 +8,7 @@
 
 from .base import BaseMixture
 from .base import _log_normal_matrix
-from .cython_version import cholupdate
+from .base import cholupdate
 from megamix.batch.initializations import initialization_plus_plus
 from .kmeans import dist_matrix
 
@@ -270,7 +270,7 @@ class GaussianMixture(BaseMixture):
                 # its update here
                 u = np.sqrt(gamma/((1-gamma)*n_points)) * diff_weighted
                 for j in range(n_points):
-                    cholupdate(self.S_chol[i].T,u[j])
+                    cholupdate(self.S_chol[i],u[j])
                 
 #                u = np.sqrt(gamma/((1-gamma)*self.N[i]))*diff_weighted
 #                for j in range(n_points):

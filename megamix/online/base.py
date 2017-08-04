@@ -14,6 +14,25 @@ import h5py
 import warnings
 import time
 
+def cholupdate(chol, point):
+    '''
+    Update the lower triangular Cholesky factor cov_chol with the rank 1 addition
+    implied by x such that:
+    <cov_chol_new.T,cov_chol_new> = <cov_chol.T,cov_chol> + sum_i(outer(points[i],points[i]))
+    '''
+    dim,_ = chol.shape
+    
+    point_temp = point.copy()
+    
+    for k in range(dim):
+        r = math.hypot(chol[k,k], point_temp[k]) # drotg
+        c = r / chol[k,k]
+        s = point_temp[k] / chol[k,k]
+        chol[k,k] = r
+        #TODO: Use BLAS drot instead of inner for loop
+        for i in range((k+1),dim):
+            chol[i,k] = (chol[i,k] + s * point_temp[i]) / c
+            point_temp[i] = c * point_temp[i] - s * chol[i,k]
 
 def _full_covariance_matrices(points,means,weights,resp,reg_covar,n_jobs=1):
     """

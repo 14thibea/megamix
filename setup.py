@@ -19,8 +19,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ext_modules = [
 
     Extension(
-        "megamix/online/cython_version/basic_operations",
-        ["basic_operations.pyx"],
+        "megamix/online/cython_version/base_cython",
+        ["megamix/online/cython_version/base_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
     ),
@@ -33,13 +33,14 @@ REQUIREMENTS = [] if ON_RTD else [
     'h5py >= 2.6.0',
     'scipy >= 0.18.1',
     'joblib >= 0.11'
+	'cython'
 ]
 
 setup(
     name='megamix',
     version=VERSION,
     packages=find_packages(exclude=['test']),
-    ext_modules = cythonize(ext_modules),
+#    ext_modules = cythonize(ext_modules),
     include_package_data=True,
     zip_safe=False,
     install_requires=REQUIREMENTS,
