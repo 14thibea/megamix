@@ -161,7 +161,7 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
    
     \begin{split}
     q(\mu_k,\Sigma_k) & = q(\mu_k|\Sigma_k)q(\Sigma_k) \\
-    & = \mathcal{N}(\mu_k|m_k,(\beta_k\Sigma_k)^{-1})
+    & = \mathcal{N}(\mu_k|m_k,(\beta_k\Sigma_k)^{-1})\mathcal{W}(\Gamma_k|W_k,\nu_k)
     \end{split}
    
 The computation of the terms involved in this equation are described in the M step.
