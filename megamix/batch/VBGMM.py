@@ -221,7 +221,9 @@ class VariationalGaussianMixture(BaseMixture):
             self._inv_prec = cov * self.nu[:,np.newaxis,np.newaxis]
             self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
             
-        elif self.type_init=='user':
+        elif self.init=='user':
+            if self.type_init=='kmeans':
+                self._initialize_cov(points_data)
             # Hyperparametres
             N = np.exp(self.log_weights) * n_points
             self.alpha = self.alpha_0 + N

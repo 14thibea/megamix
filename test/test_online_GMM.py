@@ -1,42 +1,16 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import numpy as np
 from scipy import linalg
 from numpy.testing import assert_almost_equal
 from megamix.online import GaussianMixture
 from megamix.online.base import _log_normal_matrix
+from megamix.utils_testing import checking
 
 from scipy.misc import logsumexp
-import os
+import pytest
+import h5py
 
-def remove(filename):
-    """Remove the file if it exists."""
-    if os.path.exists(filename):
-        os.remove(filename)
-        
-def verify_covariance(cov,n_components,dim):
-    assert len(cov.shape) == 3
-    n_components_cov = cov.shape[0]
-    dim_cov1 = cov.shape[1]
-    dim_cov2 = cov.shape[2]
-    
-    assert n_components_cov == n_components
-    assert dim_cov1 == dim
-    assert dim_cov2 == dim
-
-def verify_means(means,n_components,dim):
-    assert len(means.shape) == 2
-    n_components_means = means.shape[0]
-    dim_means = means.shape[1]
-    
-    assert n_components_means == n_components
-    assert dim_means == dim
-
-def verify_log_pi(log_pi,n_components):
-    assert len(log_pi.shape) == 1
-    n_components_pi = log_pi.shape[0]
-    
-    assert n_components_pi == n_components
-    assert np.sum(np.exp(log_pi)) - 1.0 < 1e-8 
 
 class TestGaussianMixture_full:
     
@@ -45,14 +19,19 @@ class TestGaussianMixture_full:
         self.dim = 2
         self.n_points = 10
         
+        self.file_name = 'test.h5'
+        
+    def teardown(self):
+        checking.remove(self.file_name)
+        
     def test_initialize(self,window):
         points = np.random.randn(self.n_points,self.dim)
         GM = GaussianMixture(self.n_components,window=window)
         GM.initialize(points)
         
-        verify_covariance(GM.cov,self.n_components,self.dim)
-        verify_means(GM.means,self.n_components,self.dim)
-        verify_log_pi(GM.log_weights,self.n_components)
+        checking.verify_covariance(GM.cov,self.n_components,self.dim)
+        checking.verify_means(GM.means,self.n_components,self.dim)
+        checking.verify_log_pi(GM.log_weights,self.n_components)
         
         cov_chol = np.empty_like(GM.cov)
         for i in range(self.n_components):
@@ -143,3 +122,68 @@ class TestGaussianMixture_full:
         assert_almost_equal(expected_X,GM.X)
         assert_almost_equal(expected_S,GM.S)
         assert_almost_equal(expected_S_chol,GM.S_chol)
+        
+    def test_score(self,window,update):
+        points = np.random.randn(self.n_points,self.dim)
+        points2 = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,window=window,update=update)
+        
+        with pytest.raises(Exception):
+            GM.score(points)
+        GM.initialize(points)
+        GM.fit(points)
+        score1 = GM.score(points)
+        score2 = GM.score(points2)
+        assert score1 > score2
+
+    def test_write_and_read(self,update):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,update=update)
+        GM.initialize(points)
+        
+        f = h5py.File(self.file_name,'w')
+        grp = f.create_group('init')
+        GM.write(grp)
+        f.close()
+        
+        GM2 = GaussianMixture(self.n_components,update=update)
+        
+        f = h5py.File(self.file_name,'r')
+        grp = f['init']
+        GM2.read_and_init(grp,points)
+        f.close()
+        
+        checking.verify_online_models(GM,GM2)
+        
+        GM.fit(points)
+        GM2.fit(points)
+        
+        checking.verify_online_models(GM,GM2)
+        
+    def test_predict_log_resp(self,window,update):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,window=window,update=update)
+        
+        with pytest.raises(Exception):
+            GM.predict_log_resp(points)
+            
+        GM.initialize(points)
+        predected_log_resp = GM.predict_log_resp(points)
+        _,expected_log_resp = GM._step_E(points)
+        
+        assert_almost_equal(predected_log_resp,expected_log_resp)
+        
+    def test_update(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,window=window,update=True)
+        
+        GM.initialize(points)
+        GM.fit(points)
+        
+        expected_cov_chol = np.zeros((self.n_components,self.dim,self.dim))
+        for i in range(self.n_components):
+            expected_cov_chol[i] = linalg.cholesky(GM.cov[i],lower=True)
+        
+        predected_cov_chol = GM.cov_chol
+        
+        assert_almost_equal(expected_cov_chol,predected_cov_chol)

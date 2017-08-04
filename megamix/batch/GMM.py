@@ -133,12 +133,16 @@ class GaussianMixture(BaseMixture):
             log_assignements = initialize_log_assignements(self.init,self.n_components,points_data,points_test,
                                                            self.covariance_type)
             self._step_M(points_data,log_assignements)
+            
         elif self.type_init=='mcw':
             means,cov,log_weights = initialize_mcw(self.init,self.n_components,points_data,points_test,
                                                    self.covariance_type)
             self.means = means
             self.cov = cov
             self.log_weights = log_weights
+            
+        elif self.type_init=='kmeans':
+            self._initialize_cov(points_data)
             
         self._is_initialized = True
     

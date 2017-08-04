@@ -17,11 +17,6 @@ MeGaMix relies on external dependencies. The setup script should install them au
 * scipy 0.18.1 or newer
 * h5py 2.6.0 or newer
 * joblib 0.11 or newer
-* scikit-learn 0.18.1 or newer
-
-.. note::
-    
-	Scikit-learn is being used for only one function in the K-means algorithm and this latter will be replaced soon to avoid this dependency.
 
 Description
 ===========

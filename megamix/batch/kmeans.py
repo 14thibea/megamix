@@ -6,15 +6,22 @@
 #
 
 import numpy as np
-from sklearn.metrics.pairwise import euclidean_distances
+from .base import BaseMixture
 
 def dist_matrix(points,means):
-        
-    dist_matrix = euclidean_distances(points,means)
+    
+    XX = np.einsum('ij,ij->i', points, points)[:, np.newaxis]    # Size (n_points,1)
+    squared_matrix = np.dot(points,means.T)                      # Size (n_points,n_components)
+    YY = np.einsum('ij,ij->i', means, means)[np.newaxis, :]      # Size (1,n_components)
+    
+    squared_matrix *= -2
+    squared_matrix += XX
+    squared_matrix += YY
+    np.maximum(squared_matrix, 0, out=squared_matrix)    
+    
+    return np.sqrt(squared_matrix, out=squared_matrix)
 
-    return dist_matrix
-
-class Kmeans():
+class Kmeans(BaseMixture):
 
     """
     Kmeans model.
@@ -83,6 +90,48 @@ class Kmeans():
                              "['random', 'plus', 'kmeans', 'AF_KMC']"
                              % self.init)
     
+    def _initialize(self,points_data,points_test=None):
+        """
+        This method initializes the Gaussian Mixture by setting the values of
+        the means, covariances and weights.
+        
+        Parameters
+        ----------
+        points_data : an array (n_points,dim)
+            Data on which the model is fitted.
+        points_test: an array (n_points,dim) | Optional
+            Data used to do early stopping (avoid overfitting)
+            
+        """
+        
+        from .initializations import initialization_random
+        from .initializations import initialization_plus_plus
+        from .initializations import initialization_AF_KMC
+        
+        n_points,dim = points_data.shape
+        
+        #K-means++ initialization
+        if (self.init == "random"):
+            means = initialization_random(self.n_components,points_data)
+            self.means = means
+        elif (self.init == "plus"):
+            means = initialization_plus_plus(self.n_components,points_data)
+            self.means = means
+        elif (self.init == "AF_KMC"):
+            means = initialization_AF_KMC(self.n_components,points_data)
+            self.means = means
+        elif (self.init == 'user'):
+            pass
+        else:
+            raise ValueError("Invalid value for 'initialization': %s "
+                                 "'initialization' should be in "
+                                 "['random', 'plus','AF_KMC']"
+                                  % self.init)
+        self.log_weights = np.zeros(self.n_components) - np.log(self.n_components)
+        self.iter = 0
+        self._is_initialized = True
+        
+        
     def _step_E(self,points):
         """
         This method assign a cluster number to each point by changing its last coordinate
@@ -104,6 +153,7 @@ class Kmeans():
                 assignements[i][index_min[0]] = 1
                 
         return assignements
+    
         
     def _step_M(self,points,assignements):
         """
@@ -125,8 +175,10 @@ class Kmeans():
             sets = points[idx_set]
             if n_set > 0:
                 self.means[i] = np.asarray(np.sum(sets, axis=0)/n_set)
+                
+            self.log_weights[i] = np.log(n_set + np.finfo(np.float64).eps)
     
-    def distortion(self,points,assignements):
+    def score(self,points,assignements=None):
         """
         This method returns the distortion measurement at the end of the k_means.
         
@@ -140,6 +192,8 @@ class Kmeans():
         distortion : (float)
         
         """
+        if assignements is None:
+            assignements = self.predict_assignements(points)
         
         if self._is_initialized:
             n_points,_ = points.shape
@@ -160,7 +214,7 @@ class Kmeans():
 
         
     def fit(self,points_data,points_test=None,n_iter_max=100,
-            n_iter_fix=None,tol=0,distances='euclidean'):
+            n_iter_fix=None,tol=0,distances='euclidean',init=True):
         """The k-means algorithm
         
         Parameters
@@ -189,27 +243,10 @@ class Kmeans():
         None
         
         """
-        from .initializations import initialization_random
-        from .initializations import initialization_plus_plus
-        from .initializations import initialization_AF_KMC
+        n_points,_ = points_data.shape
         
-        n_points,dim = points_data.shape
-        
-        #K-means++ initialization
-        if (self.init == "random"):
-            means = initialization_random(self.n_components,points_data)
-        elif (self.init == "plus"):
-            means = initialization_plus_plus(self.n_components,points_data)
-        elif (self.init == "AF_KMC"):
-            means = initialization_AF_KMC(self.n_components,points_data)
-        else:
-            raise ValueError("Invalid value for 'initialization': %s "
-                                 "'initialization' should be in "
-                                 "['random', 'plus','AF_KMC']"
-                                  % self.init)
-        self.means = means
-        self.iter = 0
-        self._is_initialized = True
+        if not self._is_initialized:
+            self._initialize(points_data,points_test)
         
         test_exists = points_test is not None
         first_iter = True
@@ -227,9 +264,9 @@ class Kmeans():
                 dist_test_pre = dist_test
             
             self._step_M(points_data,assignements_data)
-            dist_data = self.distortion(points_data,assignements_data)
+            dist_data = self.score(points_data,assignements_data)
             if test_exists:
-                dist_test = self.distortion(points_test,assignements_test)
+                dist_test = self.score(points_test,assignements_test)
             
             # Computation of resume_iter
             if first_iter:
@@ -264,3 +301,39 @@ class Kmeans():
 
         else:
             raise Exception("The model is not initialized")
+            
+
+    def _get_parameters(self):
+        return (self.log_weights, self.means)
+    
+
+    def _set_parameters(self, params,verbose=True):
+        self.log_weights, self.means = params
+        
+        if self.n_components != len(self.means) and verbose:
+            print('The number of components changed')
+        self.n_components = len(self.means)
+
+
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+
+        idx_existing = np.where(exist==1)
+        
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+                
+        params = (log_weights, means)
+        
+        return params

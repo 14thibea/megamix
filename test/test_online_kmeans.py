@@ -1,0 +1,186 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import numpy as np
+from scipy import linalg
+from numpy.testing import assert_almost_equal
+from megamix.online import Kmeans, GaussianMixture
+from megamix.online.kmeans import dist_matrix
+from megamix.utils_testing import checking
+
+import pytest
+import h5py
+
+def test_dist_matrix():
+    n_points,n_components,dim = 10,5,2
+    points = np.random.randn(n_points,dim)
+    means = np.random.randn(n_components,dim)
+    
+    expected_dist_matrix = np.zeros((n_points,n_components))
+    for i in range(n_points):
+        for j in range(n_components):
+            expected_dist_matrix[i,j] = np.linalg.norm(points[i] - means[j])
+    
+    predected_dist_matrix = dist_matrix(points,means)
+    
+    assert_almost_equal(expected_dist_matrix,predected_dist_matrix)
+
+class TestKmeans:
+    
+    def setup(self):
+        self.n_components = 5
+        self.dim = 2
+        self.n_points = 10
+        
+        self.file_name = 'test.h5'
+        
+    def teardown(self):
+        checking.remove(self.file_name)
+        
+    def test_initialize(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components,window=window)
+        KM.initialize(points)
+        
+        checking.verify_means(KM.means,self.n_components,self.dim)
+        checking.verify_log_pi(np.log(KM.N),self.n_components)
+        assert KM._is_initialized
+        
+    def test_step_E(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components,window=window)
+        KM.initialize(points)
+        
+        expected_assignements = np.zeros((self.n_points,self.n_components))
+        M = dist_matrix(points,KM.means)
+        for i in range(self.n_points):
+            index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
+            if (isinstance(index_min,np.int64)):
+                expected_assignements[i][index_min] = 1
+            else: #Happens when two points are equally distant from a cluster mean
+                expected_assignements[i][index_min[0]] = 1
+                
+        predected_assignements = KM._step_E(points)
+        
+        assert_almost_equal(expected_assignements,predected_assignements)
+        
+    def test_step_M(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components,window=window)
+        KM.initialize(points)
+        points_window = points[:window:]
+        assignements = KM._step_E(points_window)
+        
+        N = assignements.sum(axis=0) / window
+        X = np.dot(assignements.T,points_window) / window
+                  
+        gamma = 1/(((KM.iter + window)//2)**KM.kappa)
+        
+        expected_N = (1-gamma)*KM.N + gamma*N
+        expected_X = (1-gamma)*KM.X + gamma*X
+        expected_means = expected_X / expected_N[:,np.newaxis]
+        
+        KM._step_M(points_window,assignements)
+                     
+        assert_almost_equal(expected_N,KM.N)
+        assert_almost_equal(expected_X,KM.X)
+        assert_almost_equal(expected_means,KM.means)
+        
+        
+    def test_score(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        
+        with pytest.raises(Exception):
+            KM.score(points)
+        KM.initialize(points)
+        KM.fit(points)
+        score1 = KM.score(points)
+        score2 = KM.score(points+2)
+        assert score1 < score2
+        
+    
+    def test_predict_assignements(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        
+        with pytest.raises(Exception):
+            KM.distortion(points)
+        KM.initialize(points)
+        
+        expected_assignements = KM._step_E(points)
+        
+        predected_assignements = KM.predict_assignements(points)
+        
+        assert_almost_equal(expected_assignements,predected_assignements)
+        
+        
+    def test_write_and_read(self):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        KM.initialize(points)
+        
+        f = h5py.File(self.file_name,'w')
+        grp = f.create_group('init')
+        KM.write(grp)
+        f.close()
+        
+        KM2 = Kmeans(self.n_components)
+        
+        f = h5py.File(self.file_name,'r')
+        grp = f['init']
+        KM2.read_and_init(grp,points)
+        f.close()
+        
+        checking.verify_online_models(KM,KM2)
+        
+        KM.fit(points)
+        KM2.fit(points)
+        
+        checking.verify_online_models(KM,KM2)
+        
+    def test_write_and_read_GM(self,update):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        KM.initialize(points)
+        
+        f = h5py.File(self.file_name,'w')
+        grp = f.create_group('init')
+        KM.write(grp)
+        f.close()
+        
+        predected_GM = GaussianMixture(self.n_components,update=update)
+        
+        f = h5py.File(self.file_name,'r')
+        grp = f['init']   
+        with pytest.warns(UserWarning):
+            predected_GM.read_and_init(grp,points)
+        f.close()
+        
+        expected_GM = GaussianMixture(self.n_components,update=update)
+        
+        expected_GM.means = KM.means
+        expected_GM._initialize_cov(points)
+        
+        # Computation of self.cov_chol
+        expected_GM.cov_chol = np.empty(expected_GM.cov.shape)
+        for i in range(self.n_components):
+            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.cov[i],lower=True)
+                        
+        expected_GM._initialize_weights(points)
+        expected_GM.iter = KM.iter
+
+        weights = np.exp(expected_GM.log_weights)
+        expected_GM.N = weights
+        expected_GM.X = expected_GM.means * expected_GM.N[:,np.newaxis]
+        expected_GM.S = expected_GM.cov * expected_GM.N[:,np.newaxis,np.newaxis]
+        
+        # Computation of S_chol if update=True
+        if expected_GM.update:
+            if expected_GM.covariance_type == 'full':
+                expected_GM.S_chol = np.empty(expected_GM.S.shape)
+                for i in range(expected_GM.n_components):
+                    expected_GM.S_chol[i] = linalg.cholesky(expected_GM.S[i],lower=True)
+            elif expected_GM.covariance_type == 'spherical':
+                expected_GM.S_chol = np.sqrt(expected_GM.S)
+                        
+        checking.verify_online_models(predected_GM,expected_GM)

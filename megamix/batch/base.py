@@ -41,7 +41,7 @@ def _full_covariance_matrices(points,means,weights,resp,reg_covar,n_jobs=1):
     
     return covariance
 
-def _spherical_covariance_matrices(points,means,weights,assignements,reg_covar):
+def _spherical_covariance_matrices(points,means,weights,assignements,reg_covar,n_jobs=1):
     """
     Compute the coefficients for the spherical covariances matrices
     """
@@ -291,6 +291,36 @@ class BaseMixture():
         pass
     
     
+    def _initialize_cov(self,points):
+        from .kmeans import dist_matrix
+        n_points,dim = points.shape
+        assignements = np.zeros((n_points,self.n_components))
+        
+        M = dist_matrix(points,self.means)
+        for i in range(n_points):
+            index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
+            if (isinstance(index_min,np.int64)):
+                assignements[i][index_min] = 1
+            else: #Happens when two points are equally distant from a cluster mean
+                assignements[i][index_min[0]] = 1
+                            
+        weights = np.sum(assignements,axis=0) + 10 * np.finfo(assignements.dtype).eps
+
+        if self.covariance_type == 'full':
+            self.cov = _full_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
+        elif self.covariance_type == 'spherical':
+            self.cov = _spherical_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
+            
+#        S = np.zeros((self.n_components,dim,dim))
+#        for i in range(self.n_components):
+#            diff = points - self.means[i]
+#            diff_weighted = diff * assignements[:,i:i+1]
+#            S[i] = np.dot(diff_weighted.T,diff)
+#            S[i].flat[::dim+1] += self.reg_covar
+#        S /= n_points
+#        
+#        self.cov = S * self.n_components
+    
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
             legend=""):
@@ -359,8 +389,10 @@ class BaseMixture():
         #Initialization
         if self.init=='user' and self._is_initialized == False:
             warnings.warn('The system is going to be initialized')
-        
-        if self.init !='user' or self._is_initialized==False:
+            self._initialize(points_data,points_test)
+            self.iter = 0
+
+        elif self._is_initialized==False:
             self._initialize(points_data,points_test)
             self.iter = 0
             
@@ -507,12 +539,14 @@ class BaseMixture():
         """
         group.create_dataset('means',self.means.shape,dtype='float64')
         group['means'][...] = self.means
-        group.create_dataset('cov',self.cov.shape,dtype='float64')
-        group['cov'][...] = self.cov
         group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
         group['log_weights'][...] = self.log_weights
         group.attrs['iter'] = self.iter
         group.attrs['time'] = time.time()
+        
+        if self.name in ['GMM','VBGMM','DPGMM']:
+            group.create_dataset('cov',self.cov.shape,dtype='float64')
+            group['cov'][...] = self.cov
         
         if self.name in ['VBGMM','DPGMM']:
             initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
@@ -535,10 +569,9 @@ class BaseMixture():
             
         """
         self.means = np.asarray(group['means'].value)
-        self.cov = np.asarray(group['cov'].value)
         self.log_weights = np.asarray(group['log_weights'].value)
         self.iter = group.attrs['iter']
-        
+
         n_components = len(self.means)
         if n_components != self.n_components:
             warnings.warn('You are now currently working with %s components.'
@@ -547,6 +580,16 @@ class BaseMixture():
         
         self.type_init ='user'
         self.init = 'user'
+        
+        
+        if self.name in ['GMM','VBGMM','DPGMM']:
+            try:
+                self.cov = np.asarray(group['cov'].value)
+            except KeyError:
+                warnings.warn('You are reading a model with no prior '
+                              'parameters. They will be initialized '
+                              'if not already given during __init__')
+                self.type_init = 'kmeans'
         
         if self.name in ['VBGMM','DPGMM']:
             try:

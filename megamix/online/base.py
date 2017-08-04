@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #Created on Fri Apr 21 11:13:09 2017
@@ -5,9 +6,11 @@
 #author: Elina THIBEAU-SUTRE
 #
 import numpy as np
+import math
 import scipy.linalg
 from scipy.special import gammaln,iv
 import os
+import h5py
 import warnings
 import time
 
@@ -132,6 +135,32 @@ def _log_C(alpha):
     
     return gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))
 
+
+def _check_saving(saving,saving_iter):
+    if saving is None:
+        def condition(iteration):
+            return False
+    elif saving == 'log':
+        if saving_iter <= 1 or not isinstance(saving_iter,int):
+            raise ValueError('Innapropriate argument value for saving_iter %s'
+    								  "it must be an int > 1."
+                             %saving_iter)
+        def condition(iteration):
+            return math.log(iteration,saving_iter)%1 == 0
+    elif saving == 'linear':
+        if saving_iter < 1 or not isinstance(saving_iter,int):
+            raise ValueError('Innapropriate argument value for saving_iter %s'
+    								  "it must be an int > 0."
+                             %saving_iter)
+        def condition(iteration):
+            return iteration%saving_iter == 0
+    else:
+        raise ValueError('Innapropriate argument value for saving %s'
+								  "it must be in ['log','linear']"
+								  %saving)
+    return condition
+
+
 class BaseMixture():
     """
     Base class for mixture models.
@@ -160,6 +189,9 @@ class BaseMixture():
             raise ValueError("The number of components cannot be less than 1")
         else:
             self.n_components = int(self.n_components)
+            
+        if self.kappa <= 0 or self.kappa > 1:
+            raise ValueError("kappa must be in ]0,1]")
             
             
     def _check_prior_parameters(self,points):
@@ -233,9 +265,9 @@ class BaseMixture():
                              'dimension as the problem : ' + str(dim_means))
         return points
     
-    
-    def fit(self,points,patience=None,directory=None,saving=None,legend="",
-            verbose=False):
+	
+    def fit(self,points,patience=None,directory=None,saving=None,file_name="model",
+            saving_iter=2):
         """The EM algorithm
         
         Parameters
@@ -272,22 +304,25 @@ class BaseMixture():
         if not self._is_initialized:
             raise ValueError('The system has to be initialized.')
         
+        condition = _check_saving(saving,saving_iter)            
+        
         if directory is None:
             directory = os.getcwd()
         
         n_points,dim = points.shape
-        
-        for i in range(int(n_points/self.window)):
-#        for i in range(n_points):
+		
+        for i in range(n_points//self.window):
             point = points[i*self.window:(i+1)*self.window:]
             _,log_resp = self._step_E(point)
             self._sufficient_statistics(point,log_resp)
-            self._step_M(log_resp)
+            self._step_M()
             self.iter += self.window
             
-            if verbose and self.iter%1 == 0:
-                print(self.iter)
-                self.create_graph(points[:i*self.window:],legend=str(self.iter))
+            if condition(self.iter):
+                f = h5py.File(file_name + '.h5', 'a')
+                grp = f.create_group('iter' + str(self.iter))
+                self.write(grp)
+                f.close()
     
     def predict_log_resp(self,points):
         """
@@ -307,6 +342,10 @@ class BaseMixture():
         
         points = self._check_points(points)
         
+        if self.name == 'Kmeans':
+            raise Exception('Kmeans cannot write log assignements as most of'
+                            'them are null. Use predict_assignements(self,points)')
+            
         if self._is_initialized:
             _,log_resp = self._step_E(points)
             return log_resp
@@ -351,15 +390,17 @@ class BaseMixture():
             A group of a hdf5 file in reading mode
 
         """
-        group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
-        group['log_weights'][...] = self.log_weights
         group.create_dataset('means',self.means.shape,dtype='float64')
         group['means'][...] = self.means
-        group.create_dataset('cov',self.cov.shape,dtype='float64')
-        group['cov'][...] = self.cov
+        group.create_dataset('log_weights',self.log_weights.shape,dtype='float64')
+        group['log_weights'][...] = self.log_weights
         group.attrs['iter'] = self.iter
         group.attrs['time'] = time.time()
-        
+		
+        if self.name in ['GMM','VBGMM','DPGMM']:
+            group.create_dataset('cov',self.cov.shape,dtype='float64')
+            group['cov'][...] = self.cov
+            
         if self.name in ['VBGMM','DPGMM']:
             initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
             group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
@@ -380,9 +421,9 @@ class BaseMixture():
             A group of a hdf5 file in reading mode
             
         """
-        self.log_weights = np.asarray(group['log_weights'].value)
+        self.init = 'read'
         self.means = np.asarray(group['means'].value)
-        self.cov = np.asarray(group['cov'].value)
+        self.log_weights = np.asarray(group['log_weights'].value)
         self.iter = group.attrs['iter']
         
         n_components = len(self.means)
@@ -391,20 +432,26 @@ class BaseMixture():
                           % n_components)
             self.n_components = n_components
         
-        self.init = 'read_and_init'
-        print('I will initialize')
-        self.initialize(points)
-        print(self._is_initialized)
+        if self.name in ['GMM','VBGMM','DPGMM']:
+            try:
+                self.cov = np.asarray(group['cov'].value)
+            except KeyError:
+                warnings.warn('You are reading a model with no covariance.'
+                              'They will be initialized.')
+            
+            self.init = 'read_kmeans'
         
-#        if self.name in ['VBGMM','DPGMM']:
-#            try:
-#                initial_parameters = group['initial parameters'].value
-#                self.alpha_0 = initial_parameters[0]
-#                self.beta_0 = initial_parameters[1]
-#                self.nu_0 = initial_parameters[2]
-#                self._means_prior = np.asarray(group['means prior'].value)
-#                self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
-#            except KeyError:
-#                warnings.warn('You are reading a model with no prior '
-#                              'parameters. They will be initialized '
-#                              'if not already given during __init__')
+        if self.name in ['VBGMM','DPGMM']:
+            try:
+                initial_parameters = group['initial parameters'].value
+                self.alpha_0 = initial_parameters[0]
+                self.beta_0 = initial_parameters[1]
+                self.nu_0 = initial_parameters[2]
+                self._means_prior = np.asarray(group['means prior'].value)
+                self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
+            except KeyError:
+                warnings.warn('You are reading a model with no prior '
+                              'parameters. They will be initialized '
+                              'if not already given during __init__')
+        
+        self.initialize(points)

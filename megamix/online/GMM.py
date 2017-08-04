@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #Created on Mon Apr 10 11:34:50 2017
@@ -165,9 +166,10 @@ class GaussianMixture(BaseMixture):
         
         n_points,dim = points.shape
         
-        if not self.init == 'read_and_init':
-            # Parameters
+        if self.init == 'usual':
             self.means = initialization_plus_plus(self.n_components,points)
+            self.iter = n_points + 1
+        if self.init in ['usual','read_kmeans']:
             self._initialize_cov(points)
             
         # Computation of self.cov_chol
@@ -175,10 +177,8 @@ class GaussianMixture(BaseMixture):
         for i in range(self.n_components):
             self.cov_chol[i],inf = scipy.linalg.lapack.dpotrf(self.cov[i],lower=True)
                 
-        if not self.init == 'read_and_init':        
+        if self.init in ['usual','read_kmeans']:        
             self._initialize_weights(points)
-            
-            self.iter = n_points + 1
 
         weights = np.exp(self.log_weights)
         self.N = weights
@@ -222,7 +222,7 @@ class GaussianMixture(BaseMixture):
         
         return log_prob_norm,log_resp
       
-    def _step_M(self,log_resp):
+    def _step_M(self):
         """
         In this step the algorithm updates the values of the parameters (means, covariances,
         alpha, beta, nu).
@@ -234,9 +234,7 @@ class GaussianMixture(BaseMixture):
         log_resp: an array (n_points,n_components)
             an array containing the logarithm of the responsibilities.
             
-        """
-        n_points,_ = log_resp.shape
-        
+        """        
         self.log_weights = np.log(self.N)
         self.means = self.X / self.N[:,np.newaxis]
         self.cov = self.S / self.N[:,np.newaxis,np.newaxis]
@@ -252,7 +250,7 @@ class GaussianMixture(BaseMixture):
         n_points,dim = points.shape
         resp = np.exp(log_resp)
         
-        gamma = 1/((self.iter + n_points//2)**self.kappa)
+        gamma = 1/(((self.iter + n_points)//2)**self.kappa)
         
         # New sufficient statistics
         N = resp.sum(axis=0) + 10 * np.finfo(resp.dtype).eps
@@ -266,7 +264,7 @@ class GaussianMixture(BaseMixture):
             diff = points - self.means[i]
             diff_weighted = diff * np.sqrt(resp[:,i:i+1])
             S[i] = np.dot(diff_weighted.T,diff_weighted)
-            
+
             if self.update:
                 # diff_weighted is recquired in order to update cov_chol, so we begin
                 # its update here
