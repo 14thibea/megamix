@@ -37,7 +37,7 @@ Dirichlet Process Gaussian Mixture Model (DPGMM)
     :undoc-members:
 
 Online versions of the algorithm
-===============================
+================================
 
 Kmeans
 ******
