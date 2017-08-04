@@ -160,8 +160,9 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 .. math::
    
     \begin{split}
-    q(\mu_k,\Gamma_k) = & 1 \text{ if } k = \arg\min_{1 \leq j \leq k}\lVert x_n-\mu_j\rVert^2 \\
-    & 0 \text{ otherwise}
+    q(\mu_k,\Sigma_k) &= q(\mu_k|\Sigma_k)q(\Sigma_k) \\
+    &= \mathcal{N}(\u_k|m_k,(\beta_k\Sigma_k)^{-1})\mathcal{W}(\Sigma_k|W_k,\nu_k)
+
     \end{split}
    
 The computation of the terms involved in this equation are described in the M step.
