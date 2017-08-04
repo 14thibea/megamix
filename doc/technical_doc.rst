@@ -159,8 +159,10 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 
 .. math::
    
-   q(\mu_k,\Gamma_k) & = q(\mu_k|\Gamma_k)q(\Gamma_k) & = \mathcal{N}(\u_k|m_k,(\beta_k\Gamma_k)^{-1})\mathcal{W}(\Gamma_k|W_k,\nu_k)
-
+   \begin{align}
+      q(\mu_k,\Gamma_k) & = q(\mu_k|\Gamma_k)q(\Gamma_k) \\
+	  & = \mathcal{N}(\u_k|m_k,(\beta_k\Gamma_k)^{-1})\mathcal{W}(\Gamma_k|W_k,\nu_k)
+   \end{align}}
 The computation of the terms involved in this equation are described in the M step.
 
 E step
