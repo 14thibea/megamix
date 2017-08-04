@@ -78,7 +78,7 @@ class Kmeans(BaseMixture):
     
     _is_initialized : bool
         Ensures that the model has been initialized before using other
-        methods such as fit, distortion() or predict_assignements().
+        methods such as fit(), distortion() or predict_assignements().
     
     Raises
     ------
@@ -225,31 +225,32 @@ class Kmeans(BaseMixture):
             
         return distortion
         
-    def fit(self,points,directory=None,saving=None,file_name='model',
+    def fit(self,points,saving=None,file_name='model',
             saving_iter=2):
         """The k-means algorithm
         
         Parameters
         ----------
-        points_data : array (n_points,dim)
-            A 2D array of points on which the model will be trained
+        points : array (n_points,dim)
+            A 2D array of points on which the model will be trained.
             
-        tol : float, defaults to 0
-            The EM algorithm will stop when the difference between two steps 
-            regarding the distortion is less or equal to tol.
+        saving_iter : int | defaults 2
+            An int to know how often the model is saved (see saving below).
             
-        n_iter_max : int, defaults to 100
-            number of iterations maximum that can be done
+        file_name : str | defaults model
+            The name of the file (including the path).
         
         Other Parameters
         ----------------
-        points_test : array (n_points_bis,dim) | Optional
-            A 2D array of points on which the model will be tested.
+        saving : str | Optional
+            A string in ['log','linear']. In the following equations x is the parameter
+            saving_iter (see above).
+            --> If 'log', the model will be saved for all iterations which verify :
+                log(iter)/log(x) is an int
+                
+            --> If 'linear' the model will be saved for all iterations which verify :
+                iter/x is an int
         
-        n_iter_fix : int | Optional
-            If not None, the algorithm will exactly do the number of iterations
-            of n_iter_fix and stop.
-            
         Returns
         -------
         None

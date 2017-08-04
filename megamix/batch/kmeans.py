@@ -214,7 +214,7 @@ class Kmeans(BaseMixture):
 
         
     def fit(self,points_data,points_test=None,n_iter_max=100,
-            n_iter_fix=None,tol=0,distances='euclidean',init=True):
+            n_iter_fix=None,tol=0):
         """The k-means algorithm
         
         Parameters

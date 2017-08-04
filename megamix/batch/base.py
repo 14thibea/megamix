@@ -322,8 +322,7 @@ class BaseMixture():
 #        self.cov = S * self.n_components
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
-            n_iter_max=100,n_iter_fix=None,directory=None,saving=None,
-            legend=""):
+            n_iter_max=100,n_iter_fix=None,saving=None,file_name="model"):
         """The EM algorithm
         
         Parameters
@@ -355,21 +354,14 @@ class BaseMixture():
             Allows the user to save the model parameters in the directory given
             by the user. Options are ['log','final'].
             
-        directory : str | Optional
-            Give the emplacement where data of the model will be saved if saving
-            is not None.
-            
-        legend : str | Optional
-            A string added to the name of the hdf5 file which will be saved.
+        file_name : str | defaults model
+            The name of the file (including the path).
             
         Returns
         -------
         None
         
         """
-        
-        if directory==None:
-            directory = os.getcwd()
         
         early_stopping = points_test is not None
             
@@ -406,7 +398,7 @@ class BaseMixture():
         
         #Saving the initialization
         if saving is not None:
-            file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "w")
+            file = h5py.File(file_name + ".h5", "w")
             grp = file.create_group('init')
             self.write(grp)
             file.close()
@@ -459,13 +451,13 @@ class BaseMixture():
             #Saving the model
             if saving is not None and resume_iter == False:
                 self._set_parameters(best_params)
-                file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
+                file = h5py.File(file_name + ".h5", "a")
                 grp = file.create_group('best')
                 self.write(grp)
                 file.close()
                 
             elif saving=='log' and self.iter >= 2**log_iter:
-                file = h5py.File(directory + "/" + self.name + '_' + self.type_init + legend + ".h5", "a")
+                file = h5py.File(file_name + ".h5", "a")
                 grp = file.create_group('log_iter' + str(log_iter))
                 self.write(grp)
                 file.close()

@@ -285,35 +285,32 @@ class BaseMixture():
         return points
     
 	
-    def fit(self,points,patience=None,directory=None,saving=None,file_name="model",
+    def fit(self,points,saving=None,file_name='model',
             saving_iter=2):
         """The EM algorithm
         
         Parameters
         ----------
-        points_data : array (n_points,dim)
-            A 2D array of points on which the model will be trained
+        points : array (n_points,dim)
+            A 2D array of points on which the model will be trained.
             
-        tol : float, defaults to 1e-3
-            The EM algorithm will stop when the difference between two steps 
-            regarding the convergence criterion is less than tol.
+        saving_iter : int | defaults 2
+            An int to know how often the model is saved (see saving below).
+            
+        file_name : str | defaults model
+            The name of the file (including the path).
         
         Other Parameters
         ----------------
-        points_test : array (n_points_bis,dim) | Optional
-            A 2D array of points on which the model will be tested.
-            
         saving : str | Optional
-            Allows the user to save the model parameters in the directory given
-            by the user. Options are ['log','final'].
-            
-        directory : str | Optional
-            Give the emplacement where data of the model will be saved if saving
-            is not None.
-            
-        legend : str | Optional
-            A string added to the name of the hdf5 file which will be saved.
-            
+            A string in ['log','linear']. In the following equations x is the parameter
+            saving_iter (see above).
+            --> If 'log', the model will be saved for all iterations which verify :
+                log(iter)/log(x) is an int
+                
+            --> If 'linear' the model will be saved for all iterations which verify :
+                iter/x is an int
+        
         Returns
         -------
         None
