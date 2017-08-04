@@ -9,10 +9,23 @@
 
 import os
 from setuptools import setup, find_packages
+from Cython.Build import cythonize
+from distutils.extension import Extension
 
 VERSION = '0.3'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+
+ext_modules = [
+
+    Extension(
+        "megamix/online/cython_version/basic_operations",
+        ["basic_operations.pyx"],
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp'],
+    ),
+
+]
 
 ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
 REQUIREMENTS = [] if ON_RTD else [
@@ -26,6 +39,7 @@ setup(
     name='megamix',
     version=VERSION,
     packages=find_packages(exclude=['test']),
+    ext_modules = cythonize(ext_modules),
     include_package_data=True,
     zip_safe=False,
     install_requires=REQUIREMENTS,
