@@ -159,10 +159,10 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
 
 .. math::
    
-   \begin{align}
+   \begin{split}
       f(x) &=& x^2 + 8x + 16 \\
       &=& (x+4)^2
-   \end{align}
+   \end{split}
    
 The computation of the terms involved in this equation are described in the M step.
 
