@@ -50,6 +50,7 @@ class Kmeans(BaseMixture):
         
         * If kappa is nearly null, the new points have a big weight and the model may
         take a lot of time to stabilize.
+        
         * If kappa = 1.0, the new points won't have a lot of weight and the model may
         not move enough from its initialization.
 
