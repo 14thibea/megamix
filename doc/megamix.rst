@@ -42,14 +42,14 @@ Online versions of the algorithm
 Kmeans
 ******
 
-.. automodule:: megamix.online.Kmeans
+.. automodule:: megamix.online.kmeans
     :members:
     :undoc-members:
 
 Gaussian Mixture Model (GMM)
 ****************************
 
-.. autoclass:: megamix.online.GaussianMixture
+.. autoclass:: megamix.online.GMM
     :members:
     :inherited-members:
     :undoc-members:
