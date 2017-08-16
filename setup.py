@@ -25,6 +25,27 @@ ext_modules = [
         extra_link_args=['-fopenmp'],
     ),
 
+    Extension(
+        "megamix/online/cython_version/basic_operations",
+        ["megamix/online/cython_version/basic_operations.pyx"],
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp'],
+    ),
+            
+    Extension(
+        "megamix/online/cython_version/GMM_cython",
+        ["megamix/online/cython_version/GMM_cython.pyx"],
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp'],
+    ),
+            
+    Extension(
+        "megamix/online/cython_version/kmeans_cython",
+        ["megamix/online/cython_version/kmeans_cython.pyx"],
+        extra_compile_args=['-fopenmp'],
+        extra_link_args=['-fopenmp'],
+    ),
+
 ]
 
 ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
@@ -39,8 +60,8 @@ REQUIREMENTS = [] if ON_RTD else [
 setup(
     name='megamix',
     version=VERSION,
-    packages=find_packages(exclude=['test']),
-#    ext_modules = cythonize(ext_modules),
+    packages=find_packages(),
+    ext_modules=cythonize(ext_modules),
     include_package_data=True,
     zip_safe=False,
     install_requires=REQUIREMENTS,
@@ -53,3 +74,8 @@ setup(
     url='https://github.com/14thibea/Stage_ENS',
     license='MIT',
 )
+
+#try:
+#    setup(ext_modules=cythonize(ext_modules))
+#except:
+#    print("It didn't compile")
