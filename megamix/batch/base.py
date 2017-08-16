@@ -9,7 +9,7 @@ from abc import abstractmethod
 import numpy as np
 import scipy.linalg
 from scipy.special import gammaln,iv
-import os
+import math
 import warnings
 import h5py
 import time
@@ -159,6 +159,32 @@ def _log_C(alpha):
     """
     
     return gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))
+
+
+def _check_saving(saving,saving_iter):
+    if saving is None:
+        def condition(iteration):
+            return False
+    elif saving == 'log':
+        if saving_iter <= 1 or not isinstance(saving_iter,int):
+            raise ValueError('Innapropriate argument value for saving_iter %s'
+    								  "it must be an int > 1."
+                             %saving_iter)
+        def condition(iteration):
+            return math.log(iteration,saving_iter)%1 == 0
+    elif saving == 'linear':
+        if saving_iter < 1 or not isinstance(saving_iter,int):
+            raise ValueError('Innapropriate argument value for saving_iter %s'
+    								  "it must be an int > 0."
+                             %saving_iter)
+        def condition(iteration):
+            return iteration%saving_iter == 0
+    elif saving != 'final':
+        raise ValueError('Innapropriate argument value for saving %s'
+								  "it must be in ['log','linear','final']"
+								  %saving)
+    return condition
+
 
 class BaseMixture():
     """
@@ -322,7 +348,8 @@ class BaseMixture():
 #        self.cov = S * self.n_components
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
-            n_iter_max=100,n_iter_fix=None,saving=None,file_name="model"):
+            n_iter_max=100,n_iter_fix=None,saving=None,file_name='model',
+            saving_iter=2):
         """The EM algorithm
         
         Parameters
@@ -336,6 +363,12 @@ class BaseMixture():
             
         n_iter_max : int, defaults to 100
             number of iterations maximum that can be done
+        
+        saving_iter : int | defaults 2
+            An int to know how often the model is saved (see saving below).
+            
+        file_name : str | defaults model
+            The name of the file (including the path).
         
         Other Parameters
         ----------------
@@ -351,11 +384,13 @@ class BaseMixture():
             of n_iter_fix and stop.
             
         saving : str | Optional
-            Allows the user to save the model parameters in the directory given
-            by the user. Options are ['log','final'].
-            
-        file_name : str | defaults model
-            The name of the file (including the path).
+            A string in ['log','linear']. In the following equations x is the parameter
+            saving_iter (see above).
+            * If 'log', the model will be saved for all iterations which verify :
+                log(iter)/log(x) is an int
+                
+            * If 'linear' the model will be saved for all iterations which verify :
+                iter/x is an int
             
         Returns
         -------
@@ -371,6 +406,8 @@ class BaseMixture():
         iter_algo = 0
         best_criterion = -np.Inf
         
+        condition = _check_saving(saving,saving_iter)
+        
         if patience is None:
             if early_stopping:
                 warnings.warn('You are using early stopping with no patience. '
@@ -379,23 +416,13 @@ class BaseMixture():
             patience = 0
 
         #Initialization
-        if self.init=='user' and self._is_initialized == False:
-            warnings.warn('The system is going to be initialized')
-            self._initialize(points_data,points_test)
-            self.iter = 0
-
-        elif self._is_initialized==False:
+        if not self._is_initialized or self.init!='user':
             self._initialize(points_data,points_test)
             self.iter = 0
             
         self.convergence_criterion_data = []
         self.convergence_criterion_test = []
-        
-        if self.iter!=0:
-            log_iter = int(np.log(self.iter)/np.log(2)) + 1
-        else:
-            log_iter = 0
-        
+                
         #Saving the initialization
         if saving is not None:
             file = h5py.File(file_name + ".h5", "w")
@@ -456,12 +483,11 @@ class BaseMixture():
                 self.write(grp)
                 file.close()
                 
-            elif saving=='log' and self.iter >= 2**log_iter:
-                file = h5py.File(file_name + ".h5", "a")
-                grp = file.create_group('log_iter' + str(log_iter))
+            elif condition(self.iter):
+                f = h5py.File(file_name + '.h5', 'a')
+                grp = f.create_group('iter' + str(self.iter))
                 self.write(grp)
-                file.close()
-                log_iter +=1
+                f.close()
         
             iter_algo += 1
         

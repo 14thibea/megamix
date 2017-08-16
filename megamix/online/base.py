@@ -305,10 +305,10 @@ class BaseMixture():
         saving : str | Optional
             A string in ['log','linear']. In the following equations x is the parameter
             saving_iter (see above).
-            --> If 'log', the model will be saved for all iterations which verify :
+            * If 'log', the model will be saved for all iterations which verify :
                 log(iter)/log(x) is an int
                 
-            --> If 'linear' the model will be saved for all iterations which verify :
+            * If 'linear' the model will be saved for all iterations which verify :
                 iter/x is an int
         
         Returns

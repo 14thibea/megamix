@@ -6,6 +6,7 @@
 #
 
 import numpy as np
+import h5py
 from .base import BaseMixture
 
 def dist_matrix(points,means):
@@ -214,7 +215,8 @@ class Kmeans(BaseMixture):
 
         
     def fit(self,points_data,points_test=None,n_iter_max=100,
-            n_iter_fix=None,tol=0):
+            n_iter_fix=None,tol=0,saving=None,file_name='model',
+            saving_iter=2):
         """The k-means algorithm
         
         Parameters
@@ -228,6 +230,12 @@ class Kmeans(BaseMixture):
             
         n_iter_max : int, defaults to 100
             number of iterations maximum that can be done
+            
+        saving_iter : int | defaults 2
+            An int to know how often the model is saved (see saving below).
+            
+        file_name : str | defaults model
+            The name of the file (including the path).
         
         Other Parameters
         ----------------
@@ -238,6 +246,16 @@ class Kmeans(BaseMixture):
             If not None, the algorithm will exactly do the number of iterations
             of n_iter_fix and stop.
             
+        saving : str | Optional
+            A string in ['log','linear']. In the following equations x is the parameter
+            saving_iter (see above).
+            
+            * If 'log', the model will be saved for all iterations which verify :
+                log(iter)/log(x) is an int
+                
+            * If 'linear' the model will be saved for all iterations which verify :
+                iter/x is an int
+                
         Returns
         -------
         None
@@ -245,10 +263,20 @@ class Kmeans(BaseMixture):
         """
         n_points,_ = points_data.shape
         
-        if not self._is_initialized:
+        #Initialization
+        if not self._is_initialized or self.init!='user':
             self._initialize(points_data,points_test)
+            self.iter = 0        
+            
+        if saving is not None:
+            f = h5py.File(file_name + '.h5', 'a')
+            grp = f.create_group('best' + str(self.iter))
+            self.write(self,grp)
+            f.close()
         
-        test_exists = points_test is not None
+        condition = BaseMixture._check_saving(saving,saving_iter)
+        
+        early_stopping = points_test is not None
         first_iter = True
         resume_iter = True
         
@@ -259,13 +287,13 @@ class Kmeans(BaseMixture):
             
             assignements_data = self._step_E(points_data)
             dist_data_pre = dist_data
-            if test_exists:
+            if early_stopping:
                 assignements_test = self._step_E(points_test)
                 dist_test_pre = dist_test
             
             self._step_M(points_data,assignements_data)
             dist_data = self.score(points_data,assignements_data)
-            if test_exists:
+            if early_stopping:
                 dist_test = self.score(points_test,assignements_test)
             
             # Computation of resume_iter
@@ -279,12 +307,24 @@ class Kmeans(BaseMixture):
                 resume_iter = False
                 
             else:
-                if test_exists:
+                if early_stopping:
                     criterion = (dist_test_pre - dist_test)/len(points_test)
                 else:
                     criterion = (dist_data_pre - dist_data)/n_points
                 resume_iter = (criterion > tol)
-                    
+            
+            if not resume_iter:
+                f = h5py.File(file_name + '.h5', 'a')
+                grp = f.create_group('best' + str(self.iter))
+                self.write(self,grp)
+                f.close()
+            
+            elif condition(self.iter):
+                f = h5py.File(file_name + '.h5', 'a')
+                grp = f.create_group('iter' + str(self.iter))
+                self.write(self,grp)
+                f.close()
+            
             self.iter+=1
             
             
