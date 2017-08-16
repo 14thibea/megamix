@@ -122,14 +122,11 @@ cdef class Kmeans:
         
         if self._is_initialized:
             means = np.asarray(self.means)
-            print(means)
             for i in xrange(self.n_components):
                 assignements_i = assignements[:,i:i+1]
                 n_set = np.sum(assignements_i)
                 idx_set,_ = np.where(assignements_i==1)
                 sets = points[idx_set]
-                print(idx_sets)
-                print(sets)
                 if n_set != 0:
                     M = np.linalg.norm(sets-means[i],axis=1)
                     distortion += np.sum(M)

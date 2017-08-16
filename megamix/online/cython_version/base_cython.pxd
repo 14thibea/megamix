@@ -10,7 +10,8 @@ cdef class BaseMixture:
     cdef int n_components
     cdef int iteration
     cdef int window
-    
+    cdef double reg_covar
+
     # Only for VBGMM
     cdef double alpha_0
     cdef double beta_0
@@ -26,11 +27,13 @@ cdef class BaseMixture:
     cdef double [:,:] beta              # (1,n_components)
     cdef double [:,:] nu                # (1,n_components)
     
+    # Parameters of all models
     cdef double [:,:] log_weights
     cdef double [:,:] means
     cdef double [:,:,:] cov
     cdef double [:,:,:] cov_chol
     
+    # Sufficient statistics
     cdef double [:,:] N                     # (1,n_components)
     cdef double [:,:] X                     # (n_components,dim)
     cdef double [:,:,:] S                   # (n_components,dim,dim)

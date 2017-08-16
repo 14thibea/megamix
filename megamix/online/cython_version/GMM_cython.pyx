@@ -30,7 +30,6 @@ cdef class GaussianMixture(BaseMixture):
     
     cdef double kappa
     cdef int n_jobs #Not used yet
-    cdef double reg_covar
     cdef int update
 
                 
@@ -180,8 +179,7 @@ cdef class GaussianMixture(BaseMixture):
             sqrt2D(self.N,1,self.n_components,self.N_temp)
             divide3Dbyvect2D(self.cov_chol,self.n_components,dim,dim,self.N_temp,self.cov_chol)
         else:
-            for i in xrange(self.n_components):
-                self._compute_cholesky_matrices()
+            self._compute_cholesky_matrices()
         
             
     @cython.initializedcheck(False)

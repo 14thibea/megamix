@@ -259,10 +259,7 @@ class Kmeans(BaseMixture):
         """
         n_points,dim = points.shape
         
-        condition = _check_saving(saving,saving_iter)            
-        
-        if directory is None:
-            directory = os.getcwd()
+        condition = _check_saving(saving,saving_iter)
             
         if self._is_initialized:
             for i in range(n_points//self.window):

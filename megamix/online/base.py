@@ -322,9 +322,6 @@ class BaseMixture():
         
         condition = _check_saving(saving,saving_iter)            
         
-        if directory is None:
-            directory = os.getcwd()
-        
         n_points,dim = points.shape
 		
         for i in range(n_points//self.window):
