@@ -165,3 +165,35 @@ class TestKmeans:
         
         predected_GM.fit(points)
         expected_GM.fit(points)
+        
+        
+    def test_fit_save(self):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        
+        KM.fit(points,n_iter_fix=15,saving='log',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name,'r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == 6
+        
+        KM.fit(points,n_iter_fix=15,saving='linear',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name,'r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == 8
+        
+        KM.fit(points,n_iter_fix=15,saving='final',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name,'r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+        
+        assert cpt == 2
