@@ -42,7 +42,7 @@ Online versions of the algorithm
 Kmeans
 ******
 
-.. automodule:: megamix.online.kmeans
+.. automodule:: megamix.online.Kmeans
     :members:
     :undoc-members:
 
