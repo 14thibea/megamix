@@ -60,7 +60,7 @@ REQUIREMENTS = [] if ON_RTD else [
 setup(
     name='megamix',
     version=VERSION,
-    packages=find_packages(),
+    packages=find_packages(exclude=['test']),
     ext_modules=cythonize(ext_modules),
     include_package_data=True,
     zip_safe=False,
