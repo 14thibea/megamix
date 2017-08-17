@@ -35,18 +35,18 @@ def verify_log_pi(log_pi,n_components):
     assert np.sum(np.exp(log_pi)) - 1.0 < 1e-8
                  
 def verify_online_models(GM,GM2):
-    assert_almost_equal(GM.N,GM2.N)
-    assert_almost_equal(GM.log_weights,GM2.log_weights)
-    assert_almost_equal(GM.X,GM2.X)
-    assert_almost_equal(GM.means,GM2.means)
-    assert GM.iter == GM2.iter
-    if GM.name in ['GMM', 'VBGMM']:
-        assert_almost_equal(GM.S,GM2.S)
-        assert_almost_equal(GM.cov,GM2.cov)
-        assert_almost_equal(GM.cov_chol,GM2.cov_chol)
+    assert_almost_equal(GM.get('N'),GM2.get('N'))
+    assert_almost_equal(GM.get('log_weights'),GM2.get('log_weights'))
+    assert_almost_equal(GM.get('X'),GM2.get('X'))
+    assert_almost_equal(GM.get('means'),GM2.get('means'))
+    assert GM.get('iter') == GM2.get('iter')
+    if GM.get('name') in ['GMM', 'VBGMM']:
+        assert_almost_equal(GM.get('S'),GM2.get('S'))
+        assert_almost_equal(GM.get('cov'),GM2.get('cov'))
+        assert_almost_equal(GM.get('cov_chol'),GM2.get('cov_chol'))
         
-        if GM.update:
-            assert_almost_equal(GM.S_chol,GM2.S_chol)
+        if GM.get('update'):
+            assert_almost_equal(GM.get('S_chol'),GM2.get('S_chol'))
             
 
 def verify_batch_models(GM,GM2):

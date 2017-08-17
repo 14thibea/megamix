@@ -28,7 +28,6 @@ from basic_operations cimport add2Dscalar_reduce,sum2D
 
 cdef class GaussianMixture(BaseMixture):
     
-    cdef double kappa
     cdef int n_jobs #Not used yet
     cdef int update
 
@@ -38,6 +37,7 @@ cdef class GaussianMixture(BaseMixture):
                  int window=1, int update=0):
         
         self.name = 'GMM'
+        self.init = 'usual'
         self.n_components = n_components
         self.reg_covar = reg_covar
         self.n_jobs = n_jobs
@@ -49,26 +49,6 @@ cdef class GaussianMixture(BaseMixture):
         self.iteration = 0
         
         BaseMixture._check_common_parameters(self)
-
-        
-    cdef void _initialize_temporary_arrays(self,double [:,:] points):
-        '''
-        Initialize all temporary arrays that will be used during the other methods
-        '''
-        dim = points.shape[1]
-        
-        # Initialize temporary memoryviews
-        self.N_temp = np.zeros((1,self.n_components))
-        self.N_temp2 = np.zeros((1,self.n_components))
-        self.X_temp_fortran = np.zeros((self.n_components,dim))
-        self.X_temp = np.zeros((self.n_components,dim))
-        self.S_temp = np.zeros((self.n_components,dim,dim))
-        self.cov_temp = np.zeros((dim,dim))
-        self.points_temp2 = np.zeros((self.window,dim))
-        self.points_temp = np.zeros((self.window,dim))
-        self.mean_temp = np.zeros((1,dim))
-        self.log_prob_norm = np.zeros((self.window,1))
-        self.resp_temp = np.zeros((self.window,self.n_components))
         
             
     @cython.initializedcheck(False)
@@ -90,17 +70,24 @@ cdef class GaussianMixture(BaseMixture):
         cdef int dim = points.shape[1]
         
         # Initialization of temporary arrays
-        self._initialize_temporary_arrays(points)
+        BaseMixture._initialize_temporary_arrays(self,points)
         cdef double [:,:] resp = np.zeros((n_points,self.n_components))
         cdef double [:,:] points_temp = np.zeros((n_points,dim))
         cdef double [:,:] points_temp2 = np.zeros((n_points,dim))
 
         # Parameters
-        self.means = initialization_plus_plus(self.n_components,points)
-        BaseMixture._initialize_cov(self,points,resp,points_temp,points_temp2)
+        if self.init == 'usual':
+            self.means = initialization_plus_plus(self.n_components,points)
+            self.iteration = n_points + 1
+
+        if self.init in ['usual','read_kmeans']:
+            BaseMixture._cinitialize_cov(self,points,resp,points_temp,points_temp2)
+            
         self.cov_chol = cvarray(shape=(self.n_components,dim,dim),itemsize=sizeof(double),format='d')
         BaseMixture._compute_cholesky_matrices(self)
-        BaseMixture._initialize_weights(self,points,resp,points_temp,points_temp2)
+        
+        if self.init =='usual':
+            BaseMixture._cinitialize_weights(self,points,resp,points_temp,points_temp2)
         
         # Sufficient statistics
         self.N = cvarray(shape=(1,self.n_components),itemsize=sizeof(double),format='d')
@@ -110,7 +97,6 @@ cdef class GaussianMixture(BaseMixture):
         multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)
         multiply3Dbyvect2D(self.cov,self.n_components,dim,dim,self.N,self.S)
         
-        self.iteration = n_points + 1
         self._is_initialized = 1
 
         
@@ -159,9 +145,25 @@ cdef class GaussianMixture(BaseMixture):
                          self.points_temp,self.points_temp2,
                          self.log_prob_norm)
 
-            
+
+    def _step_E(self,points):
+        '''
+        Wrapper for python tests
+        '''
+        cdef int n_points = points.shape[0]
+        cdef int dim = points.shape[1]
+        cdef double [:,:] points_temp_fortran = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        cdef double [:,:] log_resp = cvarray(shape=(n_points,self.n_components),itemsize=sizeof(double),format='d')
+        cdef double [:,:] log_prob_norm = cvarray(shape=(n_points,1),itemsize=sizeof(double),format='d')
+        
+        self._step_E_gen(points,log_resp,points_temp_fortran,
+                         points_temp,log_prob_norm)
+        
+        return np.asarray(log_prob_norm).reshape(n_points),np.asarray(log_resp)
+        
     @cython.initializedcheck(False)
-    cdef void _step_M(self):
+    cpdef void _step_M(self):
         """
         In this step the algorithm updates the values of the parameters
         (log_weights, means, covariances).
@@ -186,7 +188,7 @@ cdef class GaussianMixture(BaseMixture):
     @cython.cdivision(True)
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
-    cdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp):
+    cpdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp):
         """
         This method is updating the sufficient statistics N,X and S.
         
@@ -202,7 +204,7 @@ cdef class GaussianMixture(BaseMixture):
 
         exp2D(log_resp,self.window,self.n_components,self.resp_temp)
         
-        cdef double gamma = 1/(self.iteration**self.kappa)
+        cdef double gamma = 1/((self.iteration + self.window//2)**self.kappa)
         cdef double window_double = self.window
         cdef double scalar_update
         cdef int i
@@ -245,7 +247,7 @@ cdef class GaussianMixture(BaseMixture):
                                scalar_update,self.N_temp2)
             multiply3Dbyvect2D(self.cov_chol,self.n_components,dim,dim,
                                self.N_temp2,self.cov_chol)
-
+            
         # Sufficient statistics update
         update2D(self.N_temp,1,self.n_components,gamma,self.N)
         update2D(self.X_temp,self.n_components,dim,gamma,self.X)
@@ -274,6 +276,8 @@ cdef class GaussianMixture(BaseMixture):
         """
         cdef int n_points = log_prob_norm.shape[0]
         return sum2D(log_prob_norm,n_points,1)
+    
+                
 #    
 #    def _get_parameters(self):
 #        return (self.N, self.X, self.S)

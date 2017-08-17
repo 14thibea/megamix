@@ -177,10 +177,10 @@ cdef class BaseMixture:
     cdef void _step_E(self,double [:,:] points,double [:,:] log_resp):
         pass
 
-    cdef void _step_M(self):
+    cpdef void _step_M(self):
         pass
     
-    cdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp):
+    cpdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp):
         pass
     
     cdef double _convergence_criterion(self,double [:,:] points,
@@ -245,9 +245,30 @@ cdef class BaseMixture:
             raise ValueError("the covariance prior must have the same "
                              "dimension as the points : %s."
                              % dim)
-
+            
+        
+    cdef void _initialize_temporary_arrays(self,double [:,:] points):
+        '''
+        Initialize all temporary arrays that will be used during the other methods
+        '''
+        dim = points.shape[1]
+        
+        # Initialize temporary memoryviews
+        self.N_temp = np.zeros((1,self.n_components))
+        self.N_temp2 = np.zeros((1,self.n_components))
+        self.X_temp_fortran = np.zeros((self.n_components,dim))
+        self.X_temp = np.zeros((self.n_components,dim))
+        self.S_temp = np.zeros((self.n_components,dim,dim))
+        self.cov_temp = np.zeros((dim,dim))
+        self.points_temp2 = np.zeros((self.window,dim))
+        self.points_temp = np.zeros((self.window,dim))
+        self.mean_temp = np.zeros((1,dim))
+        self.log_prob_norm = np.zeros((self.window,1))
+        self.resp_temp = np.zeros((self.window,self.n_components))
+    
+    
     @cython.initializedcheck(False)
-    cdef void _initialize_cov(self,double [:,:] points, double [:,:] assignements,
+    cdef void _cinitialize_cov(self,double [:,:] points, double [:,:] assignements,
                               double [:,:] diff, double [:,:] diff_weighted):
         '''
         Initialize the attribute cov
@@ -259,6 +280,8 @@ cdef class BaseMixture:
         ----------
         points : an array (n_points,dim)
         resp : an array (n_points,n_components)
+        diff : an array (n_points,dim)
+        diff_weighted : an array (n_points,dim)
         
         '''
         
@@ -295,9 +318,19 @@ cdef class BaseMixture:
         
         divide3Dbyvect2D(self.S_temp,self.n_components,dim,dim,self.N_temp,self.cov)
         
+    
+    def _initialize_cov(self,points):
+        self._initialize_temporary_arrays(points)
+        cdef int n_points = points.shape[0]
+        cdef int dim = points.shape[1]
+        cdef double [:,:] assignements = cvarray(shape=(n_points,self.n_components),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp2 = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        self._cinitialize_cov(points,assignements,points_temp,points_temp2)
         
+    
     @cython.initializedcheck(False)
-    cdef void _initialize_weights(self,double [:,:] points,double [:,:] log_normal_matrix,
+    cdef void _cinitialize_weights(self,double [:,:] points,double [:,:] log_normal_matrix,
                             double [:,:] points_temp, double [:,:] points_temp_fortran):
         '''
         Initialize the attribute log_weights
@@ -332,6 +365,19 @@ cdef class BaseMixture:
         logsumexp_axis(log_normal_matrix,n_points,self.n_components,0,self.log_weights)
         add2Dscalar(self.log_weights,1,self.n_components,norm,self.log_weights)
 
+    
+    def _initialize_weights(self,points):
+        """
+        Wrapper for python tests
+        """
+        self._initialize_temporary_arrays(points)
+        cdef int n_points = points.shape[0]
+        cdef int dim = points.shape[1]
+        cdef double [:,:] log_normal_matrix = cvarray(shape=(n_points,self.n_components),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp2 = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        self._cinitialize_weights(points,log_normal_matrix,points_temp,points_temp2)
+    
 
     def _check_points(self,points):
         """
@@ -503,91 +549,60 @@ cdef class BaseMixture:
             A group of a hdf5 file in reading mode
 
         """
-        n_components = self.get('N').shape[1]
-        group.create_dataset('log_weights',(n_components,),dtype='float64')
-        group['log_weights'][...] = self.get('log_weights').reshape(n_components)
-        group.create_dataset('means',self.get('means').shape,dtype='float64')
+        dim = self.get('means').shape[1]
+        group.create_dataset('log_weights',(self.n_components,),dtype='float64')
+        group['log_weights'][...] = self.get('log_weights')
+        group.create_dataset('means',(self.n_components,dim),dtype='float64')
         group['means'][...] = self.get('means')
-        group.create_dataset('cov',self.get('cov').shape,dtype='float64')
+        group.create_dataset('cov',(self.n_components,dim,dim),dtype='float64')
         group['cov'][...] = self.get('cov')
-        group.attrs['iter'] = self.get('iteration')
+        group.attrs['iter'] = self.get('iter')
         group.attrs['time'] = time.time()
-        
-#        if self.name in ['VBGMM','DPGMM']:
-#            initial_parameters = np.asarray([self.alpha_0,self.beta_0,self.nu_0])
-#            group.create_dataset('initial parameters',initial_parameters.shape,dtype='float64')
-#            group['initial parameters'][...] = initial_parameters
-#            group.create_dataset('means prior',self._means_prior.shape,dtype='float64')
-#            group['means prior'][...] = self._means_prior
-#            group.create_dataset('inv prec prior',self._inv_prec_prior.shape,dtype='float64')
-#            group['inv prec prior'][...] = self._inv_prec_prior
-
     
-#    def read(self,group,points):
-#        """
-#        A method reading a group of an hdf5 file to initialize DPGMM
-#        
-#        Parameters
-#        ----------
-#        group : HDF5 group
-#            A group of a hdf5 file in reading mode
-#            
-#        """
-#        self.N = np.asarray(group['N'].value)
-#        self.X = np.asarray(group['X'].value)
-#        self.S = np.asarray(group['S'].value)
-#        self.iter = group.attrs['iter']
-#        
-#        n_components = len(self.means)
-#        if n_components != self.n_components:
-#            warnings.warn('You are now currently working with %s components.'
-#                          % n_components)
-#            self.n_components = n_components
-#        
-#        self.type_init ='user'
-#        self.init = 'user'
-#        
-#        if self.name in ['VBGMM','DPGMM']:
-#            try:
-#                initial_parameters = group['initial parameters'].value
-#                self.alpha_0 = initial_parameters[0]
-#                self.beta_0 = initial_parameters[1]
-#                self.nu_0 = initial_parameters[2]
-#                self._means_prior = np.asarray(group['means prior'].value)
-#                self._inv_prec_prior = np.asarray(group['inv prec prior'].value)
-#            except KeyError:
-#                warnings.warn('You are reading a model with no prior '
-#                              'parameters. They will be initialized '
-#                              'if not already given during __init__')
-            
+
+    def read_and_init(self,group,points):
+        """
+        A method reading a group of an hdf5 file to initialize DPGMM
         
-#    def simplified_model(self,points):
-#        """
-#        A method creating a new model with simplified parameters: clusters unused
-#        are removed
-#        
-#        Parameters
-#        ----------
-#        points : an array (n_points,dim)
-#        
-#        Returns
-#        -------
-#        GM : an instance of the same type of self: GMM,VBGMM or DPGMM
-#
-#        """
-#        import copy
-#        
-#        GM = copy.copy(self)
-#        params = self._limiting_model(points)
-#        GM._set_parameters(params)
-#        return GM
+        Parameters
+        ----------
+        group : HDF5 group
+            A group of a hdf5 file in reading mode
+            
+        """
+        self.means = np.asarray(group['means'].value)
+        self.log_weights = np.asarray(group['log_weights'].value).reshape(1,self.n_components)
+        self.iteration = group.attrs['iter']
+
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
+        
+        self.init = 'user'
+        
+        try:
+            self.cov = np.asarray(group['cov'].value)
+        except KeyError:
+            warnings.warn('You are reading a model with no covariance.'
+                          'They will be initialized.')
+            self.init = 'read_kmeans'
+        
+        self.initialize(points)
 
 
     def get(self,name):
         if name=='_is_initialized':
             return self._is_initialized
-        elif name=='iteration':
+        elif name=='iter':
             return self.iteration
+        elif name=='init':
+            return self.init
+        elif name=='name':
+            return self.name
+        elif name=='kappa':
+            return self.kappa
         elif name=='window':
             return self.window
         elif name=='means':
@@ -597,15 +612,17 @@ cdef class BaseMixture:
         elif name=='cov_chol':
             return np.asarray(self.cov_chol)
         elif name=='log_weights':
-            return np.asarray(self.log_weights)
+            return np.asarray(self.log_weights).reshape(self.n_components)
         elif name=='N':
-            return np.asarray(self.N)
+            return np.asarray(self.N).reshape(self.n_components)
         elif name=='X':
             return np.asarray(self.X)
         elif name=='S':
             return np.asarray(self.S)
         elif name=='n_components':
             return self.n_components
+        elif name=='upgrade':
+            return self.upgrade
         
         # VBGMM only
         elif name=='alpha_0':
@@ -625,3 +642,44 @@ cdef class BaseMixture:
         elif name=='mean_prior':
             return np.asarray(self.mean_prior)
        
+    def set(self,name,data):
+        if name=='_is_initialized':
+            self._is_initialized = data
+        elif name=='iter':
+            self.iteration = data
+        elif name=='window':
+            self.window = data
+        elif name=='means':
+            self.means = data
+        elif name=='cov':
+            self.cov = data
+        elif name=='cov_chol':
+            self.cov_chol = data
+        elif name=='log_weights':
+            self.log_weights = data
+        elif name=='N':
+            self.N = data
+        elif name=='X':
+            self.X = data
+        elif name=='S':
+            self.S = data
+        elif name=='n_components':
+            self.n_components = data
+        
+        # VBGMM only
+        elif name=='alpha_0':
+            self.alpha_0 = data
+        elif name=='beta_0':
+            self.beta_0 = data
+        elif name=='nu_0':
+            self.nu_0 = data
+        elif name=='alpha':
+            self.alpha = data
+        elif name=='beta':
+            self.beta = data
+        elif name=='nu':
+            self.nu = data
+        elif name=='inv_prec_prior':
+            self.inv_prec_prior = data
+        elif name=='mean_prior':
+            self.mean_prior = data

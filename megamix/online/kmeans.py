@@ -186,7 +186,7 @@ class Kmeans(BaseMixture):
         X /= n_points
         
         # Sufficient statistics update
-        gamma = 1/(((self.iter + n_points)//2)**self.kappa)
+        gamma = 1/((self.iter + n_points//2)**self.kappa)
         
         self.N = (1-gamma)*self.N + gamma*N
         self.X = (1-gamma)*self.X + gamma*X     
@@ -291,3 +291,25 @@ class Kmeans(BaseMixture):
 
         else:
             raise Exception("The model is not initialized")
+            
+            
+    # To be consistent with the cython version
+    def get(self,name):
+        if name=='_is_initialized':
+            return self._is_initialized
+        if name=='log_weights':
+            return np.array(self.log_weights).reshape(self.n_components)
+        if name=='means':
+            return np.array(self.means)
+        if name=='N':
+            return np.array(self.N).reshape(self.n_components)
+        if name=='X':
+            return np.array(self.X)
+        if name=='iter':
+            return self.iter
+        elif name=='window':
+            return self.window
+        elif name=='kappa':
+            return self.kappa
+        elif name=='name':
+            return self.name

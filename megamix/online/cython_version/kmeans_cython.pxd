@@ -2,7 +2,8 @@ cdef void dist_matrix_update(double [:,:] points, double [:,:] means,double [:,:
 
 cdef class Kmeans:
     #Attributes
-    cdef char* name
+    cdef str name
+    cdef str init
     cdef int n_components
     cdef double kappa
     cdef int n_jobs
@@ -12,6 +13,7 @@ cdef class Kmeans:
     
     cdef double [:,:] N
     cdef double [:,:] X
+    cdef double [:,:] log_weights
     cdef double [:,:] means
 
     # Temporary memoryviews
@@ -23,7 +25,7 @@ cdef class Kmeans:
     
     # Methods
     cdef void _check_parameters(self)
-#    cdef void _step_E(self, double [:,:] points, int dim,
-#                      double [:,:] assignements, double [:,:] dist_matrix)
-#    cdef void _step_M(self,double[:,:] points,int dim,double[:,:] assignements)
+    cdef void _step_E_gen(self, double [:,:] points, double [:,:] assignements,
+                          double [:,:] dist_matrix)
+    cpdef void _step_M(self,double[:,:] points,double[:,:] assignements)
         

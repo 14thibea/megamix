@@ -250,7 +250,7 @@ class GaussianMixture(BaseMixture):
         n_points,dim = points.shape
         resp = np.exp(log_resp)
         
-        gamma = 1/(((self.iter + n_points)//2)**self.kappa)
+        gamma = 1/((self.iter + n_points//2)**self.kappa)
         
         # New sufficient statistics
         N = resp.sum(axis=0) + 10 * np.finfo(resp.dtype).eps

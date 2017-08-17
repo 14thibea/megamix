@@ -8,7 +8,7 @@ Created on Fri May 19 18:50:46 2017
 from .DPGMM import DPVariationalGaussianMixture
 from .VBGMM import VariationalGaussianMixture
 from .GMM import GaussianMixture
-from .kmeans import Kmeans
+from .kmeans import Kmeans,dist_matrix
 
 __all__ = ['DPVariationalGaussianMixture','VariationalGaussianMixture',
-           'GaussianMixture','Kmeans']
+           'GaussianMixture','Kmeans','dist_matrix']

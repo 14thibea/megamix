@@ -452,7 +452,7 @@ class BaseMixture():
                 warnings.warn('You are reading a model with no covariance.'
                               'They will be initialized.')
             
-            self.init = 'read_kmeans'
+                self.init = 'read_kmeans'
         
         if self.name in ['VBGMM','DPGMM']:
             try:
@@ -468,3 +468,93 @@ class BaseMixture():
                               'if not already given during __init__')
         
         self.initialize(points)
+        
+    def get(self,name):
+        if name=='_is_initialized':
+            return self._is_initialized
+        elif name=='iter':
+            return self.iter
+        elif name=='init':
+            return self.init
+        elif name=='kappa':
+            return self.kappa
+        elif name=='name':
+            return self.name
+        elif name=='window':
+            return self.window
+        elif name=='means':
+            return np.asarray(self.means)
+        elif name=='cov':
+            return np.asarray(self.cov)
+        elif name=='cov_chol':
+            return np.asarray(self.cov_chol)
+        elif name=='log_weights':
+            return np.asarray(self.log_weights)
+        elif name=='N':
+            return np.asarray(self.N)
+        elif name=='X':
+            return np.asarray(self.X)
+        elif name=='S':
+            return np.asarray(self.S)
+        elif name=='n_components':
+            return self.n_components
+        
+        # VBGMM only
+        elif name=='alpha_0':
+            return self.alpha_0
+        elif name=='beta_0':
+            return self.beta_0
+        elif name=='nu_0':
+            return self.nu_0
+        elif name=='alpha':
+            return np.asarray(self.alpha)
+        elif name=='beta':
+            return np.asarray(self.beta)
+        elif name=='nu':
+            return np.asarray(self.nu)
+        elif name=='inv_prec_prior':
+            return np.asarray(self.inv_prec_prior)
+        elif name=='mean_prior':
+            return np.asarray(self.mean_prior)
+       
+    def set(self,name,data):
+        if name=='_is_initialized':
+            self._is_initialized = data
+        elif name=='iter':
+            self.iteration = data
+        elif name=='window':
+            self.window = data
+        elif name=='means':
+            self.means = data
+        elif name=='cov':
+            self.cov = data
+        elif name=='cov_chol':
+            self.cov_chol = data
+        elif name=='log_weights':
+            self.log_weights = data
+        elif name=='N':
+            self.N = data
+        elif name=='X':
+            self.X = data
+        elif name=='S':
+            self.S = data
+        elif name=='n_components':
+            self.n_components = data
+        
+        # VBGMM only
+        elif name=='alpha_0':
+            self.alpha_0 = data
+        elif name=='beta_0':
+            self.beta_0 = data
+        elif name=='nu_0':
+            self.nu_0 = data
+        elif name=='alpha':
+            self.alpha = data
+        elif name=='beta':
+            self.beta = data
+        elif name=='nu':
+            self.nu = data
+        elif name=='inv_prec_prior':
+            self.inv_prec_prior = data
+        elif name=='mean_prior':
+            self.mean_prior = data

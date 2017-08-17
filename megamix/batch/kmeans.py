@@ -7,7 +7,7 @@
 
 import numpy as np
 import h5py
-from .base import BaseMixture
+from .base import BaseMixture, _check_saving
 
 def dist_matrix(points,means):
     
@@ -45,6 +45,9 @@ class Kmeans(BaseMixture):
         
     means : array of floats (n_components,dim)
         Contains the computed means of the model.
+    
+    log_weights : array of floats (n_components,)
+        Contains the logarithm of the mixing coefficient of each cluster.
     
     iter : int
         The number of iterations computed with the method fit()
@@ -271,10 +274,10 @@ class Kmeans(BaseMixture):
         if saving is not None:
             f = h5py.File(file_name + '.h5', 'a')
             grp = f.create_group('best' + str(self.iter))
-            self.write(self,grp)
+            self.write(grp)
             f.close()
         
-        condition = BaseMixture._check_saving(saving,saving_iter)
+        condition = _check_saving(saving,saving_iter)
         
         early_stopping = points_test is not None
         first_iter = True
@@ -296,12 +299,14 @@ class Kmeans(BaseMixture):
             if early_stopping:
                 dist_test = self.score(points_test,assignements_test)
             
+            self.iter+=1
+
             # Computation of resume_iter
-            if first_iter:
-                first_iter = False
-                
-            elif n_iter_fix is not None:
+            if n_iter_fix is not None:
                 resume_iter = self.iter < n_iter_fix
+            
+            elif first_iter:
+                first_iter = False
                 
             elif self.iter > n_iter_max:
                 resume_iter = False
@@ -312,21 +317,19 @@ class Kmeans(BaseMixture):
                 else:
                     criterion = (dist_data_pre - dist_data)/n_points
                 resume_iter = (criterion > tol)
-            
-            if not resume_iter:
+                
+            if not resume_iter and saving is not None:
                 f = h5py.File(file_name + '.h5', 'a')
                 grp = f.create_group('best' + str(self.iter))
-                self.write(self,grp)
+                self.write(grp)
                 f.close()
             
             elif condition(self.iter):
                 f = h5py.File(file_name + '.h5', 'a')
                 grp = f.create_group('iter' + str(self.iter))
-                self.write(self,grp)
+                self.write(grp)
                 f.close()
-            
-            self.iter+=1
-            
+
             
     def predict_assignements(self,points):
         """

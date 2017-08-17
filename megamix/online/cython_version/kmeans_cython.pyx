@@ -5,6 +5,10 @@
 import numpy as np
 cimport numpy as np
 from megamix.batch.initializations import initialization_plus_plus
+from megamix.online.base import _check_saving
+import h5py
+import time
+import warnings
 
 import cython
 from cython.view cimport array as cvarray
@@ -12,11 +16,24 @@ from basic_operations cimport update1D, update2D
 from basic_operations cimport divide2Dbyscalar, divide2Dbyvect2D
 from basic_operations cimport multiply2Dbyvect2D, soustract2Dby2D
 from basic_operations cimport initialize, argmin, add2Dscalar_reduce, dot_spe_c, transpose_spe_f2c
-from basic_operations cimport norm_axis1, norm_axis1_matrix, true_slice
+from basic_operations cimport norm_axis1, norm_axis1_matrix, true_slice, log2D
 
 from scipy.linalg.cython_blas cimport dgemm
 
- 
+def dist_matrix(double [:,:] points, double [:,:] means):
+    """
+    Wrapper for python
+    """
+    cdef int n_points = points.shape[0]
+    cdef int n_components = means.shape[0]
+    cdef int dim = means.shape[1]
+    cdef double [:,:] dist = cvarray(shape=(n_components,dim),itemsize=sizeof(double),format='d')
+    cdef double [:,:] dist_matrix = cvarray(shape=(n_points,n_components),itemsize=sizeof(double),format='d')
+    
+    dist_matrix_update(points,means,dist,dist_matrix)
+    
+    return np.asarray(dist_matrix)
+
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function  
 @cython.initializedcheck(False)
@@ -49,6 +66,7 @@ cdef class Kmeans:
                  int window=1):
         
         self.name = 'Kmeans'
+        self.init = 'usual'
         self.n_components = n_components
         self.kappa = kappa
         self.n_jobs = n_jobs
@@ -69,14 +87,43 @@ cdef class Kmeans:
             
         if self.kappa <= 0 or self.kappa > 1:
             raise ValueError("kappa must be in ]0,1]")
+    
+    
+    @cython.boundscheck(False) # turn off bounds-checking for entire function
+    @cython.wraparound(False)  # turn off negative index wrapping for entire function  
+    @cython.initializedcheck(False)
+    @cython.cdivision(True)
+    def initialize(self,double [:,:] points):
+        cdef int n_points = points.shape[0]
+        cdef int dim = points.shape[1]
+        
+        if self.init=='usual':
+            self.means = initialization_plus_plus(self.n_components,points)
+            self.iteration = n_points + 1
+            self.log_weights = np.zeros((1,self.n_components)) - np.log(self.n_components)
+            #TODO real weights
+
+        self.N = np.exp(self.log_weights)
+        self.X = np.empty((self.n_components,dim),dtype=float)
+        multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)
+        
+        # initialize temporary memoryviews here
+        self.N_temp = cvarray(shape=(1,self.n_components),itemsize=sizeof(double),format='d')
+        self.X_temp = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
+        self.X_temp_fortran = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
+        self.dist_matrix = cvarray(shape=(self.window,self.n_components),itemsize=sizeof(double),format='d')
+        self.dist = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
+        
+        self._is_initialized = 1
 
        
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function  
     @cython.initializedcheck(False)
-    def _step_E(self, double [:,:] points, int dim,
-                      double [:,:] assignements, double [:,:] dist_matrix):
+    cdef void _step_E_gen(self, double [:,:] points, double [:,:] assignements,
+                      double [:,:] dist_matrix):
         cdef int n_points = points.shape[0]
+        cdef int dim = points.shape[1]
         initialize(assignements,n_points,self.n_components)
         
         dist_matrix_update(points,self.means,self.dist,dist_matrix)
@@ -86,12 +133,26 @@ cdef class Kmeans:
             index_min = argmin(dist_matrix,i,self.n_components)
             assignements[i,index_min] = 1
         
+    
+    def _step_E(self,points):
+        """
+        Wrapper for python tests
+        """
+        cdef int n_points = points.shape[0]
+        cdef double [:,:] assignements = cvarray(shape=(n_points,self.n_components),itemsize=sizeof(double),format='d')
+        cdef double [:,:] dist_matrix = cvarray(shape=(n_points,self.n_components),itemsize=sizeof(double),format='d')
         
+        self._step_E_gen(points,assignements,dist_matrix)
+        
+        return np.asarray(assignements)
+                    
+    
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function  
     @cython.initializedcheck(False)
     @cython.cdivision(True)
-    def _step_M(self, double[:,:] points, int dim, double[:,:] assignements):
+    cpdef void _step_M(self, double[:,:] points, double[:,:] assignements):
+        cdef int dim = points.shape[1]
         cdef double window_double = self.window
 
         # New sufficient statistics
@@ -103,97 +164,87 @@ cdef class Kmeans:
         
         # Sufficient statistics update
         cdef double gamma
-        gamma = 1/(self.iteration**self.kappa)
+        gamma = 1/((self.iteration + self.window//2)**self.kappa)
         
         update2D(self.N_temp,1,self.n_components,gamma,self.N)
         update2D(self.X_temp,self.n_components,dim,gamma,self.X)
 
         # Parameter update
         divide2Dbyvect2D(self.X,self.n_components,dim,self.N,self.means)
+        log2D(self.N,1,self.n_components,self.log_weights)
         
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function
     @cython.initializedcheck(False)
-    def distortion(self,points,assignements):
-        from megamix.kmeans import dist_matrix
+    def score(self,points,assignements=None):
         cdef int n_points = points.shape[0]
         cdef double distortion = 0
         cdef int i
         
-        if self._is_initialized:
-            means = np.asarray(self.means)
-            for i in xrange(self.n_components):
-                assignements_i = assignements[:,i:i+1]
-                n_set = np.sum(assignements_i)
-                idx_set,_ = np.where(assignements_i==1)
-                sets = points[idx_set]
-                if n_set != 0:
-                    M = np.linalg.norm(sets-means[i],axis=1)
-                    distortion += np.sum(M)
-                
-            return distortion
-
-        else:
-            raise Exception("The model is not initialized")
+        if assignements is None:
+            assignements = self.predict_assignements(points)
             
+        means = np.asarray(self.means)
+        for i in xrange(self.n_components):
+            assignements_i = assignements[:,i:i+1]
+            n_set = np.sum(assignements_i)
+            idx_set,_ = np.where(assignements_i==1)
+            sets = points[idx_set]
+            if n_set != 0:
+                M = np.linalg.norm(sets-means[i],axis=1)
+                distortion += np.sum(M)
             
-    @cython.boundscheck(False) # turn off bounds-checking for entire function
-    @cython.wraparound(False)  # turn off negative index wrapping for entire function  
-    @cython.initializedcheck(False)
-    @cython.cdivision(True)
-    def initialize(self,double [:,:] points):
-        cdef int n_points = points.shape[0]
-        cdef int dim = points.shape[1]
-        
-        self.means = initialization_plus_plus(self.n_components,points)
-        self.N = 1./self.n_components * np.ones((1,self.n_components)) #TODO real weights
-        self.X = np.empty((self.n_components,dim),dtype=float)
-        multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)
-        
-        # initialize temporary memoryviews here
-        self.N_temp = cvarray(shape=(1,self.n_components),itemsize=sizeof(double),format='d')
-        self.X_temp = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
-        self.X_temp_fortran = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
-        self.dist_matrix = cvarray(shape=(self.window,self.n_components),itemsize=sizeof(double),format='d')
-        self.dist = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
-        
-        self.iteration = n_points + 1
-        self._is_initialized = 1
+        return distortion
         
         
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function        
     @cython.initializedcheck(False)
-    def fit(self,double [:,:] points):
+    def fit(self,double [:,:] points,saving=None,file_name='model',
+            saving_iter=2):
         cdef int n_points = points.shape[0]
         cdef int dim = points.shape[1]
         cdef double [:,:] resp = np.zeros((self.window,self.n_components))
         cdef double [:,:] point = np.zeros((self.window,dim))
         
+        condition = _check_saving(saving,saving_iter)
+        
         cdef int i
         if self._is_initialized:
             for i in xrange(n_points//self.window):
                 true_slice(points,i,dim,point,self.window)
-                self._step_E(point,dim,resp,self.dist_matrix)
-                self._step_M(point,dim,resp)
+                self._step_E_gen(point,resp,self.dist_matrix)
+                self._step_M(point,resp)
                 self.iteration += 1
+                
+                if condition(self.iteration):
+                    f = h5py.File(file_name + '.h5', 'a')
+                    grp = f.create_group('iter' + str(self.iter))
+                    self.write(self,grp)
+                    f.close()
         else:
             raise ValueError('The model must be initialized')
 
     
     def get(self,name):
+        if name=='_is_initialized':
+            return self._is_initialized
+        if name=='log_weights':
+            return np.array(self.log_weights).reshape(self.n_components)
         if name=='means':
             return np.array(self.means)
         if name=='N':
-            return np.array(self.N)
-        if name=='N_temp':
-            return np.array(self.N_temp)
+            return np.array(self.N).reshape(self.n_components)
         if name=='X':
             return np.array(self.X)
         if name=='iter':
             return self.iteration
         elif name=='window':
             return self.window
+        elif name=='kappa':
+            return self.kappa
+        elif name=='name':
+            return self.name
                 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function        
@@ -215,8 +266,51 @@ cdef class Kmeans:
         cdef double [:,:] dist_matrix = np.zeros((n_points,self.n_components))
 
         if self._is_initialized:
-            self._step_E(points,dim,resp,dist_matrix)
+            self._step_E_gen(points,resp,dist_matrix)
             return resp
 
         else:
             raise Exception("The model is not initialized")
+
+    def write(self,group):
+        """
+        A method creating datasets in a group of an hdf5 file in order to save
+        the model
+        
+        Parameters
+        ----------
+        group : HDF5 group
+            A group of a hdf5 file in reading mode
+
+        """
+        dim = self.means.shape[1]
+        group.create_dataset('means',(self.n_components,dim),dtype='float64')
+        group['means'][...] = np.array(self.means)
+        group.create_dataset('log_weights',(1,self.n_components),dtype='float64')
+        group['log_weights'][...] = np.array(self.log_weights)
+        group.attrs['iter'] = self.iteration
+        group.attrs['time'] = time.time()
+        
+    def read_and_init(self,group,points):
+        """
+        A method reading a group of an hdf5 file to initialize DPGMM
+        
+        Parameters
+        ----------
+        group : HDF5 group
+            A group of a hdf5 file in reading mode
+            
+        """
+        self.means = np.asarray(group['means'].value)
+        self.log_weights = np.asarray(group['log_weights'].value).reshape(1,self.n_components)
+        self.iteration = group.attrs['iter']
+
+        n_components = len(self.means)
+        if n_components != self.n_components:
+            warnings.warn('You are now currently working with %s components.'
+                          % n_components)
+            self.n_components = n_components
+        
+        self.init = 'user'
+        
+        self.initialize(points)

@@ -5,12 +5,14 @@ cdef void _log_normal_matrix(double [:,:] points,double [:,:] means,
                              double [:,:] cov_temp,double [:,:] points_temp_fortran,
                              double [:,:] points_temp,double [:,:] mean_temp)
 cdef class BaseMixture:
-    cdef char* name
+    cdef str name
+    cdef str init
     cdef int _is_initialized
     cdef int n_components
     cdef int iteration
     cdef int window
     cdef double reg_covar
+    cdef double kappa
 
     # Only for VBGMM
     cdef double alpha_0
@@ -56,16 +58,17 @@ cdef class BaseMixture:
                 double [:,:] points_temp_fortran, double [:,:] points_temp,
                 double [:,:] log_prob_norm)
     cdef void _step_E(self,double [:,:] points,double [:,:] log_resp)
-    cdef void _step_M(self)
-    cdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp)
+    cpdef void _step_M(self)
+    cpdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp)
     cdef double _convergence_criterion(self,double [:,:] points,double [:,:] log_resp,
                                        double [:,:] log_prob_norm)
     
     cdef void _check_common_parameters(self)
     cdef void _check_prior_parameters(self, points)
-    cdef void _initialize_cov(self,double [:,:] points, double [:,:] assignements,
+    cdef void _cinitialize_cov(self,double [:,:] points, double [:,:] assignements,
                               double [:,:] diff, double [:,:] diff_weighted)
-    cdef void _initialize_weights(self,double [:,:] points,double [:,:] log_normal_matrix,
+    cdef void _cinitialize_weights(self,double [:,:] points,double [:,:] log_normal_matrix,
                             double [:,:] points_temp, double [:,:] points_temp_fortran)
     cdef void _compute_cholesky_matrices(self)
+    cdef void _initialize_temporary_arrays(self,double [:,:] points)
     

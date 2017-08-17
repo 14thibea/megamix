@@ -53,7 +53,7 @@ class GaussianMixture(BaseMixture):
         Contains the computed means of the mixture.
     
     log_weights : array of floats (n_components,)
-        Contains the logarithm of weights of each cluster.
+        Contains the logarithm of the mixing coefficient of each cluster.
     
     iter : int
         The number of iterations computed with the method fit()

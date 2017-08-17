@@ -19,28 +19,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ext_modules = [
 
     Extension(
-        "megamix/online/cython_version/base_cython",
+        "megamix.online.cython_version.base_cython",
         ["megamix/online/cython_version/base_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
     ),
 
     Extension(
-        "megamix/online/cython_version/basic_operations",
+        "megamix.online.cython_version.basic_operations",
         ["megamix/online/cython_version/basic_operations.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
     ),
             
     Extension(
-        "megamix/online/cython_version/GMM_cython",
+        "megamix.online.cython_version.GMM_cython",
         ["megamix/online/cython_version/GMM_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
     ),
             
     Extension(
-        "megamix/online/cython_version/kmeans_cython",
+        "megamix.online.cython_version.kmeans_cython",
         ["megamix/online/cython_version/kmeans_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],

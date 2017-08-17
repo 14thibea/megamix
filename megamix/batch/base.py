@@ -162,7 +162,7 @@ def _log_C(alpha):
 
 
 def _check_saving(saving,saving_iter):
-    if saving is None:
+    if saving is None or saving == 'final':
         def condition(iteration):
             return False
     elif saving == 'log':
@@ -179,7 +179,7 @@ def _check_saving(saving,saving_iter):
                              %saving_iter)
         def condition(iteration):
             return iteration%saving_iter == 0
-    elif saving != 'final':
+    else:
         raise ValueError('Innapropriate argument value for saving %s'
 								  "it must be in ['log','linear','final']"
 								  %saving)
@@ -336,16 +336,7 @@ class BaseMixture():
             self.cov = _full_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
         elif self.covariance_type == 'spherical':
             self.cov = _spherical_covariance_matrices(points,self.means,weights,assignements,self.reg_covar,self.n_jobs)
-            
-#        S = np.zeros((self.n_components,dim,dim))
-#        for i in range(self.n_components):
-#            diff = points - self.means[i]
-#            diff_weighted = diff * assignements[:,i:i+1]
-#            S[i] = np.dot(diff_weighted.T,diff)
-#            S[i].flat[::dim+1] += self.reg_covar
-#        S /= n_points
-#        
-#        self.cov = S * self.n_components
+        
     
     def fit(self,points_data,points_test=None,tol=1e-3,patience=None,
             n_iter_max=100,n_iter_fix=None,saving=None,file_name='model',
@@ -453,12 +444,12 @@ class BaseMixture():
             self.iter+=1
                 
             #Computation of resume_iter
-            if first_iter:
+            if n_iter_fix is not None:
+                resume_iter = self.iter < n_iter_fix
+                
+            elif first_iter:
                 resume_iter = True
                 first_iter = False
-                
-            elif n_iter_fix is not None:
-                resume_iter = self.iter < n_iter_fix
             
             elif self.iter > n_iter_max:
                 resume_iter = False
@@ -476,7 +467,7 @@ class BaseMixture():
                 best_criterion = criterion[iter_algo]
                 
             #Saving the model
-            if saving is not None and resume_iter == False:
+            if saving is not None and not resume_iter:
                 self._set_parameters(best_params)
                 file = h5py.File(file_name + ".h5", "a")
                 grp = file.create_group('best')
