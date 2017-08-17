@@ -17,10 +17,10 @@ class TestGaussianMixture:
         self.dim = 2
         self.n_points = 10
         
-        self.file_name = 'test.h5'
+        self.file_name = 'test'
         
     def teardown(self):
-        checking.remove(self.file_name)
+        checking.remove(self.file_name + '.h5')
         
         
     def test_initialize(self,type_init,covariance_type):
@@ -78,6 +78,45 @@ class TestGaussianMixture:
         assert_almost_equal(expected_means,GM.means)
         assert_almost_equal(expected_cov,GM.cov)
         
+    
+    def test_fit(self,type_init,covariance_type):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,type_init=type_init,covariance_type=covariance_type)
+        GM._initialize(points)
+        GM.init = 'user'
+        
+        f = h5py.File(self.file_name + '.h5','w')
+        grp = f.create_group('init')
+        GM.write(grp)
+        f.close()
+        
+        GM2 = GaussianMixture(self.n_components,type_init=type_init,covariance_type=covariance_type)
+        
+        f = h5py.File(self.file_name + '.h5','r')
+        grp = f['init']
+        GM2.read_and_init(grp,points)
+        f.close()
+        
+        checking.verify_batch_models(GM,GM2)
+        
+        GM.fit(points,n_iter_fix=1)
+        _,assignements = GM2._step_E(points)
+        GM2._step_M(points,assignements)
+        GM2.iter += 1
+        
+        checking.verify_batch_models(GM,GM2)
+        
+        f = h5py.File(self.file_name + '.h5','r')
+        grp = f['init']
+        GM.read_and_init(grp,points)
+        GM2.read_and_init(grp,points)
+        f.close()
+        
+        GM.fit(points)
+        GM2.fit(points)
+        
+        checking.verify_batch_models(GM,GM2)
+        
         
     def test_score(self,type_init,covariance_type):
         points = np.random.randn(self.n_points,self.dim)
@@ -98,22 +137,28 @@ class TestGaussianMixture:
         GM = GaussianMixture(self.n_components,type_init=type_init,covariance_type=covariance_type)
         GM._initialize(points)
         
-        f = h5py.File(self.file_name,'w')
+        f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
         GM.write(grp)
         f.close()
         
         GM2 = GaussianMixture(self.n_components,type_init=type_init,covariance_type=covariance_type)
         
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         grp = f['init']
         GM2.read_and_init(grp,points)
         f.close()
         
+        assert GM.iter == 0
         checking.verify_batch_models(GM,GM2)
         
-        GM.fit(points)
-        GM2.fit(points)
+        _,log_resp = GM._step_E(points)
+        _,log_resp2 = GM2._step_E(points)
+                
+        assert_almost_equal(log_resp,log_resp2)
+        
+        GM._step_M(points,log_resp)
+        GM2._step_M(points,log_resp2)
         
         checking.verify_batch_models(GM,GM2)
         

@@ -3,8 +3,7 @@ from scipy import linalg
 from numpy.testing import assert_almost_equal
 import pytest
 import h5py
-from megamix.batch import Kmeans, GaussianMixture
-from megamix.batch.kmeans import dist_matrix
+from megamix.batch import Kmeans,GaussianMixture,dist_matrix
 from megamix.utils_testing import checking
 
 def test_dist_matrix():
@@ -28,10 +27,10 @@ class TestKmeans:
         self.dim = 2
         self.n_points = 10
         
-        self.file_name = 'test.h5'
+        self.file_name = 'test'
         
     def teardown(self):
-        checking.remove(self.file_name)
+        checking.remove(self.file_name + 'h5')
         
         
     def test_initialize(self):
@@ -115,39 +114,84 @@ class TestKmeans:
         KM = Kmeans(self.n_components)
         KM._initialize(points)
         
-        f = h5py.File(self.file_name,'w')
+        f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
         KM.write(grp)
         f.close()
         
         KM2 = Kmeans(self.n_components)
         
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         grp = f['init']
         KM2.read_and_init(grp,points)
         f.close()
         
         checking.verify_batch_models(KM,KM2)
         
+        assignements = KM._step_E(points)
+        assignements2 = KM2._step_E(points)
+        
+        assert_almost_equal(assignements,assignements2)
+        
+        KM._step_M(points,assignements)
+        KM2._step_M(points,assignements2)
+        
+        checking.verify_batch_models(KM,KM2)
+        
+        
+    def test_fit(self):
+        points = np.random.randn(self.n_points,self.dim)
+        KM = Kmeans(self.n_components)
+        KM._initialize(points)
+        KM.init = 'user'
+        
+#        checking.remove(self.file_name + '.h5')
+        f = h5py.File(self.file_name + '.h5','w')
+        grp = f.create_group('init')
+        KM.write(grp)
+        f.close()
+        
+        KM2 = Kmeans(self.n_components)
+        
+        f = h5py.File(self.file_name + '.h5','r')
+        grp = f['init']
+        KM2.read_and_init(grp,points)
+        f.close()
+        
+        checking.verify_batch_models(KM,KM2)
+        
+        KM.fit(points,n_iter_fix=1)
+        assignements = KM2._step_E(points)
+        KM2._step_M(points,assignements)
+        KM2.iter += 1
+        
+        checking.verify_batch_models(KM,KM2)
+        
+        f = h5py.File(self.file_name + '.h5','r')
+        grp = f['init']
+        KM.read_and_init(grp,points)
+        KM2.read_and_init(grp,points)
+        f.close()
+        
         KM.fit(points)
         KM2.fit(points)
         
         checking.verify_batch_models(KM,KM2)
-        
+
         
     def test_write_and_read_GM(self):
         points = np.random.randn(self.n_points,self.dim)
         KM = Kmeans(self.n_components)
         KM._initialize(points)
         
-        f = h5py.File(self.file_name,'w')
+        f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
         KM.write(grp)
         f.close()
         
         predected_GM = GaussianMixture(self.n_components)
         
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         grp = f['init']   
         with pytest.warns(UserWarning):
             predected_GM.read_and_init(grp,points)
@@ -163,35 +207,35 @@ class TestKmeans:
                         
         checking.verify_batch_models(predected_GM,expected_GM)
         
-        predected_GM.fit(points)
-        expected_GM.fit(points)
-        
         
     def test_fit_save(self):
         points = np.random.randn(self.n_points,self.dim)
         KM = Kmeans(self.n_components)
         
+        checking.remove(self.file_name + '.h5')
         KM.fit(points,n_iter_fix=15,saving='log',saving_iter=2,
                file_name=self.file_name)
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         cpt = 0
         for name in f:
             cpt += 1
             
         assert cpt == 6
         
+        checking.remove(self.file_name + '.h5')        
         KM.fit(points,n_iter_fix=15,saving='linear',saving_iter=2,
                file_name=self.file_name)
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         cpt = 0
         for name in f:
             cpt += 1
             
-        assert cpt == 8
+        assert cpt == 9
         
+        checking.remove(self.file_name + '.h5')
         KM.fit(points,n_iter_fix=15,saving='final',saving_iter=2,
                file_name=self.file_name)
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         cpt = 0
         for name in f:
             cpt += 1

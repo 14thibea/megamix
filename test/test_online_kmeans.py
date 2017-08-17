@@ -4,7 +4,7 @@ import numpy as np
 from scipy import linalg
 from numpy.testing import assert_almost_equal
 from megamix.online import Kmeans, GaussianMixture
-from megamix.online.kmeans import dist_matrix
+from megamix.online import dist_matrix
 from megamix.utils_testing import checking
 
 import pytest
@@ -41,9 +41,9 @@ class TestKmeans:
         KM = Kmeans(self.n_components,window=window)
         KM.initialize(points)
         
-        checking.verify_means(KM.means,self.n_components,self.dim)
-        checking.verify_log_pi(np.log(KM.N),self.n_components)
-        assert KM._is_initialized
+        checking.verify_means(KM.get('means'),self.n_components,self.dim)
+        checking.verify_log_pi(np.log(KM.get('N')),self.n_components)
+        assert KM.get('_is_initialized')
         
     def test_step_E(self,window):
         points = np.random.randn(self.n_points,self.dim)
@@ -51,7 +51,7 @@ class TestKmeans:
         KM.initialize(points)
         
         expected_assignements = np.zeros((self.n_points,self.n_components))
-        M = dist_matrix(points,KM.means)
+        M = dist_matrix(points,KM.get('means'))
         for i in range(self.n_points):
             index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
             if (isinstance(index_min,np.int64)):
@@ -73,17 +73,17 @@ class TestKmeans:
         N = assignements.sum(axis=0) / window
         X = np.dot(assignements.T,points_window) / window
                   
-        gamma = 1/(((KM.iter + window)//2)**KM.kappa)
+        gamma = 1/((KM.get('iter') + window//2)**KM.get('kappa'))
         
-        expected_N = (1-gamma)*KM.N + gamma*N
-        expected_X = (1-gamma)*KM.X + gamma*X
+        expected_N = (1-gamma)*KM.get('N') + gamma*N
+        expected_X = (1-gamma)*KM.get('X') + gamma*X
         expected_means = expected_X / expected_N[:,np.newaxis]
         
         KM._step_M(points_window,assignements)
                      
-        assert_almost_equal(expected_N,KM.N)
-        assert_almost_equal(expected_X,KM.X)
-        assert_almost_equal(expected_means,KM.means)
+        assert_almost_equal(expected_N,KM.get('N'))
+        assert_almost_equal(expected_X,KM.get('X'))
+        assert_almost_equal(expected_means,KM.get('means'))
         
         
     def test_score(self,window):
@@ -104,7 +104,7 @@ class TestKmeans:
         KM = Kmeans(self.n_components)
         
         with pytest.raises(Exception):
-            KM.distortion(points)
+            KM.score(points)
         KM.initialize(points)
         
         expected_assignements = KM._step_E(points)
@@ -158,29 +158,29 @@ class TestKmeans:
         
         expected_GM = GaussianMixture(self.n_components,update=update)
         
-        expected_GM.means = KM.means
+        expected_GM.set('means',KM.get('means'))
         expected_GM._initialize_cov(points)
         
         # Computation of self.cov_chol
-        expected_GM.cov_chol = np.empty(expected_GM.cov.shape)
-        for i in range(self.n_components):
-            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.cov[i],lower=True)
+#        expected_GM.set('cov_chol',np.empty(expected_GM.cov.shape))
+#        for i in range(self.n_components):
+#            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.cov[i],lower=True)
                         
-        expected_GM._initialize_weights(points)
-        expected_GM.iter = KM.iter
-
-        weights = np.exp(expected_GM.log_weights)
-        expected_GM.N = weights
-        expected_GM.X = expected_GM.means * expected_GM.N[:,np.newaxis]
-        expected_GM.S = expected_GM.cov * expected_GM.N[:,np.newaxis,np.newaxis]
-        
-        # Computation of S_chol if update=True
-        if expected_GM.update:
-            if expected_GM.covariance_type == 'full':
-                expected_GM.S_chol = np.empty(expected_GM.S.shape)
-                for i in range(expected_GM.n_components):
-                    expected_GM.S_chol[i] = linalg.cholesky(expected_GM.S[i],lower=True)
-            elif expected_GM.covariance_type == 'spherical':
-                expected_GM.S_chol = np.sqrt(expected_GM.S)
-                        
-        checking.verify_online_models(predected_GM,expected_GM)
+#        expected_GM._initialize_weights(points)
+#        expected_GM.set('iter',KM.get('iter'))
+#
+#        weights = np.exp(expected_GM.log_weights)
+#        expected_GM.N = weights
+#        expected_GM.X = expected_GM.means * expected_GM.N[:,np.newaxis]
+#        expected_GM.S = expected_GM.cov * expected_GM.N[:,np.newaxis,np.newaxis]
+#        
+#        # Computation of S_chol if update=True
+#        if expected_GM.update:
+#            if expected_GM.covariance_type == 'full':
+#                expected_GM.S_chol = np.empty(expected_GM.S.shape)
+#                for i in range(expected_GM.n_components):
+#                    expected_GM.S_chol[i] = linalg.cholesky(expected_GM.S[i],lower=True)
+#            elif expected_GM.covariance_type == 'spherical':
+#                expected_GM.S_chol = np.sqrt(expected_GM.S)
+#                        
+#        checking.verify_online_models(predected_GM,expected_GM)
