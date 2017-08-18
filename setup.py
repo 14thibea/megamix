@@ -11,6 +11,7 @@ import os
 from setuptools import setup, find_packages
 from Cython.Build import cythonize
 from distutils.extension import Extension
+import numpy
 
 VERSION = '0.3'
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +24,7 @@ ext_modules = [
         ["megamix/online/cython_version/base_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
+        include_dirs=[numpy.get_include()],
     ),
 
     Extension(
@@ -30,6 +32,7 @@ ext_modules = [
         ["megamix/online/cython_version/basic_operations.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
+        include_dirs=[numpy.get_include()],
     ),
             
     Extension(
@@ -37,6 +40,7 @@ ext_modules = [
         ["megamix/online/cython_version/GMM_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
+        include_dirs=[numpy.get_include()],
     ),
             
     Extension(
@@ -44,6 +48,7 @@ ext_modules = [
         ["megamix/online/cython_version/kmeans_cython.pyx"],
         extra_compile_args=['-fopenmp'],
         extra_link_args=['-fopenmp'],
+        include_dirs=[numpy.get_include()],
     ),
 
 ]
