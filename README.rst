@@ -38,4 +38,10 @@ See the complete documentation `online <http://megamix.readthedocs.io/en/latest/
 Test
 ----
 
-Coming one day...
+The package comes with a unit-tests suit. To run it, first install *pytest* on your Python environment::
+
+  $ pip install pytest
+
+Then run the tests with::
+
+  $ pytest
