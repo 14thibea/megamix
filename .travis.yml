@@ -20,9 +20,9 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION h5py numpy scipy joblib cython pytest
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest
   - source activate test-environment
-#  - python setup.py build_ext
+  - pip install -r requirements.txt
   - python setup.py install
 
 script:
