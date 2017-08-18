@@ -1,6 +1,10 @@
 .. image:: https://readthedocs.org/projects/megamix/badge/?version=latest
     :target: http://megamix.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+    
+.. image:: https://travis-ci.org/14thibea/megamix.svg?branch=master
+    :target: https://travis-ci.org/14thibea/megamix
+    :alt: Build Status on Travis
    
 =======
 MeGaMix
