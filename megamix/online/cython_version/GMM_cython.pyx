@@ -136,7 +136,7 @@ cdef class GaussianMixture(BaseMixture):
                         log_resp)
             
     @cython.initializedcheck(False)
-    cdef void _step_E(self,double [:,:] points,double [:,:] log_resp):
+    cdef void _cstep_E(self,double [:,:] points,double [:,:] log_resp):
         '''
         This method may only be used in the fit method as the temporary arrays
         have the size of the model (self.window,dim)

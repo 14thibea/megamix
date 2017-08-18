@@ -174,7 +174,7 @@ cdef class BaseMixture:
                 double [:,:] log_prob_norm):
         pass
     
-    cdef void _step_E(self,double [:,:] points,double [:,:] log_resp):
+    cdef void _cstep_E(self,double [:,:] points,double [:,:] log_resp):
         pass
 
     cpdef void _step_M(self):
@@ -454,7 +454,7 @@ cdef class BaseMixture:
         if self._is_initialized:
             for i in xrange(n_points//self.window):
                 true_slice(points,i,dim,point,self.window)
-                self._step_E(point,log_resp)
+                self._cstep_E(point,log_resp)
                 self._sufficient_statistics(point,log_resp)
                 self._step_M()
                 self.iteration += self.window

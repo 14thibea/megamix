@@ -57,7 +57,7 @@ cdef class BaseMixture:
     cdef void _step_E_gen(self, double [:,:] points, double [:,:] log_resp,
                 double [:,:] points_temp_fortran, double [:,:] points_temp,
                 double [:,:] log_prob_norm)
-    cdef void _step_E(self,double [:,:] points,double [:,:] log_resp)
+    cdef void _cstep_E(self,double [:,:] points,double [:,:] log_resp)
     cpdef void _step_M(self)
     cpdef void _sufficient_statistics(self,double [:,:] points,double [:,:] log_resp)
     cdef double _convergence_criterion(self,double [:,:] points,double [:,:] log_resp,
