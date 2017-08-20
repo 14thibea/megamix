@@ -49,7 +49,7 @@ Kmeans
 Gaussian Mixture Model (GMM)
 ****************************
 
-.. autoclass:: megamix.online.GaussianMixture
+.. autoclass:: megamix.online.GMM
     :members:
     :inherited-members:
     :undoc-members:
