@@ -30,9 +30,7 @@ def dist_matrix(points,means):
         return dist_matrix
 
 class Kmeans(BaseMixture):
-
-    """
-    Kmeans model.
+    """Kmeans model.
     
     Parameters
     ----------
@@ -48,12 +46,10 @@ class Kmeans(BaseMixture):
         A coefficient in ]0.0,1.0] which give weight or not to the new points compared
         to the ones already used.
         
-        * If kappa is nearly null, the new points have a big weight and the model may
-take a lot of time to stabilize.
+        * If kappa is nearly null, the new points have a big weight and the model may take a lot of time to stabilize.
 
-        * If kappa = 1.0, the new points won't have a lot of weight and the model may
-not move enough from its initialization.
-
+        * If kappa = 1.0, the new points won't have a lot of weight and the model may not move enough from its initialization.
+        
     Attributes
     ----------
 
