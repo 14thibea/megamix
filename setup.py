@@ -16,8 +16,9 @@ import numpy
 VERSION = '0.3'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
+ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
 
-ext_modules = [
+ext_modules = [] if ON_RTD else [
 
     Extension(
         "megamix.online.cython_version.base_cython",
@@ -53,7 +54,6 @@ ext_modules = [
 
 ]
 
-ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
 REQUIREMENTS = [] if ON_RTD else [
     'numpy >= 1.11.3',
     'h5py >= 2.6.0',
