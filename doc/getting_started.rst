@@ -17,6 +17,13 @@ MeGaMix relies on external dependencies. The setup script should install them au
 * scipy 0.18.1 or newer
 * h5py 2.6.0 or newer
 * joblib 0.11 or newer
+* cython
+
+.. note::
+   
+   If you cannot compile the package, please dowload it and manually comment the line
+   **ext_modules=cythonize(ext_modules),** in setup.py
+   Doing so you will not compile the cython modules and only use pure python versions.
 
 Description
 ===========

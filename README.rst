@@ -28,7 +28,6 @@ Or you can install it with pip::
 
   $ pip install megamix
 
-
 Documentation
 -------------
 

@@ -13,7 +13,7 @@ from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy
 
-VERSION = '0.3'
+VERSION = '0.3.1'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
@@ -66,7 +66,10 @@ setup(
     name='megamix',
     version=VERSION,
     packages=find_packages(exclude=['test']),
+                          
+    # Comment this if you cannot compile
     ext_modules=cythonize(ext_modules),
+                         
     include_package_data=True,
     zip_safe=False,
     install_requires=REQUIREMENTS,
