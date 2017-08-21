@@ -360,7 +360,7 @@ class BaseMixture():
             
         file_name : str | defaults model
             The name of the file (including the path).
-        
+            
         Other Parameters
         ----------------
         points_test : array (n_points_bis,dim) | Optional
@@ -373,10 +373,11 @@ class BaseMixture():
         n_iter_fix : int | Optional
             If not None, the algorithm will exactly do the number of iterations
             of n_iter_fix and stop.
-            
+        
         saving : str | Optional
             A string in ['log','linear']. In the following equations x is the parameter
             saving_iter (see above).
+            
             * If 'log', the model will be saved for all iterations which verify :
                 log(iter)/log(x) is an int
                 
