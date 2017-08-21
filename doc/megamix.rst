@@ -8,7 +8,7 @@ Batch versions of the algorithm
 Kmeans
 ******
 
-.. automodule:: megamix.batch.Kmeans
+.. autoclass:: megamix.batch.Kmeans
     :members:
     :undoc-members:
 
@@ -23,7 +23,7 @@ Gaussian Mixture Model (GMM)
 Variational Gaussian Mixture Model (VBGMM)
 ******************************************
 
-.. automodule:: megamix.batch.VariationalGaussianMixture
+.. autoclass:: megamix.batch.VariationalGaussianMixture
     :members:
     :inherited-members:
     :undoc-members:
@@ -31,7 +31,7 @@ Variational Gaussian Mixture Model (VBGMM)
 Dirichlet Process Gaussian Mixture Model (DPGMM)
 ************************************************
 
-.. automodule:: megamix.batch.DPVariationalGaussianMixture
+.. autoclass:: megamix.batch.DPVariationalGaussianMixture
     :members:
     :inherited-members:
     :undoc-members:
@@ -42,7 +42,7 @@ Online versions of the algorithm
 Kmeans
 ******
 
-.. automodule:: megamix.online.Kmeans
+.. autoclass:: megamix.online.Kmeans
     :members:
     :undoc-members:
 
