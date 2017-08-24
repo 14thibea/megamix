@@ -305,6 +305,7 @@ class BaseMixture():
         saving : str | Optional
             A string in ['log','linear']. In the following equations x is the parameter
             saving_iter (see above).
+            
             * If 'log', the model will be saved for all iterations which verify :
                 log(iter)/log(x) is an int
                 
@@ -530,7 +531,7 @@ class BaseMixture():
         elif name=='mean_prior':
             return np.asarray(self.mean_prior)
        
-    def set(self,name,data):
+    def _set(self,name,data):
         if name=='_is_initialized':
             self._is_initialized = data
         elif name=='iter':
