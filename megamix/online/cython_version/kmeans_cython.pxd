@@ -6,7 +6,6 @@ cdef class Kmeans:
     cdef str init
     cdef int n_components
     cdef double kappa
-    cdef int n_jobs
     cdef int _is_initialized
     cdef int iteration
     cdef int window

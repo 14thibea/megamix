@@ -28,19 +28,15 @@ from basic_operations cimport add2Dscalar_reduce,sum2D
 
 cdef class GaussianMixture(BaseMixture):
     
-    cdef int n_jobs #Not used yet
     cdef int update
-
                 
     def __init__(self, int n_components=1,double kappa=1.0,
-                 double reg_covar=1e-6,int n_jobs=1,
-                 int window=1, int update=0):
+                 double reg_covar=1e-6,int window=1, int update=0):
         
         self.name = 'GMM'
         self.init = 'usual'
         self.n_components = n_components
         self.reg_covar = reg_covar
-        self.n_jobs = n_jobs
         self.kappa = kappa
         self.window = window
         self.update = update

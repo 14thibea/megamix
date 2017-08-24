@@ -62,14 +62,13 @@ cdef void dist_matrix_update(double [:,:] points, double [:,:] means,
 
 cdef class Kmeans:
                 
-    def __init__(self,int n_components=1,int n_jobs=1,double kappa=1.0,
+    def __init__(self,int n_components=1,double kappa=1.0,
                  int window=1):
         
         self.name = 'Kmeans'
         self.init = 'usual'
         self.n_components = n_components
         self.kappa = kappa
-        self.n_jobs = n_jobs
         self.window = window
         
         self._is_initialized = 0
