@@ -17,11 +17,11 @@ import cython
 from scipy.linalg.cython_lapack cimport dpotrf
 from cython.view cimport array as cvarray
 from libc.math cimport log,sqrt
-from basic_operations cimport soustract2Dby2D_idx, multiply3Dbyscalar, multiply2Dby2D_idx
+from basic_operations cimport subtract2Dby2D_idx, multiply3Dbyscalar, multiply2Dby2D_idx
 from basic_operations cimport multiply3Dbyvect2D, multiply2Dbyvect2D, multiply2Dbyscalar
 from basic_operations cimport divide3Dbyvect2D,divide2Dbyvect2D,divide3Dbyscalar,divide2Dbyscalar
 from basic_operations cimport transpose_spe_f2c_and_write, dot_spe_c
-from basic_operations cimport add2Dand2D,add2Dscalar, soustract2Dby2D
+from basic_operations cimport add2Dand2D,add2Dscalar, subtract2Dby2D
 from basic_operations cimport initialize,erase_above_diag,exp2D,sqrt2D,log2D
 from basic_operations cimport cast3Din2D,cast2Din3D,update2D,update3D,transpose_spe_f2c
 from basic_operations cimport add2Dscalar_reduce,sum2D
@@ -131,7 +131,7 @@ cdef class GaussianMixture(BaseMixture):
                    self.log_weights,1,self.n_components,log_resp)
         
         logsumexp_axis(log_resp,n_points,self.n_components,1,log_prob_norm)
-        soustract2Dby2D(log_resp,n_points,self.n_components,
+        subtract2Dby2D(log_resp,n_points,self.n_components,
                         log_prob_norm,n_points,1,
                         log_resp)
             
@@ -221,7 +221,7 @@ cdef class GaussianMixture(BaseMixture):
         for i in xrange(self.n_components):
             # diff is in points_temp
             # diff_weighted is in points_temp2
-            soustract2Dby2D_idx(points,self.window,dim,self.means,0,i,self.points_temp)
+            subtract2Dby2D_idx(points,self.window,dim,self.means,0,i,self.points_temp)
             multiply2Dby2D_idx(self.points_temp,self.window,dim,
                                self.resp_temp,1,i,self.points_temp2)
             dot_spe_c(self.points_temp2,self.window,dim,

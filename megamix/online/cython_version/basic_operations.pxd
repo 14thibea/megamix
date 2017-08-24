@@ -9,8 +9,8 @@ cdef void add2Dand2D(double [:,:] a, int a_x, int a_y, double [:,:] b, int b_x, 
 cdef void add2Dscalar_reduce(double [:,:] a, int a_x, int a_y, double b, double[:,:] result) nogil
 cdef void add2Dscalar(double [:,:] a, int a_x, int a_y, double b, double[:,:] result) nogil
 cdef void add2Dscalar_col_i(double [:,:] a, int a_x, int a_y, double b, double[:,:] result) nogil
-cdef void soustract2Dby2D(double [:,:] a, int a_x, int a_y, double [:,:] b, int b_x, int b_y, double [:,:] result) nogil
-cdef void soustract2Dby2D_idx(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, int idx, double [:,:] result) nogil
+cdef void subtract2Dby2D(double [:,:] a, int a_x, int a_y, double [:,:] b, int b_x, int b_y, double [:,:] result) nogil
+cdef void subtract2Dby2D_idx(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, int idx, double [:,:] result) nogil
 cdef void multiply2Dby1D(double [:,:] a, int a_x, int a_y, double [:] b, double [:,:] result) nogil
 cdef void multiply2Dbyvect2D(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, double [:,:] result) nogil
 cdef void multiply2Dby2D_idx(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, int idx, double [:,:] result) nogil

@@ -5,6 +5,7 @@
 #author: Elina THIBEAU-SUTRE
 #
 #cython: profile=True
+from megamix.online.base import _check_saving
 import numpy as np
 import scipy.linalg
 from scipy.special import gammaln
@@ -22,7 +23,7 @@ from libc.math cimport log,pi,exp,hypot
 from basic_operations cimport true_slice, writecol_sum_square, initialize,transpose_spe_f2c
 from basic_operations cimport dot_spe_c2, log_det_tr, triangular_inverse_cov
 from basic_operations cimport add2Dscalar_reduce, add2Dscalar, add2Dscalar_col_i
-from basic_operations cimport soustract2Dby2D_idx, soustract2Dby2D
+from basic_operations cimport subtract2Dby2D_idx, subtract2Dby2D
 from basic_operations cimport multiply2Dbyscalar, multiply2Dby2D_idx, multiply3Dbyscalar
 from basic_operations cimport divide2Dbyscalar, divide3Dbyvect2D
 from basic_operations cimport reg_covar, transpose_spe_f2c_and_write, dot_spe_c,argmin
@@ -128,7 +129,7 @@ cdef void _log_normal_matrix(double [:,:] points,double [:,:] means,
 #        true_slice(means,i,dim,mean_temp,1)
         dot_spe_c2(means[i:i+1],1,dim,cov_temp,dim,dim,mean_temp)
         # Writing the difference between them in points_temp (n_points,dim)
-        soustract2Dby2D(points_temp,n_points,dim,mean_temp,1,dim,points_temp)
+        subtract2Dby2D(points_temp,n_points,dim,mean_temp,1,dim,points_temp)
         # Writing the contents of the exponential in the ith column of log_normal_matrix
         writecol_sum_square(points_temp,n_points,dim,1,i,log_normal_matrix)
         # Add log_det_prec to the ith column
@@ -307,7 +308,7 @@ cdef class BaseMixture:
         # Computation of S 
         self.cov = cvarray(shape=(self.n_components,dim,dim),itemsize=sizeof(double),format='d')        
         for i in xrange(self.n_components):
-            soustract2Dby2D_idx(points,n_points,dim,self.means,0,i,diff)
+            subtract2Dby2D_idx(points,n_points,dim,self.means,0,i,diff)
             multiply2Dby2D_idx(diff,n_points,dim,assignements,1,i,diff_weighted)
             dot_spe_c(diff_weighted,n_points,dim,diff,n_points,dim,self.cov_temp)
             transpose_spe_f2c_and_write(self.cov_temp,dim,dim,self.S_temp,i)
@@ -357,7 +358,7 @@ cdef class BaseMixture:
         logsumexp_axis(log_normal_matrix,n_points,self.n_components,1,log_prob_norm)
         # Now log_normal_matrix will contain the log of responsibilities as it 
         # is normed
-        soustract2Dby2D(log_normal_matrix,n_points,self.n_components,
+        subtract2Dby2D(log_normal_matrix,n_points,self.n_components,
                         log_prob_norm,n_points,1,
                         log_normal_matrix)
         
@@ -428,7 +429,8 @@ cdef class BaseMixture:
             cast2Din3D(self.cov_temp,i,dim,self.cov_chol)
     
     
-    def fit(self,double [:,:] points,int verbose=0,file_name='model_record.h5'):
+    def fit(self,double [:,:] points,saving=None,str file_name='model',
+            int saving_iter=2):
         """The EM algorithm
         
         Parameters
@@ -446,9 +448,7 @@ cdef class BaseMixture:
         cdef double [:,:] log_resp = np.zeros((self.window,self.n_components))
         cdef double [:,:] point = np.zeros((self.window,dim))
         
-        if verbose:
-            f = h5py.File(file_name,'w')
-            f.close()
+        condition = _check_saving(saving,saving_iter)
 
         cdef int i
         if self._is_initialized:
@@ -459,8 +459,8 @@ cdef class BaseMixture:
                 self._step_M()
                 self.iteration += self.window
                 
-                if verbose:
-                    f = h5py.File(file_name,'a')
+                if condition(i+1):
+                    f = h5py.File(file_name + '.h5', 'a')
                     grp = f.create_group('iter' + str(self.iteration))
                     self.write(grp)
                     f.close()

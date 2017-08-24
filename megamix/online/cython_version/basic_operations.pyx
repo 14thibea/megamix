@@ -166,7 +166,7 @@ cdef void multiply3Dbyscalar(double [:,:,:] a, int a_x, int a_y, int a_z, double
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef void soustract2Dby2D(double [:,:] a, int a_x, int a_y,
+cdef void subtract2Dby2D(double [:,:] a, int a_x, int a_y,
                           double [:,:] b, int b_x, int b_y,
                           double [:,:] result) nogil:
     cdef int a_x_flag = 0
@@ -212,7 +212,7 @@ cdef void soustract2Dby2D(double [:,:] a, int a_x, int a_y,
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
 @cython.wraparound(False)  # turn off negative index wrapping for entire function
-cdef void soustract2Dby2D_idx(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, int idx, double [:,:] result) nogil:
+cdef void subtract2Dby2D_idx(double [:,:] a, int a_x, int a_y, double [:,:] b, int axis, int idx, double [:,:] result) nogil:
     cdef int x,y
     for x in xrange(a_x):
         for y in xrange(a_y):
@@ -405,7 +405,7 @@ cdef void norm_axis1_matrix(double [:,:] a, int a_x, int a_y,
     cdef int i
     
     for i in xrange(a_x):
-        soustract2Dby2D(a[i:i+1:],1,a_y,b,b_x,b_y,diff)
+        subtract2Dby2D(a[i:i+1:],1,a_y,b,b_x,b_y,diff)
         norm_axis1(diff,b_x,b_y,result[i:i+1:])
 
 

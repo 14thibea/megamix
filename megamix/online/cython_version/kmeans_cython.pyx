@@ -14,7 +14,7 @@ import cython
 from cython.view cimport array as cvarray
 from basic_operations cimport update1D, update2D
 from basic_operations cimport divide2Dbyscalar, divide2Dbyvect2D
-from basic_operations cimport multiply2Dbyvect2D, soustract2Dby2D
+from basic_operations cimport multiply2Dbyvect2D, subtract2Dby2D
 from basic_operations cimport initialize, argmin, add2Dscalar_reduce, dot_spe_c, transpose_spe_f2c
 from basic_operations cimport norm_axis1, norm_axis1_matrix, true_slice, log2D
 
@@ -57,7 +57,7 @@ cdef void dist_matrix_update(double [:,:] points, double [:,:] means,
                           means,n_components,dim,
                           dist,dist_matrix)
     else:
-        soustract2Dby2D(points,window,dim,means,n_components,dim,dist)
+        subtract2Dby2D(points,window,dim,means,n_components,dim,dist)
         norm_axis1(dist,n_components,dim,dist_matrix)
 
 cdef class Kmeans:
@@ -200,8 +200,8 @@ cdef class Kmeans:
     @cython.boundscheck(False) # turn off bounds-checking for entire function
     @cython.wraparound(False)  # turn off negative index wrapping for entire function        
     @cython.initializedcheck(False)
-    def fit(self,double [:,:] points,saving=None,file_name='model',
-            saving_iter=2):
+    def fit(self,double [:,:] points,saving=None,str file_name='model',
+            int saving_iter=2):
         cdef int n_points = points.shape[0]
         cdef int dim = points.shape[1]
         cdef double [:,:] resp = np.zeros((self.window,self.n_components))
@@ -217,10 +217,10 @@ cdef class Kmeans:
                 self._step_M(point,resp)
                 self.iteration += 1
                 
-                if condition(self.iteration):
+                if condition(i+1):
                     f = h5py.File(file_name + '.h5', 'a')
-                    grp = f.create_group('iter' + str(self.iter))
-                    self.write(self,grp)
+                    grp = f.create_group('iter' + str(self.iteration))
+                    self.write(grp)
                     f.close()
         else:
             raise ValueError('The model must be initialized')
