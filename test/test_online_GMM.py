@@ -188,3 +188,28 @@ class TestGaussianMixture_full:
         predected_cov_chol = GM.get('cov_chol')
         
         assert_almost_equal(expected_cov_chol,predected_cov_chol)
+        
+    def test_fit_save(self,window):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,window=window)
+        
+        checking.remove(self.file_name + '.h5')
+        GM.initialize(points)
+        GM.fit(points,saving='linear',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name + '.h5','r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == self.n_points//(2*window)
+        
+        checking.remove(self.file_name + '.h5')        
+        GM.fit(points,saving='log',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name + '.h5','r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == 1 + int(np.log(self.n_points/window)/np.log(2))

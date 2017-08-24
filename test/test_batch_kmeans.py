@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import linalg
 from numpy.testing import assert_almost_equal
 import pytest
 import h5py
@@ -177,7 +176,7 @@ class TestKmeans:
         KM2.fit(points)
         
         checking.verify_batch_models(KM,KM2)
-
+        
         
     def test_write_and_read_GM(self):
         points = np.random.randn(self.n_points,self.dim)

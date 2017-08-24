@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import linalg
 from scipy.misc import logsumexp
 from numpy.testing import assert_almost_equal
 import pytest
@@ -174,4 +173,64 @@ class TestGaussianMixture:
         _,expected_log_resp = GM._step_E(points)
         
         assert_almost_equal(predected_log_resp,expected_log_resp)
+        
+    def test_write_and_read_KM(self):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components)
+        GM._initialize(points)
+        
+        f = h5py.File(self.file_name + '.h5','w')
+        grp = f.create_group('init')
+        GM.write(grp)
+        f.close()
+        
+        predected_KM = Kmeans(self.n_components)
+        
+        f = h5py.File(self.file_name + '.h5','r')
+        grp = f['init']   
+        predected_KM.read_and_init(grp,points)
+        f.close()
+        
+        expected_KM = Kmeans(self.n_components)
+        
+        expected_KM.means = GM.means
+        expected_KM.log_weights = GM.log_weights
+        expected_KM.iter = GM.iter
+        expected_KM._is_initialized = True
+                        
+        checking.verify_batch_models(predected_KM,expected_KM)
+        
+    def test_fit_save(self,type_init,covariance_type):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,type_init=type_init,covariance_type=covariance_type)
+        
+        checking.remove(self.file_name + '.h5')
+        GM.fit(points,n_iter_fix=15,saving='log',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name + '.h5','r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == 6
+        
+        checking.remove(self.file_name + '.h5')        
+        GM.fit(points,n_iter_fix=15,saving='linear',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name + '.h5','r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+            
+        assert cpt == 9
+        
+        checking.remove(self.file_name + '.h5')
+        GM.fit(points,n_iter_fix=15,saving='final',saving_iter=2,
+               file_name=self.file_name)
+        f = h5py.File(self.file_name + '.h5','r')
+        cpt = 0
+        for name in f:
+            cpt += 1
+        
+        assert cpt == 2    
         
