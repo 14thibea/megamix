@@ -38,10 +38,6 @@ class GaussianMixture(BaseMixture):
     reg_covar : float, defaults to 1e-6
         In order to avoid null covariances this float is added to the diagonal
         of covariance matrices.                
-    
-    type_init : str, defaults to 'resp'.        
-        The algorithm is initialized using this data (responsibilities if 'resp'
-        or means, covariances and weights if 'mcw').
 
     Attributes
     ----------

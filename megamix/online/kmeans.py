@@ -9,7 +9,6 @@ from megamix.online.base import _check_saving, BaseMixture
 
 import numpy as np
 import h5py
-import os
 
 def dist_matrix(points,means):
     
@@ -265,10 +264,10 @@ class Kmeans(BaseMixture):
                 self._step_M(point,resp)
                 self.iter += self.window
                 
-                if condition(self.iter):
+                if condition(i+1):
                     f = h5py.File(file_name + '.h5', 'a')
                     grp = f.create_group('iter' + str(self.iter))
-                    self.write(self,grp)
+                    self.write(grp)
                     f.close()
         else:
             raise ValueError('The model is not initialized')

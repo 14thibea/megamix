@@ -331,7 +331,7 @@ class BaseMixture():
             self._step_M()
             self.iter += self.window
             
-            if condition(self.iter):
+            if condition(i+1):
                 f = h5py.File(file_name + '.h5', 'a')
                 grp = f.create_group('iter' + str(self.iter))
                 self.write(grp)
