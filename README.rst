@@ -5,6 +5,10 @@
 .. image:: https://travis-ci.org/14thibea/megamix.svg?branch=master
     :target: https://travis-ci.org/14thibea/megamix
     :alt: Build Status on Travis
+    
+.. image:: https://badge.fury.io/py/megamix.svg
+    :target: https://badge.fury.io/py/megamix
+    :alt: version available on PyPI
    
 =======
 MeGaMix
