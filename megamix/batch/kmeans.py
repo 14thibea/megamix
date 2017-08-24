@@ -118,12 +118,18 @@ class Kmeans(BaseMixture):
         if (self.init == "random"):
             means = initialization_random(self.n_components,points_data)
             self.means = means
+            self.log_weights = np.zeros(self.n_components) - np.log(self.n_components)
+            self.iter = 0
         elif (self.init == "plus"):
             means = initialization_plus_plus(self.n_components,points_data)
             self.means = means
+            self.log_weights = np.zeros(self.n_components) - np.log(self.n_components)
+            self.iter = 0
         elif (self.init == "AF_KMC"):
             means = initialization_AF_KMC(self.n_components,points_data)
             self.means = means
+            self.log_weights = np.zeros(self.n_components) - np.log(self.n_components)
+            self.iter = 0
         elif (self.init == 'user'):
             pass
         else:
@@ -131,8 +137,6 @@ class Kmeans(BaseMixture):
                                  "'initialization' should be in "
                                  "['random', 'plus','AF_KMC']"
                                   % self.init)
-        self.log_weights = np.zeros(self.n_components) - np.log(self.n_components)
-        self.iter = 0
         self._is_initialized = True
         
         
