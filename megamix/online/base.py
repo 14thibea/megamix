@@ -291,7 +291,7 @@ class BaseMixture():
         
         Parameters
         ----------
-        points : array (n_points,dim)
+        points_data : array (n_points,dim)
             A 2D array of points on which the model will be trained.
             
         saving_iter : int | defaults 2
@@ -470,6 +470,19 @@ class BaseMixture():
         self.initialize(points)
         
     def get(self,name):
+        """
+        A getter to allow the user to get the attributes with the cython version.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the parameter. Must be in ['_is_initialized','log_weights',
+            'means','cov','cov_chol','iter','window','kappa','name']
+        
+        Returns
+        -------
+        The wanted parameter (may be an array, a boolean, an int or a string)
+        """
         if name=='_is_initialized':
             return self._is_initialized
         elif name=='iter':

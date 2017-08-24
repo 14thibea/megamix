@@ -142,12 +142,19 @@ class Kmeans(BaseMixture):
         
     def _step_E(self,points):
         """
-        This method assign a cluster number to each point by changing its last coordinate
-        Ex : if P belongs to the first cluster, then P[-1] = 0.
+        In this step the algorithm evaluates the responsibilities of each points in each cluster
         
-        :param points: an array (n_points,dim)
-        :return assignments: an array (n_components,dim)
+        Parameters
+        ----------
+        points : an array (n_points,dim)
         
+        Returns
+        -------
+        resp: an array (n_points,n_components)
+            An array containing the hard assignements of each point.
+            If the point i belongs to the cluster j, the cell of the ith row
+            and the jth column contains 1, whereas the rest of the row is null.
+            
         """
         n_points,_ = points.shape
         assignements = np.zeros((n_points,self.n_components))
@@ -170,7 +177,7 @@ class Kmeans(BaseMixture):
         Parameters
         ----------
         points : an array (n_points,dim)
-        assignements : an array (n_components,dim)
+        assignements : an array (n_points,n_components)
             an array containing the responsibilities of the clusters
             
         """

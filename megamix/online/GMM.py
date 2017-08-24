@@ -23,17 +23,30 @@ class GaussianMixture(BaseMixture):
     
     Representation of a Gaussian mixture model probability distribution.
     This class allows to estimate the parameters of a Gaussian mixture
-    distribution.
+    distribution (with full covariance matrices only).
     
     Parameters
     ----------
     
-    n_components : int, defaults to 1.
+    n_components : int, defaults to 1
         Number of clusters used.
+        
+    kappa : double, defaults to 1.0
+        A coefficient in ]0.0,1.0] which give weight or not to the new points compared
+        to the ones already used.
+        
+        * If kappa is nearly null, the new points have a big weight and the model may take a lot of time to stabilize.
+
+        * If kappa = 1.0, the new points won't have a lot of weight and the model may not move enough from its initialization.
     
-    init : str, defaults to 'kmeans'.
-        Method used in order to perform the initialization,
-        must be in ['random', 'plus', 'AF_KMC', 'kmeans'].  
+    window : int, defaults to 1
+        The number of points used at the same time in order to update the
+        parameters.
+    
+    update : bool, defaults to False
+        If True, the matrices of Cholesky of covariance matrices are updated,
+        else they are computed at each iteration.
+        Set it to True if window < dimension of the problem.
 
     reg_covar : float, defaults to 1e-6
         In order to avoid null covariances this float is added to the diagonal
@@ -57,39 +70,25 @@ class GaussianMixture(BaseMixture):
     iter : int
         The number of iterations computed with the method fit()
     
-    convergence_criterion_data : array of floats (iter,)
-        Stores the value of the convergence criterion computed with data
-        on which the model is fitted.
-    
-    convergence_criterion_test : array of floats (iter,) | if _early_stopping only
-        Stores the value of the convergence criterion computed with test data
-        if it exists.
-    
-    _is_initialized : bool
-        Ensures that the method _initialize() has been used before using other
-        methods such as score() or predict_log_assignements().
-    
     Raises
     ------
     ValueError : if the parameters are inconsistent, for example if the cluster number is negative, init_type is not in ['resp','mcw']...
     
     References
     ----------
-    'Pattern Recognition and Machine Learning', Bishop
+    *Online but Accurate Inference for Latent Variable Models with Local Gibbs Sampling*, C. Dupuy & F. Bach
  
     """
 
-    def __init__(self, n_components=1,covariance_type="full",
-                 kappa=1.0,reg_covar=1e-6,n_jobs=1,window=1,
-                 update=False):
+    def __init__(self, n_components=1,kappa=1.0,reg_covar=1e-6,
+                 window=1,update=False):
         
         super(GaussianMixture, self).__init__()
 
         self.name = 'GMM'
         self.n_components = n_components
-        self.covariance_type = covariance_type
+        self.covariance_type = 'full'
         self.reg_covar = reg_covar
-        self.n_jobs = n_jobs
         self.kappa = kappa
         self.window = window
         self.update = update
@@ -97,8 +96,6 @@ class GaussianMixture(BaseMixture):
         
         self._is_initialized = False
         self.iter = 0
-        self.convergence_criterion_data = []
-        self.convergence_criterion_test = []
         
         self._check_common_parameters()
         self._check_parameters()
@@ -153,10 +150,8 @@ class GaussianMixture(BaseMixture):
         
         Parameters
         ----------
-        points_data : an array (n_points,dim)
-            Data on which the model is fitted.
-        points_test: an array (n_points,dim) | Optional
-            Data used to do early stopping (avoid overfitting)
+        points : an array (n_points,dim)
+            Data on which the model is initialie using the seeds of kmeans++.
             
         """
         
@@ -220,8 +215,8 @@ class GaussianMixture(BaseMixture):
       
     def _step_M(self):
         """
-        In this step the algorithm updates the values of the parameters (means, covariances,
-        alpha, beta, nu).
+        In this step the algorithm updates the values of the parameters
+        (log_weights, means, covariances).
         
         Parameters
         ----------
@@ -242,7 +237,19 @@ class GaussianMixture(BaseMixture):
         
         
     def _sufficient_statistics(self,points,log_resp):
+        """
+        In this step computes the value of sufficient statistics (N,X and S)
+        given the responsibilities.
+        They will be used to update the parameters of the model.
         
+        Parameters
+        ----------
+        points : an array (n_points,dim)
+        
+        log_resp: an array (n_points,n_components)
+            an array containing the logarithm of the responsibilities.
+            
+        """   
         n_points,dim = points.shape
         resp = np.exp(log_resp)
         
@@ -267,10 +274,6 @@ class GaussianMixture(BaseMixture):
                 u = np.sqrt(gamma/((1-gamma)*n_points)) * diff_weighted
                 for j in range(n_points):
                     cholupdate(self.S_chol[i],u[j])
-                
-#                u = np.sqrt(gamma/((1-gamma)*self.N[i]))*diff_weighted
-#                for j in range(n_points):
-#                    cholupdate(self.cov_chol[i].T,u[j])
             
         S /= n_points
         if self.update:

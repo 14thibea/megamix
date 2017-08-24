@@ -60,21 +60,9 @@ class Kmeans(BaseMixture):
         
     means : array of floats (n_components,dim)
         Contains the computed means of the model.
-        
-    N : array of floats (n_components,)
-        The sufficient statistic updated during each iteration used to compute
-        log_weights (this corresponds to the mixing coefficients).
-    
-    X: array of floats (n_components,dim)
-        The sufficient statistic updated during each iteration used to compute
-        the means.
     
     iter : int
         The number of points which have been used to compute the model.
-    
-    _is_initialized : bool
-        Ensures that the model has been initialized before using other
-        methods such as fit(), distortion() or predict_assignements().
     
     Raises
     ------
@@ -118,10 +106,8 @@ class Kmeans(BaseMixture):
         
         Parameters
         ----------
-        points_data : an array (n_points,dim)
-            Data on which the model is fitted.
-        points_test: an array (n_points,dim) | Optional
-            Data used to do early stopping (avoid overfitting)
+        points : an array (n_points,dim)
+            Data on which the model is initialized.
             
         """
         n_points,dim = points.shape
@@ -139,12 +125,19 @@ class Kmeans(BaseMixture):
         
     def _step_E(self,points):
         """
-        This method assign a cluster number to each point by changing its last coordinate
-        Ex : if P belongs to the first cluster, then P[-1] = 0.
+        In this step the algorithm evaluates the responsibilities of each points in each cluster
         
-        :param points: an array (n_points,dim)
-        :return assignments: an array (n_components,dim)
+        Parameters
+        ----------
+        points : an array (window,dim)
         
+        Returns
+        -------
+        resp: an array (window,n_components)
+            An array containing the hard assignements of each point.
+            If the point i belongs to the cluster j, the cell of the ith row
+            and the jth column contains 1, whereas the rest of the row is null.
+            
         """
         n_points,_ = points.shape
         assignements = np.zeros((n_points,self.n_components))
@@ -166,8 +159,8 @@ class Kmeans(BaseMixture):
         
         Parameters
         ----------
-        points : an array (n_points,dim)
-        assignements : an array (n_components,dim)
+        points : an array (window,dim)
+        assignements : an array (window,n_components)
             an array containing the responsibilities of the clusters
             
         """
@@ -197,8 +190,10 @@ class Kmeans(BaseMixture):
         Parameters
         ----------
         points : an array (n_points,dim)
+        
         assignements : an array (n_components,dim)
             an array containing the responsibilities of the clusters
+            
         Returns
         -------
         distortion : (float)
@@ -290,6 +285,19 @@ class Kmeans(BaseMixture):
             
     # To be consistent with the cython version
     def get(self,name):
+        """
+        A getter to allow the user to get the attributes with the cython version.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the parameter. Must be in ['_is_initialized','log_weights',
+            'means','iter','window','kappa','name']
+        
+        Returns
+        -------
+        The wanted parameter (may be an array, a boolean, an int or a string)
+        """
         if name=='_is_initialized':
             return self._is_initialized
         if name=='log_weights':
