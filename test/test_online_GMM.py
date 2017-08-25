@@ -5,6 +5,7 @@ from scipy import linalg
 from numpy.testing import assert_almost_equal
 from megamix.online import GaussianMixture
 from megamix.online.base import _log_normal_matrix
+from megamix.online import dist_matrix
 from megamix.utils_testing import checking
 
 from scipy.misc import logsumexp
@@ -39,6 +40,36 @@ class TestGaussianMixture_full:
             
         assert_almost_equal(cov_chol,GM.get('cov_chol'))
         assert GM.get('_is_initialized') == True
+        
+    def test_initialize_cov(self,window,update):
+        points = np.random.randn(self.n_points,self.dim)
+        GM = GaussianMixture(self.n_components,window=window)
+        GM.set('means',np.random.randn(self.n_components,self.dim))
+        GM._initialize_cov(points)
+
+        predected_cov = GM.get('cov')
+
+        assignements = np.zeros((self.n_points,self.n_components))
+        
+        M = dist_matrix(points,self.means)
+        for i in range(self.n_points):
+            index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
+            if (isinstance(index_min,np.int64)):
+                assignements[i][index_min] = 1
+            else: #Happens when two points are equally distant from a cluster mean
+                assignements[i][index_min[0]] = 1
+        
+        S = np.zeros((self.n_components,self.dim,self.dim))
+        for i in range(self.n_components):
+            diff = points - self.means[i]
+            diff_weighted = diff * assignements[:,i:i+1]
+            S[i] = np.dot(diff_weighted.T,diff)
+            S[i].flat[::self.dim+1] += self.reg_covar
+        S /= self.n_points
+        
+        expected_cov = S * self.n_components
+        
+        assert_almost_equal(expected_cov,predected_cov)
         
     def test_step_E(self,window):
         points = np.random.randn(self.n_points,self.dim)
