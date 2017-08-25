@@ -65,7 +65,7 @@ class TestGaussianMixture_full:
             diff = points - means[i]
             diff_weighted = diff * assignements[:,i:i+1]
             S[i] = np.dot(diff_weighted.T,diff)
-            S[i].flat[::self.dim+1] += GM.get('reg_covar')
+            S[i].flat[::self.dim+1] += float(GM.get('reg_covar'))
         S /= self.n_points
         
         expected_cov = S * self.n_components
