@@ -286,7 +286,7 @@ class BaseMixture():
     
 	
     def fit(self,points_data,points_test=None,saving=None,file_name='model',
-            check_convergence_iter,saving_iter=2):
+            check_convergence_iter=None,saving_iter=2):
         """The EM algorithm
         
         Parameters
