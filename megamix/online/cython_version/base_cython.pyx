@@ -621,6 +621,8 @@ cdef class BaseMixture:
             return self.n_components
         elif name=='upgrade':
             return self.upgrade
+        elif name=='reg_covar':
+            return self.reg_covar
         
         # VBGMM only
         elif name=='alpha_0':
