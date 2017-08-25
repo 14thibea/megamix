@@ -54,11 +54,17 @@ The mean of a cluster is simply the mean of all the points belonging to this lat
 
   \mu_{k} = \frac{\sum^N_{n=1}r_{nk}x_n}{\sum^N_{n=1}r_{nk}}
   
-The weight of the cluster k can be expressed as:
+The weight of the cluster k, which is the number of points belonging to this latter, can be expressed as:
 
 .. math::
 
-  \pi_{k} = \sum^N_{n=1}r_{nk}
+  N_{k} = \sum^N_{n=1}r_{nk}
+  
+The mixing coefficients, which represent the proportion of points in a cluster, can be expressed as:
+
+.. math::
+    
+	\pi_k = \frac{N_k}{N}
 
 Convergence criterion
 *********************
