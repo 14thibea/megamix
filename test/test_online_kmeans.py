@@ -167,7 +167,7 @@ class TestKmeans:
             cov_chol[i] = linalg.cholesky(expected_GM.get('cov')[i],lower=True)
         
         expected_GM.set('cov_chol',cov_chol)
-        expected_GM._initialize_weights(points)
+        expected_GM.set('log_weights',KM.get('log_weights'))
         expected_GM.set('iter',KM.get('iter'))
 
         weights = np.exp(expected_GM.get('log_weights'))
