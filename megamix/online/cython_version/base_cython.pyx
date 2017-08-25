@@ -658,7 +658,7 @@ cdef class BaseMixture:
         elif name=='log_weights':
             self.log_weights = data
         elif name=='N':
-            self.N = data
+            self.N = data.reshape(1,len(data))
         elif name=='X':
             self.X = data
         elif name=='S':
