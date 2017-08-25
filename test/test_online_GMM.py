@@ -44,14 +44,15 @@ class TestGaussianMixture_full:
     def test_initialize_cov(self,window,update):
         points = np.random.randn(self.n_points,self.dim)
         GM = GaussianMixture(self.n_components,window=window)
-        GM.set('means',np.random.randn(self.n_components,self.dim))
+        means = np.random.randn(self.n_components,self.dim)
+        GM.set('means',means)
         GM._initialize_cov(points)
 
         predected_cov = GM.get('cov')
 
         assignements = np.zeros((self.n_points,self.n_components))
         
-        M = dist_matrix(points,self.means)
+        M = dist_matrix(points,means)
         for i in range(self.n_points):
             index_min = np.argmin(M[i]) #the cluster number of the ith point is index_min
             if (isinstance(index_min,np.int64)):
@@ -61,10 +62,10 @@ class TestGaussianMixture_full:
         
         S = np.zeros((self.n_components,self.dim,self.dim))
         for i in range(self.n_components):
-            diff = points - self.means[i]
+            diff = points - means[i]
             diff_weighted = diff * assignements[:,i:i+1]
             S[i] = np.dot(diff_weighted.T,diff)
-            S[i].flat[::self.dim+1] += self.reg_covar
+            S[i].flat[::self.dim+1] += GM.get('reg_covar')
         S /= self.n_points
         
         expected_cov = S * self.n_components
