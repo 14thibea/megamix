@@ -162,10 +162,11 @@ class TestKmeans:
         expected_GM._initialize_cov(points)
         
         # Computation of self.cov_chol
-        expected_GM.set('cov_chol',np.empty(expected_GM.get('cov').shape))
+        cov_chol = np.empty(expected_GM.get('cov').shape)
         for i in range(self.n_components):
-            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.get('cov')[i],lower=True)
-                        
+            cov_chol[i] = linalg.cholesky(expected_GM.get('cov')[i],lower=True)
+        
+        expected_GM.set('cov_chol',cov_chol)
         expected_GM._initialize_weights(points)
         expected_GM.set('iter',KM.get('iter'))
 
