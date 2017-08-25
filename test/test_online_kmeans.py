@@ -5,7 +5,7 @@ from numpy.testing import assert_almost_equal
 from megamix.online import Kmeans, GaussianMixture
 from megamix.online import dist_matrix
 from megamix.utils_testing import checking
-from scipy.linalg import linalg
+from scipy import linalg
 
 import pytest
 import h5py
