@@ -44,9 +44,6 @@ def verify_online_models(GM,GM2):
         assert_almost_equal(GM.get('S'),GM2.get('S'))
         assert_almost_equal(GM.get('cov'),GM2.get('cov'))
         assert_almost_equal(GM.get('cov_chol'),GM2.get('cov_chol'))
-        
-        if GM.get('update'):
-            assert_almost_equal(GM.get('S_chol'),GM2.get('S_chol'))
             
 
 def verify_batch_models(GM,GM2):
