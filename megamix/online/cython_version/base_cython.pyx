@@ -208,12 +208,10 @@ cdef class BaseMixture:
         """
         cdef int n_points = points.shape[0]
         cdef int dim = points.shape[1]
-        print('I am here')
         print(self.alpha_0_flag)
         
         #Checking alpha_0
         if self.alpha_0_flag == 1:
-            print('I am there')
             self.alpha_0 = 1./self.n_components
         elif self.alpha_0 < 0:
             raise ValueError("alpha_0 must be positive")
@@ -656,7 +654,7 @@ cdef class BaseMixture:
         elif name=='cov_chol':
             self.cov_chol = data
         elif name=='log_weights':
-            self.log_weights = data
+            self.log_weights = data.reshape(1,len(data))
         elif name=='N':
             self.N = data.reshape(1,len(data))
         elif name=='X':
