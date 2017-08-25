@@ -5,6 +5,7 @@ from numpy.testing import assert_almost_equal
 from megamix.online import Kmeans, GaussianMixture
 from megamix.online import dist_matrix
 from megamix.utils_testing import checking
+from scipy.linalg import linalg
 
 import pytest
 import h5py
@@ -161,28 +162,28 @@ class TestKmeans:
         expected_GM._initialize_cov(points)
         
         # Computation of self.cov_chol
-#        expected_GM.set('cov_chol',np.empty(expected_GM.cov.shape))
-#        for i in range(self.n_components):
-#            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.cov[i],lower=True)
+        expected_GM.set('cov_chol',np.empty(expected_GM.cov.shape))
+        for i in range(self.n_components):
+            expected_GM.cov_chol[i] = linalg.cholesky(expected_GM.cov[i],lower=True)
                         
-#        expected_GM._initialize_weights(points)
-#        expected_GM.set('iter',KM.get('iter'))
-#
-#        weights = np.exp(expected_GM.log_weights)
-#        expected_GM.N = weights
-#        expected_GM.X = expected_GM.means * expected_GM.N[:,np.newaxis]
-#        expected_GM.S = expected_GM.cov * expected_GM.N[:,np.newaxis,np.newaxis]
-#        
-#        # Computation of S_chol if update=True
-#        if expected_GM.update:
-#            if expected_GM.covariance_type == 'full':
-#                expected_GM.S_chol = np.empty(expected_GM.S.shape)
-#                for i in range(expected_GM.n_components):
-#                    expected_GM.S_chol[i] = linalg.cholesky(expected_GM.S[i],lower=True)
-#            elif expected_GM.covariance_type == 'spherical':
-#                expected_GM.S_chol = np.sqrt(expected_GM.S)
-#                        
-#        checking.verify_online_models(predected_GM,expected_GM)
+        expected_GM._initialize_weights(points)
+        expected_GM.set('iter',KM.get('iter'))
+
+        weights = np.exp(expected_GM.log_weights)
+        expected_GM.N = weights
+        expected_GM.X = expected_GM.means * expected_GM.N[:,np.newaxis]
+        expected_GM.S = expected_GM.cov * expected_GM.N[:,np.newaxis,np.newaxis]
+        
+        # Computation of S_chol if update=True
+        if expected_GM.update:
+            if expected_GM.covariance_type == 'full':
+                expected_GM.S_chol = np.empty(expected_GM.S.shape)
+                for i in range(expected_GM.n_components):
+                    expected_GM.S_chol[i] = linalg.cholesky(expected_GM.S[i],lower=True)
+            elif expected_GM.covariance_type == 'spherical':
+                expected_GM.S_chol = np.sqrt(expected_GM.S)
+                        
+        checking.verify_online_models(predected_GM,expected_GM)
 
     def test_fit_save(self,window):
         points = np.random.randn(self.n_points,self.dim)
