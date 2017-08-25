@@ -285,8 +285,8 @@ class BaseMixture():
         return points
     
 	
-    def fit(self,points,saving=None,file_name='model',
-            saving_iter=2):
+    def fit(self,points_data,points_test=None,saving=None,file_name='model',
+            check_convergence_iter,saving_iter=2):
         """The EM algorithm
         
         Parameters
@@ -302,6 +302,16 @@ class BaseMixture():
         
         Other Parameters
         ----------------
+            
+        points_test: an array (n_points2,dim) | Optional
+            Data used to do early stopping (avoid overfitting)
+            
+        check_convergence_iter: int | Optional
+            If points_test are given, convergence criterion will be computed every
+            check_convergence_iter iterations.
+            If no value is given and points_test is not None, it will raise an
+            Error.
+            
         saving : str | Optional
             A string in ['log','linear']. In the following equations x is the parameter
             saving_iter (see above).
@@ -317,20 +327,39 @@ class BaseMixture():
         None
         
         """
+        # Early stopping preparation
+        test_exists = points_test is not None
+        if test_exists:
+            if check_convergence_iter is None:
+                raise ValueError('A value must be given for check_convergence_iter')
+            elif not isinstance(check_convergence_iter,int) or check_convergence_iter < 1:
+                raise ValueError('check_convergence_iter must be a positive int')
+        self.convergence_criterion_test.append(self.score(points_test))
         
         if not self._is_initialized:
             raise ValueError('The system has to be initialized.')
         
         condition = _check_saving(saving,saving_iter)            
         
-        n_points,dim = points.shape
+        n_points,dim = points_data.shape
 		
         for i in range(n_points//self.window):
-            point = points[i*self.window:(i+1)*self.window:]
+            point = points_data[i*self.window:(i+1)*self.window:]
             _,log_resp = self._step_E(point)
             self._sufficient_statistics(point,log_resp)
             self._step_M()
             self.iter += self.window
+            
+            # Checking early stopping
+            if test_exists and (i+1)%check_convergence_iter == 0:
+                self.convergence_criterion_test.append(self.score(points_test))
+                change = self.convergence_criterion_test[-2] - self.convergence_criterion_test[-1]
+                if change < 0:
+                    best_params = self._get_parameters()
+                else:
+                    print('Convergence was reached at iteration', self.iter)
+                    self._set_parameters(best_params)
+                    break
             
             if condition(i+1):
                 f = h5py.File(file_name + '.h5', 'a')

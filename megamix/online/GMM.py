@@ -307,17 +307,18 @@ class GaussianMixture(BaseMixture):
 
     
     def _get_parameters(self):
-        return (self.N, self.X, self.S)
+        return (self.log_weights, self.means, self.cov)
     
 
     def _set_parameters(self, params,verbose=True):
-        self.N, self.X, self.S = params
-        
-        real_components = len(self.X)
-        if self.n_components != real_components and verbose:
-            print('The number of components changed')
-        self.n_components = real_components
-        
+        self.log_weights, self.means, self.cov = params
+        self.N = np.exp(self.log_weights)
+        self.X = self.means * self.N[:,np.newaxis]
+        self.S = self.cov * self.N[:,np.newaxis,np.newaxis]
+        for i in range(self.n_components):
+            self.cov_chol[i],inf = scipy.linalg.lapack.dpotrf(self.cov[i],lower=True)
+            if self.update:
+                self.S_chol[i],inf = scipy.linalg.lapack.dpotrf(self.S[i],lower=True)
             
 #    def _limiting_model(self,points):
 #        

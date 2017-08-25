@@ -280,11 +280,14 @@ class Kmeans(BaseMixture):
                 self.iter += self.window
                 
                 # Checking early stopping
-                if test_exists and i+1%check_convergence_iter == 0:
+                if test_exists and (i+1)%check_convergence_iter == 0:
                     self.convergence_criterion_test.append(self.score(points_test))
                     change = self.convergence_criterion_test[-2] - self.convergence_criterion_test[-1]
-                    if change < 0:
-                        print('convergence was reached')
+                    if change > 0:
+                        best_params = self._get_parameters()
+                    else:
+                        print('Convergence was reached at iteration', self.iter)
+                        self._set_parameters(best_params)
                         break
                     
                 if condition(i+1):
@@ -309,6 +312,15 @@ class Kmeans(BaseMixture):
 
         else:
             raise Exception("The model is not initialized")
+            
+    
+    def _get_parameters(self):
+        return (self.log_weights, self.means)
+    
+    def _set_parameters(self, params,verbose=True):
+        self.log_weights, self.means = params
+        self.N = np.exp(self.log_weights)
+        self.X = self.means * self.N[:,np.newaxis]
             
             
     # To be consistent with the cython version
