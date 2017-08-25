@@ -170,7 +170,7 @@ class TestKmeans:
         expected_GM._initialize_weights(points)
         expected_GM.set('iter',KM.get('iter'))
 
-        weights = np.exp(expected_GM.log_weights)
+        weights = np.exp(expected_GM.get('log_weights'))
         expected_GM.set('N', weights)
         expected_GM.set('X', expected_GM.get('means') * expected_GM.get('N')[:,np.newaxis])
         expected_GM.set('S', expected_GM.get('cov') * expected_GM.get('N')[:,np.newaxis,np.newaxis])
