@@ -120,6 +120,7 @@ class Kmeans(BaseMixture):
 
         self.N = np.exp(self.log_weights)
         self.X = self.means * self.N[:,np.newaxis]
+        self.convergence_criterion_test = []
         
         self._is_initialized = True
         
@@ -216,13 +217,13 @@ class Kmeans(BaseMixture):
             
         return distortion
         
-    def fit(self,points,saving=None,file_name='model',
-            saving_iter=2):
+    def fit(self,points_data,points_test=None,saving=None,file_name='model',
+            check_convergence_iter=None,saving_iter=2):
         """The k-means algorithm
         
         Parameters
         ----------
-        points : array (n_points,dim)
+        points_data : array (n_points,dim)
             A 2D array of points on which the model will be trained.
             
         saving_iter : int | defaults 2
@@ -233,6 +234,16 @@ class Kmeans(BaseMixture):
         
         Other Parameters
         ----------------
+            
+        points_test: an array (n_points2,dim) | Optional
+            Data used to do early stopping (avoid overfitting)
+            
+        check_convergence_iter: int | Optional
+            If points_test are given, convergence criterion will be computed every
+            check_convergence_iter iterations.
+            If no value is given and points_test is not None, it will raise an
+            Error.
+            
         saving : str | Optional
             A string in ['log','linear']. In the following equations x is the parameter
             saving_iter (see above).
@@ -248,17 +259,34 @@ class Kmeans(BaseMixture):
         None
         
         """
-        n_points,dim = points.shape
+        n_points,dim = points_data.shape
+        
+        # Early stopping preparation
+        test_exists = points_test is not None
+        if test_exists:
+            if check_convergence_iter is None:
+                raise ValueError('A value must be given for check_convergence_iter')
+            elif not isinstance(check_convergence_iter,int) or check_convergence_iter < 1:
+                raise ValueError('check_convergence_iter must be a positive int')
+        self.convergence_criterion_test.append(self.score(points_test))
         
         condition = _check_saving(saving,saving_iter)
             
         if self._is_initialized:
             for i in range(n_points//self.window):
-                point = points[i*self.window:(i+1)*self.window:]
+                point = points_data[i*self.window:(i+1)*self.window:]
                 resp = self._step_E(point)
                 self._step_M(point,resp)
                 self.iter += self.window
                 
+                # Checking early stopping
+                if test_exists and i+1%check_convergence_iter == 0:
+                    self.convergence_criterion_test.append(self.score(points_test))
+                    change = self.convergence_criterion_test[-2] - self.convergence_criterion_test[-1]
+                    if change < 0:
+                        print('convergence was reached')
+                        break
+                    
                 if condition(i+1):
                     f = h5py.File(file_name + '.h5', 'a')
                     grp = f.create_group('iter' + str(self.iter))
