@@ -427,7 +427,8 @@ cdef class BaseMixture:
             cast2Din3D(self.cov_temp,i,dim,self.cov_chol)
     
     
-    def fit(self,double [:,:] points,saving=None,str file_name='model',
+    def fit(self, double [:,:] points_data, points_test=None, saving=None, 
+            str file_name='model', check_convergence_iter=None,
             int saving_iter=2):
         """The EM algorithm
         
@@ -441,8 +442,17 @@ cdef class BaseMixture:
         None
         
         """
-        cdef int n_points = points.shape[0]
-        cdef int dim = points.shape[1]
+        # Early stopping preparation
+        test_exists = points_test is not None
+        if test_exists:
+            if check_convergence_iter is None:
+                raise ValueError('A value must be given for check_convergence_iter')
+            elif not isinstance(check_convergence_iter,int) or check_convergence_iter < 1:
+                raise ValueError('check_convergence_iter must be a positive int')
+        self.convergence_criterion_test.append(self.score(points_test))
+        
+        cdef int n_points = points_data.shape[0]
+        cdef int dim = points_data.shape[1]
         cdef double [:,:] log_resp = np.zeros((self.window,self.n_components))
         cdef double [:,:] point = np.zeros((self.window,dim))
         
@@ -451,11 +461,22 @@ cdef class BaseMixture:
         cdef int i
         if self._is_initialized:
             for i in xrange(n_points//self.window):
-                true_slice(points,i,dim,point,self.window)
+                true_slice(points_data,i,dim,point,self.window)
                 self._cstep_E(point,log_resp)
                 self._sufficient_statistics(point,log_resp)
                 self._step_M()
                 self.iteration += self.window
+                
+                # Checking early stopping
+                if test_exists and (i+1)%check_convergence_iter == 0:
+                    self.convergence_criterion_test.append(self.score(points_test))
+                    change = self.convergence_criterion_test[-2] - self.convergence_criterion_test[-1]
+                    if change < 0:
+                        best_params = self._get_parameters()
+                    else:
+                        print('Convergence was reached at iteration', self.iter)
+                        self._set_parameters(best_params)
+                        break
                 
                 if condition(i+1):
                     f = h5py.File(file_name + '.h5', 'a')
