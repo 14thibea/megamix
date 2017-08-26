@@ -13,6 +13,7 @@ cdef class BaseMixture:
     cdef int window
     cdef double reg_covar
     cdef double kappa
+    cdef list convergence_criterion_test
 
     # Only for VBGMM
     cdef double alpha_0

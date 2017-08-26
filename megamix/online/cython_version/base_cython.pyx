@@ -449,7 +449,7 @@ cdef class BaseMixture:
                 raise ValueError('A value must be given for check_convergence_iter')
             elif not isinstance(check_convergence_iter,int) or check_convergence_iter < 1:
                 raise ValueError('check_convergence_iter must be a positive int')
-        self.convergence_criterion_test.append(self.score(points_test))
+            self.convergence_criterion_test.append(self.score(points_test))
         
         cdef int n_points = points_data.shape[0]
         cdef int dim = points_data.shape[1]

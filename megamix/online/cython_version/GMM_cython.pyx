@@ -93,6 +93,7 @@ cdef class GaussianMixture(BaseMixture):
         multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)
         multiply3Dbyvect2D(self.cov,self.n_components,dim,dim,self.N,self.S)
         
+        self.convergence_criterion_test = []
         self._is_initialized = 1
 
         

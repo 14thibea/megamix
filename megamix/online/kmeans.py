@@ -268,7 +268,7 @@ class Kmeans(BaseMixture):
                 raise ValueError('A value must be given for check_convergence_iter')
             elif not isinstance(check_convergence_iter,int) or check_convergence_iter < 1:
                 raise ValueError('check_convergence_iter must be a positive int')
-        self.convergence_criterion_test.append(self.score(points_test))
+            self.convergence_criterion_test.append(self.score(points_test))
         
         condition = _check_saving(saving,saving_iter)
             
