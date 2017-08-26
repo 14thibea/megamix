@@ -323,8 +323,8 @@ cdef class BaseMixture:
         cdef int n_points = points.shape[0]
         cdef int dim = points.shape[1]
         cdef double [:,:] assignements = np.zeros((n_points,self.n_components))
-        cdef double [:,:] points_temp = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
-        cdef double [:,:] points_temp2 = cvarray(shape=(n_points,dim),itemsize=sizeof(double),format='d')
+        cdef double [:,:] points_temp = np.zeros((n_points,dim))
+        cdef double [:,:] points_temp2 = np.zeros((n_points,dim))
         self._cinitialize_cov(points,assignements,points_temp,points_temp2)
         
     

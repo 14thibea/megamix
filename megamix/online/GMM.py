@@ -121,6 +121,9 @@ class GaussianMixture(BaseMixture):
             else: #Happens when two points are equally distant from a cluster mean
                 assignements[i][index_min[0]] = 1
         
+        N = np.sum(assignements,axis=0) + 1e-15
+        N /= self.n_points
+        
         S = np.zeros((self.n_components,dim,dim))
         for i in range(self.n_components):
             diff = points - self.means[i]
@@ -129,7 +132,7 @@ class GaussianMixture(BaseMixture):
             S[i].flat[::dim+1] += self.reg_covar
         S /= n_points
         
-        self.cov = S * self.n_components
+        self.cov = S * N[:,np.newaxis,np.newaxis]
         
         
     def _initialize_weights(self,points):

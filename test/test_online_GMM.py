@@ -60,6 +60,9 @@ class TestGaussianMixture_full:
             else: #Happens when two points are equally distant from a cluster mean
                 assignements[i][index_min[0]] = 1
         
+        N = np.sum(assignements,axis=0) + 1e-15
+        N /= self.n_points
+        
         S = np.zeros((self.n_components,self.dim,self.dim))
         for i in range(self.n_components):
             diff = points - means[i]
@@ -68,7 +71,7 @@ class TestGaussianMixture_full:
             S[i].flat[::self.dim+1] += float(GM.get('reg_covar'))
         S /= self.n_points
         
-        expected_cov = S * self.n_components
+        expected_cov = S * N[:,np.newaxis,np.newaxis]
         
         assert_almost_equal(expected_cov,predected_cov)
         
