@@ -9,6 +9,7 @@ cdef class Kmeans:
     cdef int _is_initialized
     cdef int iteration
     cdef int window
+    cdef list convergence_criterion_test
     
     cdef double [:,:] N
     cdef double [:,:] X

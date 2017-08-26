@@ -113,6 +113,7 @@ cdef class Kmeans:
         self.dist_matrix = cvarray(shape=(self.window,self.n_components),itemsize=sizeof(double),format='d')
         self.dist = cvarray(shape=(self.n_components,dim),itemsize=sizeof(double),format='d')
         
+        self.convergence_criterion_test = []
         self._is_initialized = 1
 
        
