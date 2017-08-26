@@ -71,7 +71,7 @@ class TestGaussianMixture_full:
             S[i].flat[::self.dim+1] += float(GM.get('reg_covar'))
         S /= self.n_points
         
-        expected_cov = S * N[:,np.newaxis,np.newaxis]
+        expected_cov = S / N[:,np.newaxis,np.newaxis]
         
         assert_almost_equal(expected_cov,predected_cov)
         

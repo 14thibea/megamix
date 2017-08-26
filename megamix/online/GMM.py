@@ -132,7 +132,7 @@ class GaussianMixture(BaseMixture):
             S[i].flat[::dim+1] += self.reg_covar
         S /= n_points
         
-        self.cov = S * N[:,np.newaxis,np.newaxis]
+        self.cov = S / N[:,np.newaxis,np.newaxis]
         
         
     def _initialize_weights(self,points):
