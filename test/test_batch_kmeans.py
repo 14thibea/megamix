@@ -29,7 +29,7 @@ class TestKmeans:
         self.file_name = 'test'
         
     def teardown(self):
-        checking.remove(self.file_name + 'h5')
+        checking.remove(self.file_name + '.h5')
         
         
     def test_initialize(self):
@@ -112,6 +112,7 @@ class TestKmeans:
         points = np.random.randn(self.n_points,self.dim)
         KM = Kmeans(self.n_components)
         KM._initialize(points)
+        KM.init = 'user'
         
         f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
@@ -125,15 +126,19 @@ class TestKmeans:
         KM2.read_and_init(grp,points)
         f.close()
         
+        print('before check :',KM2.init)
         checking.verify_batch_models(KM,KM2)
-        
-        assignements = KM._step_E(points)
-        assignements2 = KM2._step_E(points)
-        
-        assert_almost_equal(assignements,assignements2)
-        
-        KM._step_M(points,assignements)
-        KM2._step_M(points,assignements2)
+        print('after check :',KM2.init)
+#        assignements = KM._step_E(points)
+#        assignements2 = KM2._step_E(points)
+#        
+#        assert_almost_equal(assignements,assignements2)
+#        
+#        KM._step_M(points,assignements)
+#        KM2._step_M(points,assignements2)
+
+        KM.fit(points)
+        KM2.fit(points)
         
         checking.verify_batch_models(KM,KM2)
         
@@ -182,6 +187,7 @@ class TestKmeans:
         points = np.random.randn(self.n_points,self.dim)
         KM = Kmeans(self.n_components)
         KM._initialize(points)
+        KM.init = 'user'
         
         f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
@@ -227,6 +233,7 @@ class TestKmeans:
         f = h5py.File(self.file_name + '.h5','r')
         cpt = 0
         for name in f:
+            print(name)
             cpt += 1
             
         assert cpt == 9

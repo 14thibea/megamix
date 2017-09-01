@@ -31,10 +31,10 @@ class TestKmeans:
         self.dim = 2
         self.n_points = 10
         
-        self.file_name = 'test.h5'
+        self.file_name = 'test'
         
     def teardown(self):
-        checking.remove(self.file_name)
+        checking.remove(self.file_name + '.h5')
         
     def test_initialize(self,window):
         points = np.random.randn(self.n_points,self.dim)
@@ -119,14 +119,14 @@ class TestKmeans:
         KM = Kmeans(self.n_components)
         KM.initialize(points)
         
-        f = h5py.File(self.file_name,'w')
+        f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
         KM.write(grp)
         f.close()
         
         KM2 = Kmeans(self.n_components)
         
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         grp = f['init']
         KM2.read_and_init(grp,points)
         f.close()
@@ -143,14 +143,14 @@ class TestKmeans:
         KM = Kmeans(self.n_components)
         KM.initialize(points)
         
-        f = h5py.File(self.file_name,'w')
+        f = h5py.File(self.file_name + '.h5','w')
         grp = f.create_group('init')
         KM.write(grp)
         f.close()
         
         predected_GM = GaussianMixture(self.n_components,update=update)
         
-        f = h5py.File(self.file_name,'r')
+        f = h5py.File(self.file_name + '.h5','r')
         grp = f['init']   
         with pytest.warns(UserWarning):
             predected_GM.read_and_init(grp,points)
