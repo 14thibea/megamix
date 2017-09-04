@@ -140,7 +140,8 @@ class DPVariationalGaussianMixture(BaseMixture):
     
     def __init__(self, n_components=1,init="kmeans",alpha_0=None,beta_0=None,
                  nu_0=None,means_prior=None,cov_wishart_prior=None,
-                 reg_covar=1e-6,type_init='resp',n_jobs=1,pypcoeff=0):
+                 reg_covar=1e-6,type_init='resp',n_jobs=1,pypcoeff=0,
+                 boost=None):
         
         super(DPVariationalGaussianMixture, self).__init__()
         
@@ -149,6 +150,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         self.init = init
         self.type_init = type_init
         self.reg_covar = reg_covar
+        self.boost = boost
         
         self.alpha_0 = alpha_0
         self.beta_0 = beta_0
@@ -177,7 +179,7 @@ class DPVariationalGaussianMixture(BaseMixture):
         
         """
         
-        if self.init not in ['random', 'plus', 'kmeans', 'AF_KMC', 'GMM', 'VBGMM']:
+        if self.init not in ['random', 'random_sk', 'plus', 'kmeans', 'AF_KMC', 'GMM', 'VBGMM']:
             raise ValueError("Invalid value for 'init': %s "
                              "'init' should be in "
                              "['random','plus','kmeans','AF_KMC','GMM','VBGMM']"
@@ -187,6 +189,13 @@ class DPVariationalGaussianMixture(BaseMixture):
             raise ValueError("Invalid value for 'pypcoeff': %s "
                              "'pypcoeff' should be between 0 and 1"
                              % self.init)
+            
+        if self.boost is not None :
+            if self.boost < 0:
+                raise ValueError("Invalid value for 'boost': %s "
+                             "'boost' should be positive"
+                             % self.init)
+                
           
     def _initialize(self,points_data,points_test=None):
         """
@@ -215,6 +224,12 @@ class DPVariationalGaussianMixture(BaseMixture):
             self.alpha = np.empty((self.n_components,2))
             self.log_weights = np.empty(self.n_components)
             self._step_M(points_data,log_assignements)
+            
+            # Boosting covariance matrices
+            if self.boost is not None:
+                self.cov *= self.boost
+                self._inv_prec *= self.boost
+                self._log_det_inv_prec += dim * np.log(self.boost)
         
         elif self.type_init == 'mcw':
             #Means, covariances and weights
@@ -279,10 +294,11 @@ class DPVariationalGaussianMixture(BaseMixture):
         n_points,dim = points.shape
         
         log_gaussian = _log_normal_matrix(points,self.means,self.cov,'full',self.n_jobs)
+        log_gaussian -= 0.5 * dim * np.log(self.nu)
         digamma_sum = np.sum(psi(.5 * (self.nu - np.arange(0, dim)[:,np.newaxis])),0)
-        log_lambda = digamma_sum + dim * np.log(2) + dim/self.beta
+        log_lambda = digamma_sum + dim * np.log(2)
         
-        log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim * np.log(self.nu))
+        log_prob = self.log_weights + log_gaussian + 0.5 * (log_lambda - dim / self.beta)
         
         log_prob_norm = logsumexp(log_prob, axis=1)
         log_resp = log_prob - log_prob_norm[:,np.newaxis]

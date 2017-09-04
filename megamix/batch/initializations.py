@@ -37,6 +37,34 @@ def initialization_random(n_components,points):
     
     return means
 
+def initialization_random_sklearn(n_components,points):
+    """
+    This method returns an array of k points which will be used in order to
+    initialize a k_means algorithm
+    
+    Parameters
+    ----------
+    points : an array (n_points,dim)
+    
+    k : int
+        the number of clusters
+        
+    Returns
+    -------
+    means : an array (n_components,dim)
+        The initial means computed
+    
+    assignements : an array (n_points,n_components)
+        The hard assignements according to kmeans
+        
+    """
+    n_points,_ = points.shape
+    random_state = np.random.RandomState(2)
+    resp = random_state.rand(n_points,n_components)
+    resp /= resp.sum(axis=1)[:,np.newaxis]
+    
+    return resp
+
 def initialization_plus_plus(n_components,points):
     """
     This method returns an array of k points which will be used in order to
@@ -287,6 +315,8 @@ def initialize_log_assignements(init,n_components,points_data,points_test=None,c
         km = Kmeans(n_components)
         km.means = means
         assignements = km._step_E(points_data)
+    elif(init == "random_sk"):
+        assignements = initialization_random_sklearn(n_components,points_data)
     elif(init == "plus"):
         means = initialization_plus_plus(n_components,points_data)
         km = Kmeans(n_components)
