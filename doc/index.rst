@@ -6,6 +6,13 @@
 Welcome to MeGaMix's documentation!
 ===================================
 
+.. figure:: logo.png
+    :width: 200px
+    :align: center
+    :height: 100px
+    :alt: logo
+    :figclass: align-center
+
 **Table of contents**
 
 .. toctree::
