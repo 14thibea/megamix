@@ -13,7 +13,7 @@ from Cython.Build import cythonize
 from distutils.extension import Extension
 import numpy
 
-VERSION = '0.3.1'
+VERSION = '0.3.2'
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
