@@ -184,6 +184,10 @@ class VariationalGaussianMixture(BaseMixture):
                              "'boost' should be positive"
                              % self.init)
             
+        if self.init == 'random_sk' and self.type_init=='mcw':
+            raise ValueError("random_sk is only compatible with"
+                             "type_init = resp")
+            
     def _initialize(self,points_data,points_test=None):
         """
         This method initializes the Variational Gaussian Mixture by setting the values

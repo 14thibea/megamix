@@ -103,10 +103,10 @@ class GaussianMixture(BaseMixture):
 
     def _check_parameters(self):
         
-        if self.init not in ['random', 'plus', 'kmeans', 'AF_KMC']:
+        if self.init not in ['random', 'random_sk', 'plus', 'kmeans', 'AF_KMC']:
             raise ValueError("Invalid value for 'init': %s "
                              "'init' should be in "
-                             "['random', 'plus', 'kmeans', 'AF_KMC']"
+                             "['random', 'random_sk', 'plus', 'kmeans', 'AF_KMC']"
                              % self.init)
             
         if self.covariance_type not in ['full','spherical']:
@@ -114,6 +114,10 @@ class GaussianMixture(BaseMixture):
                              "'covariance_type' should be in "
                              "['full', 'spherical']"
                              % self.covariance_type)
+            
+        if self.init == 'random_sk' and self.type_init=='mcw':
+            raise ValueError("random_sk is only compatible with"
+                             "type_init = resp")
             
     def _initialize(self,points_data,points_test=None):
         """
