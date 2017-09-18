@@ -2,8 +2,14 @@
 API Reference
 =============
 
+Two versions of the EM algorithms exist : *batch* and *online*:
+ * The batch version takes all the point at the same time, using more CPU and memory but may lead to more accurate results.
+ * The online version takes the points w by w. In this way the program uses less CPU and memory, but there may be a loss of accuracy.
+ 
 Batch versions of the algorithm
 ===============================
+
+Four different algorithms have been developped in batch: K-means, GMM, VBGMM and DPGMM
 
 Kmeans
 ******
@@ -38,6 +44,8 @@ Dirichlet Process Gaussian Mixture Model (DPGMM)
 
 Online versions of the algorithm
 ================================
+
+Only two algorithms have been developped in batch: K-means and GMM.
 
 Kmeans
 ******
