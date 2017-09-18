@@ -39,6 +39,10 @@ been implemented, from the most simple to the most complex:
 * DP-VBGMM (Dirichlet Process on Variational Bayesian Gaussian Mixture Model)
 * PYP-VBGMM (Pitman-Yor Process on Variational Bayesian Gaussian Mixture Model)
 
+These models are *batch* algorithms: they use the whole set of data during the computation. Some of these
+algorithms (K-means and GMM) have been implemented in an *online* way: in this way the model is adapted as the
+user bring new data to the program.
+
 What will you be able to do ?
 -----------------------------
 

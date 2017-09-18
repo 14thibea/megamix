@@ -172,11 +172,29 @@ Then we introduce an independant Gaussian-Wishart law governing the mean and pre
    
 The computation of the terms involved in this equation are described in the M step.
 
+The aim of VBGMM is to reduce the variability of the model by introducing a bias: prior values on the
+parameters of the model.
+
 E step
 ******
 
+It is not possible to compute directly :math:`r_{nk}`, another quantity :math:`\rho_{nk}` is calculated instead and
+:math:`r_{nk}` is obtained after normalization.
+
+.. math::
+   
+   \ln{\rho_{nk}} = \mathbb{E}[\ln{\pi_k}] + \frac{1}{2}\mathbb{E}[\ln{\det{\Lambda_k}}] - \frac{d}{2}\ln{2\pi} - 
+   \frac{1}{2}\mathbb{E}_{\mu_k,\Lambda_k}[(x_n-\mu_k)^T\Lambda_k(x_n-\mu_k)]
+
+.. math::
+   
+   \ln{\rho_{nk}} = \psi(\alpha_k) - \psi(\sum^K_{i=1}\alpha_i) + \frac{1}{2}\sum^d_{i=1}\psi(\frac{\nu_k+1-i}{2})
+   + \frac{1}{2}\ln{\det{W_k}} - \frac{d}{2}\ln{\pi} - \frac{d}{2\beta_k} - \frac{\nu_k}{2}(x_n-m_k)^{T} W_k (x_n-m_k)
+   
 M step
 ******
+
+
 
 Convergence criterion
 *********************

@@ -11,7 +11,7 @@ The available classes are:
    - DPVariationalGaussianMixture (DP-VBGMM)
 """
 
-from megamix import DPVariationalGaussianMixture
+from megamix.batch import DPVariationalGaussianMixture
 import numpy as np
 
 ########################
