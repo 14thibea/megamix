@@ -122,7 +122,7 @@ class GaussianMixture(BaseMixture):
                 assignements[i][index_min[0]] = 1
         
         N = np.sum(assignements,axis=0) + 1e-15
-        N /= self.n_points
+        N /= n_points
         
         S = np.zeros((self.n_components,dim,dim))
         for i in range(self.n_components):
@@ -323,26 +323,26 @@ class GaussianMixture(BaseMixture):
             if self.update:
                 self.S_chol[i],inf = scipy.linalg.lapack.dpotrf(self.S[i],lower=True)
             
-#    def _limiting_model(self,points):
-#        
-#        n_points,dim = points.shape
-#        log_resp = self.predict_log_resp(points)
-#        _,n_components = log_resp.shape
-#    
-#        exist = np.zeros(n_components)
-#        
-#        for i in range(n_points):
-#            for j in range(n_components):
-#                if np.argmax(log_resp[i])==j:
-#                    exist[j] = 1
-#        
-#
-#        idx_existing = np.where(exist==1)
-#        
-#        log_weights = self.log_weights[idx_existing]
-#        means = self.means[idx_existing]
-#        cov = self.cov[idx_existing]
-#                
-#        params = (log_weights, means, cov)
-#        
-#        return params
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+
+        idx_existing = np.where(exist==1)
+        
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+        cov = self.cov[idx_existing]
+                
+        params = (log_weights, means, cov)
+        
+        return params
