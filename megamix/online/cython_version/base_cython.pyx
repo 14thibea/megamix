@@ -460,6 +460,7 @@ cdef class BaseMixture:
 
         cdef int i
         if self._is_initialized:
+            best_params = self._get_parameters()
             for i in xrange(n_points//self.window):
                 true_slice(points_data,i,dim,point,self.window)
                 self._cstep_E(point,log_resp)
@@ -471,13 +472,14 @@ cdef class BaseMixture:
                 if test_exists and (i+1)%check_convergence_iter == 0:
                     self.convergence_criterion_test.append(self.score(points_test))
                     change = self.convergence_criterion_test[-2] - self.convergence_criterion_test[-1]
-                    if change < 0:
+                    if change <= 0:
                         best_params = self._get_parameters()
-                    else:
-                        print('Convergence was reached at iteration', self.iter)
+                    elif i > 0:
+                        print('Convergence was reached at iteration', self.iteration)
                         self._set_parameters(best_params)
                         break
                 
+                # Saving the model
                 if condition(i+1):
                     f = h5py.File(file_name + '.h5', 'a')
                     grp = f.create_group('iter' + str(self.iteration))

@@ -14,7 +14,6 @@ from megamix.batch.initializations import initialization_plus_plus
 import numpy as np
 import scipy
 import cython
-from scipy.linalg.cython_lapack cimport dpotrf
 from cython.view cimport array as cvarray
 from libc.math cimport log,sqrt
 from basic_operations cimport subtract2Dby2D_idx, multiply3Dbyscalar, multiply2Dby2D_idx
@@ -178,7 +177,7 @@ cdef class GaussianMixture(BaseMixture):
             sqrt2D(self.N,1,self.n_components,self.N_temp)
             divide3Dbyvect2D(self.cov_chol,self.n_components,dim,dim,self.N_temp,self.cov_chol)
         else:
-            self._compute_cholesky_matrices()
+            BaseMixture._compute_cholesky_matrices(self)
         
             
     @cython.initializedcheck(False)
@@ -275,40 +274,42 @@ cdef class GaussianMixture(BaseMixture):
         return sum2D(log_prob_norm,n_points,1)
     
                 
-#    
-#    def _get_parameters(self):
-#        return (self.N, self.X, self.S)
-#    
-#
-#    def _set_parameters(self, params,verbose=True):
-#        self.N, self.X, self.S = params
-#        
-#        real_components = len(self.X)
-#        if self.n_components != real_components and verbose:
-#            print('The number of components changed')
-#        self.n_components = real_components
+    def _get_parameters(self):
+        return (self.log_weights, self.means, self.cov)
+    
+
+    def _set_parameters(self, params,verbose=True):
+        log_weights, self.means, self.cov = params
+        self.log_weights = log_weights.reshape(1,len(log_weights))
+        cdef int dim = self.means.shape[1]
+        self.N = np.exp(self.log_weights)
+        multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)
+        multiply3Dbyvect2D(self.cov,self.n_components,dim,dim,self.N,self.S)
         
+        self.cov_chol = cvarray(shape=(self.n_components,dim,dim),itemsize=sizeof(double),format='d')
+        BaseMixture._compute_cholesky_matrices(self)
+
             
-#    def _limiting_model(self,points):
-#        
-#        n_points,dim = points.shape
-#        log_resp = self.predict_log_resp(points)
-#        _,n_components = log_resp.shape
-#    
-#        exist = np.zeros(n_components)
-#        
-#        for i in range(n_points):
-#            for j in range(n_components):
-#                if np.argmax(log_resp[i])==j:
-#                    exist[j] = 1
-#        
-#
-#        idx_existing = np.where(exist==1)
-#        
-#        log_weights = self.log_weights[idx_existing]
-#        means = self.means[idx_existing]
-#        cov = self.cov[idx_existing]
-#                
-#        params = (log_weights, means, cov)
-#        
-#        return params    
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+
+        idx_existing = np.where(exist==1)[0]
+        
+        log_weights = self.get('log_weights')[idx_existing]
+        means = self.get('means')[idx_existing]
+        cov = self.get('cov')[idx_existing]
+                
+        params = (log_weights, means, cov)
+        
+        return params
