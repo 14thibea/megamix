@@ -81,7 +81,7 @@ class GaussianMixture(BaseMixture):
     """
 
     def __init__(self, n_components=1,kappa=1.0,reg_covar=1e-6,
-                 window=1,update=False):
+                 window=1,update=None):
         
         super(GaussianMixture, self).__init__()
 
@@ -107,6 +107,11 @@ class GaussianMixture(BaseMixture):
                              "'covariance_type' should be in "
                              "['full', 'spherical']"
                              % self.covariance_type)
+            
+        if not self.update in [None, False, True]:
+            raise ValueError("update must be True or False. If not given"
+                             "the best value will be chosen after the initialisation")
+            
             
     def _initialize_cov(self,points):
         
@@ -190,7 +195,13 @@ class GaussianMixture(BaseMixture):
         
         self._is_initialized = True
         
-        
+        if self.update is None:
+            if self.window < dim:
+                self.update = True
+            else:
+                self.update = False
+                
+                
     def _step_E(self, points):
         """
         In this step the algorithm evaluates the responsibilities of each points in each cluster

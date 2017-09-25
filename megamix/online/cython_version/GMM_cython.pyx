@@ -30,7 +30,7 @@ cdef class GaussianMixture(BaseMixture):
     cdef int update
                 
     def __init__(self, int n_components=1,double kappa=1.0,
-                 double reg_covar=1e-6,int window=1, int update=0):
+                 double reg_covar=1e-6,int window=1, int update=-1):
         
         self.name = 'GMM'
         self.init = 'usual'
@@ -94,8 +94,14 @@ cdef class GaussianMixture(BaseMixture):
         
         self.convergence_criterion_test = []
         self._is_initialized = 1
-
         
+        if self.update == -1:
+            if self.window < dim:
+                self.update = 1
+            else:
+                self.update = 0
+
+
     @cython.initializedcheck(False)
     cdef void _step_E_gen(self, double [:,:] points, double [:,:] log_resp,
                 double [:,:] points_temp_fortran, double [:,:] points_temp,
@@ -280,7 +286,7 @@ cdef class GaussianMixture(BaseMixture):
 
     def _set_parameters(self, params,verbose=True):
         log_weights, self.means, self.cov = params
-        self.log_weights = log_weights.reshape(1,len(log_weights))
+        self.log_weights = np.asarray(log_weights).reshape(1,len(log_weights))
         cdef int dim = self.means.shape[1]
         self.N = np.exp(self.log_weights)
         multiply2Dbyvect2D(self.means,self.n_components,dim,self.N,0,self.X)

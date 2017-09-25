@@ -198,7 +198,10 @@ cdef class BaseMixture:
         
         if self.n_components < 1:
             raise ValueError("The number of components cannot be less than 1")
-            
+        
+        if not (self.update in [-1,0,1]):
+            raise ValueError("Incorrect value for update, must be True (1) or"
+                             " False (0)")
             
     cdef void _check_prior_parameters(self, points):
         """
