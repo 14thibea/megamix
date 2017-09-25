@@ -1,4 +1,4 @@
-.. image:: http://megamix.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/megamix/badge/?version=latest
     :target: http://megamix.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
     
