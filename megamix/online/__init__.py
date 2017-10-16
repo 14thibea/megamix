@@ -15,6 +15,7 @@ except:
     from .base import cholupdate
     print('pure python mode')
 
+from .VBGMM import VariationalGaussianMixture
 
-
-__all__ = ['GaussianMixture','Kmeans','cholupdate','dist_matrix']
+__all__ = ['GaussianMixture','Kmeans','cholupdate','dist_matrix',
+           'VariationalGaussianMixture']

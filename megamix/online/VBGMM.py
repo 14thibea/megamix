@@ -9,6 +9,7 @@ from .base import BaseMixture
 from .base import _log_normal_matrix
 from .kmeans import dist_matrix
 from megamix.batch.initializations import initialization_plus_plus
+from megamix.batch.initializations import initialization_k_means
 
 import numpy as np
 from scipy.misc import logsumexp
@@ -198,7 +199,7 @@ class VariationalGaussianMixture(BaseMixture):
         
         self.log_weights = logsumexp(log_resp,axis=0) + np.log(n_points)
         
-    def _initialize(self,points):
+    def initialize(self,points,init_choice='plus',n_init=1):
         """
         This method initializes the Gaussian Mixture by setting the values of
         the means, covariances and weights.
@@ -218,9 +219,18 @@ class VariationalGaussianMixture(BaseMixture):
         self._check_prior_parameters(points)
         
         
-        if not self.init == 'read_and_init':
-            # Parameters
-            self.means = initialization_plus_plus(self.n_components,points)
+        if self.init == 'usual':
+            dist_min = np.inf
+            for i in range(n_init):
+                if init_choice == 'plus':
+                    means,dist = initialization_plus_plus(self.n_components,points,info=True)
+                elif init_choice == 'kmeans':
+                    means,_,dist = initialization_k_means(self.n_components,points,info=True)
+                    
+                if dist < dist_min:
+                    dist_min = dist
+                    self.means = means
+                
             self._initialize_cov(points)
             
         # Computation of self.cov_chol
@@ -324,17 +334,10 @@ class VariationalGaussianMixture(BaseMixture):
             self._inv_prec[i] = self._inv_prec_prior + N[i] * S[i] + product
         # To test
                 
-    def _step_M(self,log_resp):
+    def _step_M(self):
         """
         In this step the algorithm updates the values of the parameters (means, covariances,
         alpha, beta, nu).
-        
-        Parameters
-        ----------
-        points : an array (n_points,dim)
-        
-        log_resp: an array (n_points,n_components)
-            an array containing the logarithm of the responsibilities.
             
         """
         
@@ -518,46 +521,46 @@ class VariationalGaussianMixture(BaseMixture):
 #        return result
     
     
-#    def _get_parameters(self):
-#        return (self.log_weights, self.means, self.cov,
-#                self.alpha, self.beta, self.nu)
-#    
-#
-#    def _set_parameters(self, params,verbose=True):
-#        (self.log_weights, self.means, self.cov,
-#        self.alpha, self.beta, self.nu )= params
-#         
-#        # Matrix W
-#        self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
-#        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
-#        if self.n_components != len(self.means) and verbose:
-#            print('The number of components changed')
-#        self.n_components = len(self.means)
+    def _get_parameters(self):
+        return (self.log_weights, self.means, self.cov,
+                self.alpha, self.beta, self.nu)
+    
+
+    def _set_parameters(self, params,verbose=True):
+        (self.log_weights, self.means, self.cov,
+        self.alpha, self.beta, self.nu )= params
+         
+        # Matrix W
+        self._inv_prec = self.cov * self.nu[:,np.newaxis,np.newaxis]
+        self._log_det_inv_prec = np.log(np.linalg.det(self._inv_prec))
+        if self.n_components != len(self.means) and verbose:
+            print('The number of components changed')
+        self.n_components = len(self.means)
         
             
-#    def _limiting_model(self,points):
-#        
-#        n_points,dim = points.shape
-#        log_resp = self.predict_log_resp(points)
-#        _,n_components = log_resp.shape
-#    
-#        exist = np.zeros(n_components)
-#        
-#        for i in range(n_points):
-#            for j in range(n_components):
-#                if np.argmax(log_resp[i])==j:
-#                    exist[j] = 1
-#        
-#        idx_existing = np.where(exist==1)
-#        
-#        log_weights = self.log_weights[idx_existing]
-#        means = self.means[idx_existing]
-#        cov = self.cov[idx_existing]
-#        alpha = self.alpha[idx_existing]
-#        beta = self.beta[idx_existing]
-#        nu = self.nu[idx_existing]
-#                
-#        params = (log_weights, means, cov,
-#                  alpha, beta, nu)
-#        
-#        return params
+    def _limiting_model(self,points):
+        
+        n_points,dim = points.shape
+        log_resp = self.predict_log_resp(points)
+        _,n_components = log_resp.shape
+    
+        exist = np.zeros(n_components)
+        
+        for i in range(n_points):
+            for j in range(n_components):
+                if np.argmax(log_resp[i])==j:
+                    exist[j] = 1
+        
+        idx_existing = np.where(exist==1)
+        
+        log_weights = self.log_weights[idx_existing]
+        means = self.means[idx_existing]
+        cov = self.cov[idx_existing]
+        alpha = self.alpha[idx_existing]
+        beta = self.beta[idx_existing]
+        nu = self.nu[idx_existing]
+                
+        params = (log_weights, means, cov,
+                  alpha, beta, nu)
+        
+        return params

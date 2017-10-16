@@ -65,7 +65,7 @@ def initialization_random_sklearn(n_components,points):
     
     return resp
 
-def initialization_plus_plus(n_components,points):
+def initialization_plus_plus(n_components,points,info=False):
     """
     This method returns an array of k points which will be used in order to
     initialize a k_means algorithm
@@ -88,6 +88,7 @@ def initialization_plus_plus(n_components,points):
     """
     from .kmeans import dist_matrix
     
+    dist = None
     n_points,dim = points.shape
     probability_vector = np.arange(n_points)/n_points #All points have the same probability to be chosen the first time
          
@@ -116,6 +117,15 @@ def initialization_plus_plus(n_components,points):
         dst_min = dst_min**2
         total_dst = np.cumsum(dst_min)
         probability_vector = total_dst/total_dst[-1]
+        
+    if info:
+        from .kmeans import Kmeans
+        km = Kmeans(n_components)
+        km.means = means
+        km._is_initialized = True
+        dist = km.score(points)
+        
+        return means, dist
 
     return means
 
@@ -178,7 +188,7 @@ def initialization_AF_KMC(n_components,points,m=20):
     
     return means
 
-def initialization_k_means(n_components,points):
+def initialization_k_means(n_components,points,info=False):
     """
     This method returns an array of k means which will be used in order to
     initialize an EM algorithm
@@ -205,6 +215,10 @@ def initialization_k_means(n_components,points):
     km.fit(points)
     assignements = km.predict_assignements(points)
     
+    if info:
+        dist=km.score(points)
+        return km.means,assignements,dist
+
     return km.means,assignements
 
 def initialization_GMM(n_components,points_data,points_test=None,covariance_type="full"):

@@ -9,7 +9,7 @@
 from .base import BaseMixture
 from .base import _log_normal_matrix
 from .base import cholupdate
-from megamix.batch.initializations import initialization_plus_plus
+from megamix.batch.initializations import initialization_plus_plus, initialization_k_means
 from .kmeans import dist_matrix
 
 import numpy as np
@@ -151,7 +151,7 @@ class GaussianMixture(BaseMixture):
         self.log_weights = logsumexp(log_resp,axis=0) - np.log(n_points)
         
         
-    def initialize(self,points):
+    def initialize(self,points,init_choice='plus',n_init=1):
         """
         This method initializes the Gaussian Mixture by setting the values of
         the means, covariances and weights.
@@ -166,8 +166,18 @@ class GaussianMixture(BaseMixture):
         n_points,dim = points.shape
         
         if self.init == 'usual':
-            self.means = initialization_plus_plus(self.n_components,points)
+            dist_min = np.inf
+            for i in range(n_init):
+                if init_choice == 'plus':
+                    means,dist = initialization_plus_plus(self.n_components,points,info=True)
+                elif init_choice == 'kmeans':
+                    means,_,dist = initialization_k_means(self.n_components,points,info=True)
+                    
+                if dist < dist_min:
+                    dist_min = dist
+                    self.means = means    
             self.iter = n_points + 1
+            
         if self.init in ['usual','read_kmeans']:
             self._initialize_cov(points)
             

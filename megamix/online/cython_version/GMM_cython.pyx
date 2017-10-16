@@ -9,7 +9,7 @@
 from base_cython cimport BaseMixture
 from base_cython cimport logsumexp_axis,cholupdate
 from base_cython cimport _log_normal_matrix
-from megamix.batch.initializations import initialization_plus_plus
+from megamix.batch.initializations import initialization_plus_plus, initialization_k_means
 
 import numpy as np
 import scipy
@@ -72,7 +72,16 @@ cdef class GaussianMixture(BaseMixture):
 
         # Parameters
         if self.init == 'usual':
-            self.means = initialization_plus_plus(self.n_components,points)
+            dist_min = np.inf
+            for i in range(n_init):
+                if init_choice == 'plus':
+                    means,dist = initialization_plus_plus(self.n_components,points,info=True)
+                elif init_choice == 'kmeans':
+                    means,_,dist = initialization_k_means(self.n_components,points,info=True)
+                    
+                if dist < dist_min:
+                    dist_min = dist
+                    self.means = means
             self.iteration = n_points + 1
 
         if self.init in ['usual','read_kmeans']:
