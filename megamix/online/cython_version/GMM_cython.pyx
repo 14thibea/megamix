@@ -47,7 +47,7 @@ cdef class GaussianMixture(BaseMixture):
         
             
     @cython.initializedcheck(False)
-    def initialize(self, points_py):
+    def initialize(self, points_py, init_choice='plus', n_init=1):
         """
         This method initializes the Gaussian Mixture by setting the values of
         the means, covariances and weights.
