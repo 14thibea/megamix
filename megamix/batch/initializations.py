@@ -29,7 +29,7 @@ def initialization_random(n_components,points):
     assignements : an array (n_points,n_components)
         The hard assignements according to kmeans
         
-    """    
+    """
     n_points,_ = points.shape
     idx = np.random.randint(n_points,size = n_components)
     
@@ -88,6 +88,7 @@ def initialization_plus_plus(n_components,points,info=False):
     """
     from .kmeans import dist_matrix
     
+    points = np.asarray(points)
     dist = None
     n_points,dim = points.shape
     probability_vector = np.arange(n_points)/n_points #All points have the same probability to be chosen the first time
@@ -211,6 +212,7 @@ def initialization_k_means(n_components,points,info=False):
     """
     from .kmeans import Kmeans
     
+    points = np.asarray(points)
     km = Kmeans(n_components)
     km.fit(points)
     assignements = km.predict_assignements(points)
